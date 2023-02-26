@@ -3,19 +3,22 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Linq;
+using System.Collections.Generic;
+using System.Drawing;
 
 namespace SpotlightDimmer
 {
     public partial class MainWindow : Window
     {
-        private static int count = 0;
-
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int GWL_EXSTYLE = (-20);
         private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+        private bool isDebugEnabled = false;
 
         private IntPtr _hook;
         private WinEventDelegate _winEventDelegate;
@@ -62,6 +65,7 @@ namespace SpotlightDimmer
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
 
+            Info.Visibility = isDebugEnabled? Visibility.Visible : Visibility.Hidden;
             Info.Text = "Starting";
 
             // Show the window
@@ -98,7 +102,7 @@ namespace SpotlightDimmer
             {
                 var title = stringBuilder.ToString();
 
-                if(title == "Task Switching")
+                if (title == "Task Switching")
                     return;
 
                 var rect = new RECT();
@@ -107,17 +111,65 @@ namespace SpotlightDimmer
                 int y = rect.top;
                 var position = $"({x},{y})";
 
-                Info.Text = @$"Window focus event received {count++} times.
-    Details:
-                    
-    Window Title={title}
-    Position={position}
-    IdObject={idObject}
-    IdChild={idChild}
-    winEventHook={hWinEventHook}
-    hwnd={hwnd}";
+                var inactiveScreens = GetNonIntersectingScreens(rect, -20);
+                var inactiveScreensName = String.Join(", ", inactiveScreens.Select(screen => screen.DeviceName));
+                var currentInactiveScreen = inactiveScreens.FirstOrDefault();
+
+                if (currentInactiveScreen != null)
+                {
+                    Left = currentInactiveScreen.Bounds.Left;
+                    Top = currentInactiveScreen.Bounds.Top;
+                    Width = currentInactiveScreen.Bounds.Right - currentInactiveScreen.Bounds.Left;
+                    Height = currentInactiveScreen.Bounds.Bottom - currentInactiveScreen.Bounds.Top;
+                }
+
+                Info.Text = @$"Debug details:
+                
+Window Title={title}
+Position={position}
+IdObject={idObject}
+IdChild={idChild}
+winEventHook={hWinEventHook}
+hwnd={hwnd}
+inactiveScreens={inactiveScreensName}
+
+Screens:
+{ScreenDebug()}";
             }
 
+        }
+
+        private static string ScreenDebug()
+        {
+            var stringBuilder = new StringBuilder();
+            foreach (var screen in Screen.AllScreens)
+                stringBuilder.Append($"Screen: {screen.DeviceName}, Top: {screen.Bounds.Top}, Bottom: {screen.Bounds.Bottom}, Left: {screen.Bounds.Left}, Right: {screen.Bounds.Right}\r\n");
+            return stringBuilder.ToString();
+        }
+
+        public static List<Screen> GetNonIntersectingScreens(RECT rect, int sensitivity)
+        {
+            var nonIntersectingScreens = new List<Screen>();
+
+            foreach (var screen in Screen.AllScreens)
+            {
+                Rectangle screenBounds = screen.Bounds;
+
+                // Expand the screen bounds by the sensitivity amount
+                screenBounds.Inflate(sensitivity, sensitivity);
+
+                // Check if the expanded screen intersects with the given rectangle
+                if (screenBounds.IntersectsWith(Rectangle.FromLTRB(rect.left, rect.top, rect.right, rect.bottom)))
+                {
+                    // Screen intersects with the given rectangle
+                    continue;
+                }
+
+                // Screen does not intersect with the given rectangle
+                nonIntersectingScreens.Add(screen);
+            }
+
+            return nonIntersectingScreens;
         }
 
     }
