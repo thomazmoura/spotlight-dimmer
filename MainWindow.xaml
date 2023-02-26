@@ -9,8 +9,8 @@
         Topmost="True"
         Width="Auto" 
         Height="Auto">
-    <Grid Background="#FF000000" Opacity="0.5">
-        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info">
+    <Grid Background="#88000000" Opacity="1">
+        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
         </TextBox>
     </Grid>
 </Window>

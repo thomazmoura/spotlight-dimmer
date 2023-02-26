@@ -27,15 +27,27 @@ namespace SpotlightDimmer
         static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
         // Methods to get focus events
+        private delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
+
         [DllImport("user32.dll")]
         private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
         [DllImport("user32.dll")]
         private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
 
-        private delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
-        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct RECT
+        {
+            public int left;
+            public int top;
+            public int right;
+            public int bottom;
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -46,7 +58,7 @@ namespace SpotlightDimmer
             Top = 0;
             Width = SystemParameters.PrimaryScreenWidth;
             Height = SystemParameters.PrimaryScreenHeight;
-            
+
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
 
@@ -79,23 +91,33 @@ namespace SpotlightDimmer
         private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
             const int nChars = 256;
-            StringBuilder sb = new StringBuilder(nChars);
+            var stringBuilder = new StringBuilder(nChars);
 
-            var titulo = "N/A";
             // get the title of the window
-            if (GetWindowText(hwnd, sb, nChars) > 0)
+            if (GetWindowText(hwnd, stringBuilder, nChars) > 0)
             {
-                titulo = sb.ToString();
+                var title = stringBuilder.ToString();
+
+                if(title == "Task Switching")
+                    return;
+
+                var rect = new RECT();
+                GetWindowRect(hwnd, ref rect);
+                int x = rect.left;
+                int y = rect.top;
+                var position = $"({x},{y})";
+
+                Info.Text = @$"Window focus event received {count++} times.
+    Details:
+                    
+    Window Title={title}
+    Position={position}
+    IdObject={idObject}
+    IdChild={idChild}
+    winEventHook={hWinEventHook}
+    hwnd={hwnd}";
             }
 
-            Info.Text = @$"Window focus event received {count++} times.
-Details:
-                
-Window Title={titulo}
-IdObject={idObject}
-IdChild={idChild}
-winEventHook={hWinEventHook}
-hwnd={hwnd}";
         }
 
     }
