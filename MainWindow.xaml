@@ -1,4 +1,4 @@
-﻿<Window x:Class="SpotlightDimmer.TransparentOverlayWindow"
+﻿<Window x:Class="SpotlightDimmer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SpotlightDimmer"
@@ -10,5 +10,7 @@
         Width="Auto" 
         Height="Auto">
     <Grid Background="#FF000000" Opacity="0.5">
+        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info">
+        </TextBox>
     </Grid>
 </Window>
