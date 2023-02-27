@@ -9,7 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Linq;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Windows.Media;
 
 namespace SpotlightDimmer
 {
@@ -18,7 +18,9 @@ namespace SpotlightDimmer
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int GWL_EXSTYLE = (-20);
         private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+
         private bool isDebugEnabled = false;
+        private string backGroundHex = "88888888";
 
         private IntPtr _hook;
         private WinEventDelegate _winEventDelegate;
@@ -65,6 +67,14 @@ namespace SpotlightDimmer
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
 
+            var backgroundColorIntValue = int.Parse(backGroundHex, System.Globalization.NumberStyles.HexNumber);
+            var backgroundColor = Color.FromArgb(
+                (byte)((backgroundColorIntValue >> 32) & 0xff),
+                (byte)((backgroundColorIntValue >> 16) & 0xff),
+                (byte)((backgroundColorIntValue >> 8) & 0xff),
+                (byte)(backgroundColorIntValue & 0xff)
+            );
+            MainGrid.Background = new SolidColorBrush(backgroundColor);
             Info.Visibility = isDebugEnabled? Visibility.Visible : Visibility.Hidden;
             Info.Text = "Starting";
 
@@ -153,13 +163,13 @@ Screens:
 
             foreach (var screen in Screen.AllScreens)
             {
-                Rectangle screenBounds = screen.Bounds;
+                System.Drawing.Rectangle screenBounds = screen.Bounds;
 
                 // Expand the screen bounds by the sensitivity amount
                 screenBounds.Inflate(sensitivity, sensitivity);
 
                 // Check if the expanded screen intersects with the given rectangle
-                if (screenBounds.IntersectsWith(Rectangle.FromLTRB(rect.left, rect.top, rect.right, rect.bottom)))
+                if (screenBounds.IntersectsWith(System.Drawing.Rectangle.FromLTRB(rect.left, rect.top, rect.right, rect.bottom)))
                 {
                     // Screen intersects with the given rectangle
                     continue;
