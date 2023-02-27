@@ -49,6 +49,10 @@ namespace SpotlightDimmer
         // Methods to get resize events
         private const uint WINEVENT_OUTOFCONTEXT = 0x0000; // Events are ASYNC
         private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetFocus();
 
         public struct RECT
         {
@@ -91,14 +95,14 @@ namespace SpotlightDimmer
         {
             string? isDebugEnabledEnvironmentVariable = System.Environment.GetEnvironmentVariable(_isDebugEnabledEnvironmentVariableName);
             bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
-            Info.Visibility = isDebugEnabled? Visibility.Visible : Visibility.Hidden;
+            Info.Visibility = isDebugEnabled ? Visibility.Visible : Visibility.Hidden;
         }
 
         private void SetOverlayBackground()
         {
             string? _backgroundHexEnvironmentVariable = System.Environment.GetEnvironmentVariable(_backGroundHexEnvironmentVariableName);
             int backgroundColorIntValue;
-            if(String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
+            if (String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
                 backgroundColorIntValue = int.Parse("88888888", System.Globalization.NumberStyles.HexNumber);
             else
                 backgroundColorIntValue = int.Parse(_backgroundHexEnvironmentVariable, System.Globalization.NumberStyles.HexNumber);
@@ -143,7 +147,7 @@ namespace SpotlightDimmer
             {
                 var title = stringBuilder.ToString();
 
-                if (_ignoredWindows.Contains(title))
+                if (_ignoredWindows.Contains(title) || !HasTextFocus(hwnd))
                     return;
 
                 var rect = new RECT();
@@ -211,6 +215,17 @@ Screens:
             }
 
             return nonIntersectingScreens;
+        }
+
+        private bool HasTextFocus(IntPtr windowHandle)
+        {
+            // Check if the window is in the foreground
+            if (windowHandle == GetForegroundWindow())
+            {
+                return true;
+            }
+
+            return false;
         }
 
     }
