@@ -21,8 +21,10 @@ namespace SpotlightDimmer
 
         private readonly string _isDebugEnabledEnvironmentVariableName = "SpotlightDimmer__IsDebugEnabled";
         private readonly string _backGroundHexEnvironmentVariableName = "SpotlightDimmer__BackgroundHex";
+        private readonly string[] _ignoredWindows;
 
-        private readonly IntPtr _hook;
+        private readonly IntPtr _windowsFocusHook;
+        private readonly IntPtr _windowsResizedHook;
         private readonly WinEventDelegate _winEventDelegate;
 
         // Methods to make the window transparent to clicks
@@ -44,7 +46,10 @@ namespace SpotlightDimmer
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
 
-        [StructLayout(LayoutKind.Sequential)]
+        // Methods to get resize events
+        private const uint WINEVENT_OUTOFCONTEXT = 0x0000; // Events are ASYNC
+        private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+
         public struct RECT
         {
             public int left;
@@ -65,9 +70,12 @@ namespace SpotlightDimmer
             Height = SystemParameters.PrimaryScreenHeight;
 
             _winEventDelegate = new WinEventDelegate(WinEventProc);
-            _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
+            _windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
+            _windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
 
             SetOverlayConfiguration();
+
+            _ignoredWindows = new[] { MainDimmerWindow.Title, "Task Switching", "Iniciar", "Pesquisar" };
 
             // Show the window
             Show();
@@ -75,11 +83,11 @@ namespace SpotlightDimmer
 
         private void SetOverlayConfiguration()
         {
-            SetOverlayText();
+            SetOverlayDebugText();
             SetOverlayBackground();
         }
 
-        private void SetOverlayText()
+        private void SetOverlayDebugText()
         {
             string? isDebugEnabledEnvironmentVariable = System.Environment.GetEnvironmentVariable(_isDebugEnabledEnvironmentVariableName);
             bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
@@ -122,7 +130,7 @@ namespace SpotlightDimmer
         {
             base.OnClosing(e);
 
-            UnhookWinEvent(_hook);
+            UnhookWinEvent(_windowsFocusHook);
         }
 
         private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
@@ -135,7 +143,7 @@ namespace SpotlightDimmer
             {
                 var title = stringBuilder.ToString();
 
-                if (title == "Task Switching")
+                if (_ignoredWindows.Contains(title))
                     return;
 
                 var rect = new RECT();
