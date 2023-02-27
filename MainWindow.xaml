@@ -8,7 +8,8 @@
         WindowStyle="None" 
         Topmost="True"
         Width="Auto" 
-        Height="Auto">
+        Height="Auto"
+        Name="MainDimmerWindow">
     <Grid Name="MainGrid">
         <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
         </TextBox>
