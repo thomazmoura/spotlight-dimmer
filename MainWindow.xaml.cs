@@ -19,11 +19,11 @@ namespace SpotlightDimmer
         private const int GWL_EXSTYLE = (-20);
         private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
 
-        private bool isDebugEnabled = false;
-        private string backGroundHex = "88888888";
+        private readonly string _isDebugEnabledEnvironmentVariableName = "SpotlightDimmer__IsDebugEnabled";
+        private readonly string _backGroundHexEnvironmentVariableName = "SpotlightDimmer__BackgroundHex";
 
-        private IntPtr _hook;
-        private WinEventDelegate _winEventDelegate;
+        private readonly IntPtr _hook;
+        private readonly WinEventDelegate _winEventDelegate;
 
         // Methods to make the window transparent to clicks
         [DllImport("user32.dll")]
@@ -67,19 +67,42 @@ namespace SpotlightDimmer
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
 
-            var backgroundColorIntValue = int.Parse(backGroundHex, System.Globalization.NumberStyles.HexNumber);
+            SetOverlayConfiguration();
+
+            // Show the window
+            Show();
+        }
+
+        private void SetOverlayConfiguration()
+        {
+            SetOverlayText();
+            SetOverlayBackground();
+        }
+
+        private void SetOverlayText()
+        {
+            string? isDebugEnabledEnvironmentVariable = System.Environment.GetEnvironmentVariable(_isDebugEnabledEnvironmentVariableName);
+            bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
+            Info.Visibility = isDebugEnabled? Visibility.Visible : Visibility.Hidden;
+        }
+
+        private void SetOverlayBackground()
+        {
+            string? _backgroundHexEnvironmentVariable = System.Environment.GetEnvironmentVariable(_backGroundHexEnvironmentVariableName);
+            int backgroundColorIntValue;
+            if(String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
+                backgroundColorIntValue = int.Parse("88888888", System.Globalization.NumberStyles.HexNumber);
+            else
+                backgroundColorIntValue = int.Parse(_backgroundHexEnvironmentVariable, System.Globalization.NumberStyles.HexNumber);
+
             var backgroundColor = Color.FromArgb(
-                (byte)((backgroundColorIntValue >> 32) & 0xff),
+                (byte)((backgroundColorIntValue >> 24) & 0xff),
                 (byte)((backgroundColorIntValue >> 16) & 0xff),
                 (byte)((backgroundColorIntValue >> 8) & 0xff),
                 (byte)(backgroundColorIntValue & 0xff)
             );
-            MainGrid.Background = new SolidColorBrush(backgroundColor);
-            Info.Visibility = isDebugEnabled? Visibility.Visible : Visibility.Hidden;
-            Info.Text = "Starting";
 
-            // Show the window
-            Show();
+            MainGrid.Background = new SolidColorBrush(backgroundColor);
         }
 
         public static void SetWindowExTransparent(IntPtr hwnd)

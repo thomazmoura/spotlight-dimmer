@@ -9,7 +9,7 @@
         Topmost="True"
         Width="Auto" 
         Height="Auto">
-    <Grid Name="MainGrid" Opacity="1">
+    <Grid Name="MainGrid">
         <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
         </TextBox>
     </Grid>
