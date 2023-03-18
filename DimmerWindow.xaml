@@ -1,0 +1,17 @@
+<Window x:Class="SpotlightDimmer.DimmerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SpotlightDimmer"
+        Title="Spotlight Dimmer" 
+        AllowsTransparency="True" 
+        Background="Transparent"
+        WindowStyle="None"
+        Topmost="True"
+        Width="Auto"
+        Height="Auto"
+        Name="MainDimmerWindow">
+    <Grid Name="MainGrid">
+        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
+        </TextBox>
+    </Grid>
+</Window>

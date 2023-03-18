@@ -3,15 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SpotlightDimmer"
         Title="Spotlight Dimmer" 
-        AllowsTransparency="True" 
-        Background="Transparent"
-        WindowStyle="None" 
-        Topmost="True"
-        Width="Auto" 
-        Height="Auto"
+        WindowStyle="None"
         Name="MainDimmerWindow">
-    <Grid Name="MainGrid">
-        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
-        </TextBox>
+    <Grid Name="MainWindowGrid">
+        <StackPanel Margin="10">
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                <Label Content="Select color:" VerticalAlignment="Center" Margin="0 0 10 0"/>
+                <ColorPicker x:Name="colorPicker" SelectedColor="#FF000000" ShowAlphaChannel="True"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                <CheckBox x:Name="checkBox" Content="Enable" Margin="0 0 10 0"/>
+                <Label Content="Selected color (ARGB):" VerticalAlignment="Center" Margin="0 0 10 0"/>
+                <TextBox x:Name="textBox" IsReadOnly="True" Margin="0" Width="150"/>
+            </StackPanel>
+        </StackPanel>
     </Grid>
 </Window>
