@@ -9,8 +9,9 @@
     <Grid Name="MainWindowGrid">
         <StackPanel Margin="10">
             <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
-                <Label Content="Select color:" VerticalAlignment="Center" Margin="0 0 10 0"/>
-                <wpf:ColorPicker x:Name="colorPicker" SelectedColor="{Binding _dimmerSettings.SelectedColor}" />
+                <wpf:ColorCanvas x:Name="colorPicker" SelectedColorChanged="colorPicker_SelectedColorChanged"
+                    SelectedColor="{Binding _dimmerSettings.SelectedColor, Mode=TwoWay}"
+                    UsingAlphaChannel="True"/>
             </StackPanel>
             <StackPanel Margin="10">
                 <CheckBox Content="Show Debug Info" IsChecked="{Binding IsDebugInfoVisible, Mode=TwoWay}" />

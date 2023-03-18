@@ -20,6 +20,8 @@ namespace SpotlightDimmer.Settings
             get { return _selectedColor; }
             set
             {
+                if (value.A > 225)
+                    value.A = 225;
                 _selectedColor = value;
                 OnPropertyChanged(nameof(SelectedColor));
                 OnPropertyChanged(nameof(SelectedBrush));
