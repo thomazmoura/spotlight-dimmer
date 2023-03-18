@@ -9,6 +9,8 @@
         Topmost="True"
         Width="Auto"
         Height="Auto"
+        IsTabStop="False"
+        ShowInTaskbar="False"
         Name="MainDimmerWindow">
     <Grid Name="MainGrid">
     </Grid>

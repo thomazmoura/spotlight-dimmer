@@ -44,5 +44,11 @@ namespace SpotlightDimmer
             foreach (var childWindow in _dimmerWindows)
                 childWindow.Close();
         }
+
+        private void colorPicker_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<System.Windows.Media.Color?> colorChangedEvent)
+        {
+            if (colorChangedEvent.NewValue.HasValue)
+                _dimmerSettings.SelectedColor = colorChangedEvent.NewValue.Value;
+        }
     }
 }
