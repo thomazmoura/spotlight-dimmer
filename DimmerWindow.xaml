@@ -4,14 +4,12 @@
         xmlns:local="clr-namespace:SpotlightDimmer"
         Title="Spotlight Dimmer" 
         AllowsTransparency="True" 
-        Background="Transparent"
+        Background="{Binding SelectedBrush}"
         WindowStyle="None"
         Topmost="True"
         Width="Auto"
         Height="Auto"
         Name="MainDimmerWindow">
     <Grid Name="MainGrid">
-        <TextBox Background="Transparent" Foreground="White" Name="Info" Text="Just some info" IsReadOnly="true">
-        </TextBox>
     </Grid>
 </Window>

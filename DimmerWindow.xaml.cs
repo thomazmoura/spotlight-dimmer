@@ -10,11 +10,14 @@ using System.Windows.Interop;
 using System.Linq;
 using System.Collections.Generic;
 using System.Windows.Media;
+using SpotlightDimmer.Settings;
 
 namespace SpotlightDimmer
 {
     public partial class DimmerWindow : Window
     {
+        private Screen _screen;
+        private DimmerSettings _dimmerSettings;
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int GWL_EXSTYLE = (-20);
         private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
@@ -62,20 +65,22 @@ namespace SpotlightDimmer
             public int bottom;
         }
 
-        public DimmerWindow()
+        public DimmerWindow(Screen screen, DimmerSettings dimmerSettings)
         {
             InitializeComponent();
 
-            // Set the window position and size here
-            // For example, to make the overlay fill the entire screen:
-            Left = 0;
-            Top = 0;
-            Width = SystemParameters.PrimaryScreenWidth;
-            Height = SystemParameters.PrimaryScreenHeight;
+            _screen = screen;
+            _dimmerSettings = dimmerSettings;
+            DataContext = _dimmerSettings;
+
+            Left = _screen.Bounds.Left;
+            Top = _screen.Bounds.Top;
+            Width = _screen.Bounds.Width;
+            Height = _screen.Bounds.Height;
 
             _winEventDelegate = new WinEventDelegate(WinEventProc);
-            _windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
-            _windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
+            //_windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
+            //_windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
 
             SetOverlayConfiguration();
 
@@ -95,26 +100,26 @@ namespace SpotlightDimmer
         {
             string? isDebugEnabledEnvironmentVariable = System.Environment.GetEnvironmentVariable(_isDebugEnabledEnvironmentVariableName);
             bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
-            Info.Visibility = isDebugEnabled ? Visibility.Visible : Visibility.Hidden;
         }
 
         private void SetOverlayBackground()
         {
-            string? _backgroundHexEnvironmentVariable = System.Environment.GetEnvironmentVariable(_backGroundHexEnvironmentVariableName);
-            int backgroundColorIntValue;
-            if (String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
-                backgroundColorIntValue = int.Parse("88888888", System.Globalization.NumberStyles.HexNumber);
-            else
-                backgroundColorIntValue = int.Parse(_backgroundHexEnvironmentVariable, System.Globalization.NumberStyles.HexNumber);
+            //string? _backgroundHexEnvironmentVariable = System.Environment.GetEnvironmentVariable(_backGroundHexEnvironmentVariableName);
+            //int backgroundColorIntValue;
+            //if (String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
+            //    backgroundColorIntValue = int.Parse("88888888", System.Globalization.NumberStyles.HexNumber);
+            //else
+            //    backgroundColorIntValue = int.Parse(_backgroundHexEnvironmentVariable, System.Globalization.NumberStyles.HexNumber);
 
-            var backgroundColor = Color.FromArgb(
-                (byte)((backgroundColorIntValue >> 24) & 0xff),
-                (byte)((backgroundColorIntValue >> 16) & 0xff),
-                (byte)((backgroundColorIntValue >> 8) & 0xff),
-                (byte)(backgroundColorIntValue & 0xff)
-            );
+            //var backgroundColor = Color.FromArgb(
+            //    (byte)((backgroundColorIntValue >> 24) & 0xff),
+            //    (byte)((backgroundColorIntValue >> 16) & 0xff),
+            //    (byte)((backgroundColorIntValue >> 8) & 0xff),
+            //    (byte)(backgroundColorIntValue & 0xff)
+            //);
 
-            MainGrid.Background = new SolidColorBrush(backgroundColor);
+            //MainGrid.Background = new SolidColorBrush(backgroundColor);
+            //MainGrid.Background = _dimmerSettings.SelectedBrush;
         }
 
         public static void SetWindowExTransparent(IntPtr hwnd)
@@ -168,18 +173,18 @@ namespace SpotlightDimmer
                     Height = currentInactiveScreen.Bounds.Bottom - currentInactiveScreen.Bounds.Top;
                 }
 
-                Info.Text = @$"Debug details:
+//                Info.Text = @$"Debug details:
                 
-Window Title={title}
-Position={position}
-IdObject={idObject}
-IdChild={idChild}
-winEventHook={hWinEventHook}
-hwnd={hwnd}
-inactiveScreens={inactiveScreensName}
+//Window Title={title}
+//Position={position}
+//IdObject={idObject}
+//IdChild={idChild}
+//winEventHook={hWinEventHook}
+//hwnd={hwnd}
+//inactiveScreens={inactiveScreensName}
 
-Screens:
-{ScreenDebug()}";
+//Screens:
+//{ScreenDebug()}";
             }
 
         }
