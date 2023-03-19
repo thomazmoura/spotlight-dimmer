@@ -71,13 +71,9 @@ namespace SpotlightDimmer
                 GetWindowRect(hwnd, ref rect);
                 _state.ActiveWindowInfo = new ActiveWindowInfo(title, rect);
 
-                var inactiveScreens = GetNonIntersectingScreens(rect, -20);
-                _state.UnfocusedScreens = inactiveScreens;
-                //_state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) => {
-                //    if(e.PropertyName == nameof(_state.ActiveWindowInfo))
-                //    _state.DebugInfo = $"The window {_state.ActiveWindowInfo.Title} has been selected";
-                //};
-
+                //var inactiveScreens = GetNonIntersectingScreens(rect, -20);
+                var activeScreen = GetIntersectingScreen(rect, -20);
+                _state.FocusedScreen = activeScreen;
             }
 
         }
@@ -105,6 +101,25 @@ namespace SpotlightDimmer
             }
 
             return nonIntersectingScreens;
+        }
+
+        public static Screen GetIntersectingScreen(RECT rect, int sensitivity)
+        {
+            foreach (var screen in Screen.AllScreens)
+            {
+                System.Drawing.Rectangle screenBounds = screen.Bounds;
+
+                // Expand the screen bounds by the sensitivity amount
+                screenBounds.Inflate(sensitivity, sensitivity);
+
+                // Check if the expanded screen intersects with the given rectangle
+                if (screenBounds.IntersectsWith(System.Drawing.Rectangle.FromLTRB(rect.left, rect.top, rect.right, rect.bottom)))
+                {
+                    return screen;
+                }
+            }
+
+            return Screen.PrimaryScreen;
         }
 
         private bool HasTextFocus(IntPtr windowHandle)

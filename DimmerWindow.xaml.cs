@@ -49,11 +49,16 @@ namespace SpotlightDimmer
         {
             _state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) => 
             {
-                if(e.PropertyName == nameof(_state.UnfocusedScreens))
+                if(e.PropertyName == nameof(_state.FocusedScreen))
                 {
-                    Visibility = _state.UnfocusedScreens.Contains(_screen) ?
-                        Visibility.Visible :
-                        Visibility.Hidden;
+                    if (_state.ActiveWindowInfo.Title == "Spotlight Dimmer")
+                    {
+                        Visibility = Visibility.Visible;
+                        return;
+                    }
+                    Visibility = _state.FocusedScreen == _screen?
+                        Visibility.Hidden :
+                        Visibility.Visible;
                 }
             };
         }
