@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Windows.Media;
 using SpotlightDimmer.Models;
+using System;
 
 namespace SpotlightDimmer
 {
@@ -37,7 +38,7 @@ namespace SpotlightDimmer
             _dimmerWindows = new List<Window>();
             foreach(var screen in Screen.AllScreens)
             {
-                var dimmerWindow = new DimmerWindow(screen, _state);
+                var dimmerWindow = new DimmerWindow(screen, _state, this);
                 dimmerWindow.Show();
                 _dimmerWindows.Add(dimmerWindow);
             }
@@ -46,6 +47,17 @@ namespace SpotlightDimmer
         private void saveSettingsButton_Click(object sender, RoutedEventArgs e)
         {
             _dimmerSettings.SaveSettings();
+        }
+
+        private void Window_Activated(object sender, EventArgs e)
+        {
+            this.Activate();
+            this.Focus();
+        }
+
+        private void DebugInfoTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            DebugInfoTextBox.ScrollToEnd();
         }
 
         private void OnClosing(object sender, CancelEventArgs e)

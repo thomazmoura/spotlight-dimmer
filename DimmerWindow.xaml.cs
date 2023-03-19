@@ -12,6 +12,7 @@ namespace SpotlightDimmer
     public partial class DimmerWindow : Window
     {
         private Screen _screen;
+        private MainWindow _mainWindow;
         private readonly DimmerState _state;
         // Makes the window transparent and unclickable
         private const int WS_EX_TRANSPARENT = 0x00000020;
@@ -26,10 +27,11 @@ namespace SpotlightDimmer
         [DllImport("user32.dll")]
         static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
-        public DimmerWindow(Screen screen, DimmerState state)
+        public DimmerWindow(Screen screen, DimmerState state, MainWindow mainWindow)
         {
             InitializeComponent();
 
+            _mainWindow = mainWindow;
             _screen = screen;
             _state = state;
             DataContext = _state;
@@ -51,11 +53,6 @@ namespace SpotlightDimmer
             {
                 if(e.PropertyName == nameof(_state.FocusedScreen))
                 {
-                    if (_state.ActiveWindowInfo.Title == "Spotlight Dimmer")
-                    {
-                        Visibility = Visibility.Visible;
-                        return;
-                    }
                     Visibility = _state.FocusedScreen == _screen?
                         Visibility.Hidden :
                         Visibility.Visible;
@@ -74,6 +71,11 @@ namespace SpotlightDimmer
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
             SetWindowExTransparent(hwnd);
+        }
+
+        private void ScreenDimmerWindow_Activated(object sender, EventArgs e)
+        {
+            _mainWindow.Activate();
         }
     }
 }

@@ -12,7 +12,6 @@ namespace SpotlightDimmer.Models
 {
     public class DimmerState: INotifyPropertyChanged
     {
-
         public event PropertyChangedEventHandler? PropertyChanged;
         public void OnPropertyChanged(string propertyName)
         {
@@ -25,8 +24,31 @@ namespace SpotlightDimmer.Models
             get { return _debugInfo; }
             set
             {
-                _debugInfo += $"\r\n{value}\r\n______________________\r\n";
+                _debugInfo += $"\r\n\r\n{value}";
                 OnPropertyChanged(nameof(DebugInfo));
+            }
+        }
+
+
+        private bool _verbose = false;
+        public bool Verbose
+        {
+            get { return _verbose; }
+            set
+            {
+                _verbose = value;
+                OnPropertyChanged(nameof(Verbose));
+            }
+        }
+
+        private bool _topMost = false;
+        public bool Topmost
+        {
+            get { return _topMost; }
+            set
+            {
+                _topMost = value;
+                OnPropertyChanged(nameof(Topmost));
             }
         }
 
