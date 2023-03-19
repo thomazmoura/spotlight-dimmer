@@ -1,30 +1,35 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Forms;
-using SpotlightDimmer.Settings;
 using System.Collections.Generic;
+using System.Windows.Media;
+using SpotlightDimmer.Models;
 
 namespace SpotlightDimmer
 {
     public partial class MainWindow : Window
     {
         public DimmerSettings _dimmerSettings;
+        public WindowsEventsManager _dimmerStateManager;
+        public DimmerState _state;
         private List<Window> _dimmerWindows;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            SetTheDimmerSettingsAsDataContext();
+            BuildTheViewModel();
 
             CreateTheDimmerWindows();
             Closing += OnClosing;
         }
 
-        private void SetTheDimmerSettingsAsDataContext()
+        private void BuildTheViewModel()
         {
-            _dimmerSettings = new DimmerSettings();
-            DataContext = _dimmerSettings;
+            _state = new DimmerState();
+            _dimmerStateManager = new WindowsEventsManager(_state);
+            _dimmerSettings = new DimmerSettings(_state);
+            DataContext = _state;
         }
 
         protected void CreateTheDimmerWindows()
@@ -32,27 +37,22 @@ namespace SpotlightDimmer
             _dimmerWindows = new List<Window>();
             foreach(var screen in Screen.AllScreens)
             {
-                var dimmerWindow = new DimmerWindow(screen, _dimmerSettings);
+                var dimmerWindow = new DimmerWindow(screen, _state);
                 dimmerWindow.Show();
                 _dimmerWindows.Add(dimmerWindow);
             }
+        }
+
+        private void saveSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            _dimmerSettings.SaveSettings();
         }
 
         private void OnClosing(object sender, CancelEventArgs e)
         {
             foreach (var childWindow in _dimmerWindows)
                 childWindow.Close();
-        }
-
-        private void colorPicker_SelectedColorChanged(object sender, RoutedPropertyChangedEventArgs<System.Windows.Media.Color?> colorChangedEvent)
-        {
-            if (colorChangedEvent.NewValue.HasValue)
-                _dimmerSettings.SelectedColor = colorChangedEvent.NewValue.Value;
-        }
-
-        private void saveSettingsButton_Click(object sender, RoutedEventArgs e)
-        {
-            _dimmerSettings.SaveSettings();
+            _dimmerStateManager.Dispose();
         }
     }
 }

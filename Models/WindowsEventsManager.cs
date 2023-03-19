@@ -1,32 +1,25 @@
 ﻿
+using SpotlightDimmer.Models;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
-namespace SpotlightDimmer.State
+namespace SpotlightDimmer
 {
-    public class DimmerStateManager
+    public class WindowsEventsManager: IDisposable
     {
-        private const int WS_EX_TRANSPARENT = 0x00000020;
-        private const int GWL_EXSTYLE = (-20);
         private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
 
-        private readonly string _isDebugEnabledEnvironmentVariableName = "SpotlightDimmer__IsDebugEnabled";
-        private readonly string _backGroundHexEnvironmentVariableName = "SpotlightDimmer__BackgroundHex";
         private readonly string[] _ignoredWindows;
+        private readonly DimmerState _state;
 
         private readonly IntPtr _windowsFocusHook;
         private readonly IntPtr _windowsResizedHook;
         private readonly WinEventDelegate _winEventDelegate;
-
-        // Methods to make the window transparent to clicks
-        [DllImport("user32.dll")]
-        static extern int GetWindowLong(IntPtr hwnd, int index);
-        [DllImport("user32.dll")]
-        static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
         // Methods to get focus events
         private delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
@@ -44,6 +37,7 @@ namespace SpotlightDimmer.State
         // Methods to get resize events
         private const uint WINEVENT_OUTOFCONTEXT = 0x0000; // Events are ASYNC
         private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")]
@@ -57,31 +51,15 @@ namespace SpotlightDimmer.State
             public int bottom;
         }
 
-        public DimmerStateManager()
+        public WindowsEventsManager(DimmerState state)
         {
+            _state = state;
             _ignoredWindows = new[] { "Task Switching", "Iniciar", "Pesquisar" };
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
             _windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
         }
-
-        private void SetOverlayConfiguration()
-        {
-            SetOverlayDebugText();
-        }
-
-        private void SetOverlayDebugText()
-        {
-            string? isDebugEnabledEnvironmentVariable = System.Environment.GetEnvironmentVariable(_isDebugEnabledEnvironmentVariableName);
-            bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
-        }
-
-
-        public static void SetWindowExTransparent(IntPtr hwnd)
-        {
-            var extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            _ = SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TRANSPARENT);
-        }
+        
 
         private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
         {
@@ -103,31 +81,9 @@ namespace SpotlightDimmer.State
                 var position = $"({x},{y})";
 
                 var inactiveScreens = GetNonIntersectingScreens(rect, -20);
-                var inactiveScreensName = String.Join(", ", inactiveScreens.Select(screen => screen.DeviceName));
-                var currentInactiveScreen = inactiveScreens.FirstOrDefault();
-
-//                Info.Text = @$"Debug details:
-                
-//Window Title={title}
-//Position={position}
-//IdObject={idObject}
-//IdChild={idChild}
-//winEventHook={hWinEventHook}
-//hwnd={hwnd}
-//inactiveScreens={inactiveScreensName}
-
-//Screens:
-//{ScreenDebug()}";
+                _state.UnfocusedScreens = inactiveScreens;
             }
 
-        }
-
-        private static string ScreenDebug()
-        {
-            var stringBuilder = new StringBuilder();
-            foreach (var screen in Screen.AllScreens)
-                stringBuilder.Append($"Screen: {screen.DeviceName}, Top: {screen.Bounds.Top}, Bottom: {screen.Bounds.Bottom}, Left: {screen.Bounds.Left}, Right: {screen.Bounds.Right}\r\n");
-            return stringBuilder.ToString();
         }
 
         public static List<Screen> GetNonIntersectingScreens(RECT rect, int sensitivity)
@@ -166,5 +122,10 @@ namespace SpotlightDimmer.State
             return false;
         }
 
+        public void Dispose()
+        {
+            UnhookWinEvent(_windowsFocusHook);
+            UnhookWinEvent(_windowsResizedHook);
+        }
     }
 }

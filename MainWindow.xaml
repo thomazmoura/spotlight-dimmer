@@ -9,17 +9,17 @@
         Name="MainDimmerWindow">
     <Grid Name="MainWindowGrid">
         <StackPanel Orientation="Horizontal" Margin="10">
-            <StackPanel Orientation="Vertical" Margin="10">
+            <StackPanel Orientation="Vertical" Margin="10" Name="SettingsPanel">
                 <Label Content="Select color:" VerticalAlignment="Center" Margin="0 0 10 0"/>
                 <wpf:ColorCanvas x:Name="colorPicker"
                     SelectedColor="{Binding SelectedColor, Mode=TwoWay}"
                     UsingAlphaChannel="True"/>
                 <Button Name="saveSettingsButton" Click="saveSettingsButton_Click" Content="Save setttings"></Button>
             </StackPanel>
-            <StackPanel Orientation="Vertical" Margin="10">
-                <Label Content="Debug Info:" Visibility="{Binding DebugInfoVisibility}" />
-                <TextBox IsReadOnly="True" IsEnabled="False" Text="{Binding DebugInfo}" Visibility="{Binding DebugInfoVisibility}"
-                         Width="300" Height="300"/>
+            <StackPanel Orientation="Vertical" Margin="10" Name="DebugPanel">
+                <Label Content="Debug Info:" />
+                <TextBox IsReadOnly="True" IsEnabled="False" Text="{Binding DebugInfo}"
+                         Width="300" Height="300" TextWrapping="Wrap"/>
             </StackPanel>
         </StackPanel>
     </Grid>
