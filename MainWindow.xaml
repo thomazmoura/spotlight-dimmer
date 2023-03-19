@@ -8,7 +8,12 @@
         SizeToContent="WidthAndHeight"
         Name="MainDimmerWindow">
     <Grid Name="MainWindowGrid">
-        <StackPanel Orientation="Horizontal" Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="33*"/>
+            <ColumnDefinition Width="16*"/>
+            <ColumnDefinition Width="17*"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel Orientation="Horizontal" Margin="10,10,10,10" Grid.ColumnSpan="3">
             <StackPanel Orientation="Vertical" Margin="10" Name="SettingsPanel">
                 <Label Content="Select color:" VerticalAlignment="Center" Margin="0 0 10 0"/>
                 <wpf:ColorCanvas x:Name="colorPicker"
@@ -18,8 +23,16 @@
             </StackPanel>
             <StackPanel Orientation="Vertical" Margin="10" Name="DebugPanel">
                 <Label Content="Debug Info:" />
-                <TextBox IsReadOnly="True" IsEnabled="False" Text="{Binding DebugInfo}"
-                         Width="300" Height="300" TextWrapping="Wrap"/>
+                <TextBox IsReadOnly="True" Text="{Binding DebugInfo, Mode=OneWay}"
+                         Width="300" Height="300" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" Margin="10" Name="WindowsPanel">
+                <Label Content="Inactive screens:" />
+                <TextBox IsReadOnly="True" IsEnabled="False" Text="{Binding UnfocusedScreenNames, Mode=OneWay}"
+                         Width="300" Height="35" TextWrapping="Wrap"/>
+                <Label Content="Active window info:" />
+                <TextBox IsReadOnly="True" IsEnabled="False" Text="{Binding ActiveWindowInfo, Mode=OneWay}"
+                         Width="300" Height="235" TextWrapping="Wrap"/>
             </StackPanel>
         </StackPanel>
     </Grid>
