@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel;
 using System.Windows;
-using System.Runtime.CompilerServices;
 using System.Windows.Forms;
 using SpotlightDimmer.Settings;
 using System.Collections.Generic;
@@ -49,6 +48,11 @@ namespace SpotlightDimmer
         {
             if (colorChangedEvent.NewValue.HasValue)
                 _dimmerSettings.SelectedColor = colorChangedEvent.NewValue.Value;
+        }
+
+        private void saveSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            _dimmerSettings.SaveSettings();
         }
     }
 }

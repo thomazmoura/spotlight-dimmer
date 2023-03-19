@@ -93,7 +93,6 @@ namespace SpotlightDimmer
         private void SetOverlayConfiguration()
         {
             SetOverlayDebugText();
-            SetOverlayBackground();
         }
 
         private void SetOverlayDebugText()
@@ -102,25 +101,6 @@ namespace SpotlightDimmer
             bool isDebugEnabled = !String.IsNullOrWhiteSpace(isDebugEnabledEnvironmentVariable) && bool.Parse(isDebugEnabledEnvironmentVariable);
         }
 
-        private void SetOverlayBackground()
-        {
-            //string? _backgroundHexEnvironmentVariable = System.Environment.GetEnvironmentVariable(_backGroundHexEnvironmentVariableName);
-            //int backgroundColorIntValue;
-            //if (String.IsNullOrWhiteSpace(_backgroundHexEnvironmentVariable))
-            //    backgroundColorIntValue = int.Parse("88888888", System.Globalization.NumberStyles.HexNumber);
-            //else
-            //    backgroundColorIntValue = int.Parse(_backgroundHexEnvironmentVariable, System.Globalization.NumberStyles.HexNumber);
-
-            //var backgroundColor = Color.FromArgb(
-            //    (byte)((backgroundColorIntValue >> 24) & 0xff),
-            //    (byte)((backgroundColorIntValue >> 16) & 0xff),
-            //    (byte)((backgroundColorIntValue >> 8) & 0xff),
-            //    (byte)(backgroundColorIntValue & 0xff)
-            //);
-
-            //MainGrid.Background = new SolidColorBrush(backgroundColor);
-            //MainGrid.Background = _dimmerSettings.SelectedBrush;
-        }
 
         public static void SetWindowExTransparent(IntPtr hwnd)
         {
