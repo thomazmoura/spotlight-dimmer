@@ -11,7 +11,8 @@
         Height="Auto"
         IsTabStop="False"
         ShowInTaskbar="False"
-        Name="MainDimmerWindow">
+        Activated="ScreenDimmerWindow_Activated"
+        Name="ScreenDimmerWindow">
     <Grid Name="MainGrid">
     </Grid>
 </Window>

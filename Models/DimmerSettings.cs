@@ -1,5 +1,6 @@
 ﻿using SpotlightDimmer.Models;
 using System;
+using System.Linq;
 using System.ComponentModel;
 using System.Configuration;
 using System.Windows;
@@ -17,6 +18,8 @@ namespace SpotlightDimmer
             _state = state;
             _configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             _state.SelectedColor = GetColorFromSettings();
+            _state.Topmost = GetTopmostFromSettings();
+            _state.DebugInfo = $"Saved Settings: \r\n{GetSavedSettings()}";
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -52,6 +55,29 @@ namespace SpotlightDimmer
             }
         }
 
+        private string GetSavedSettings()
+        {
+            var savedSettings = _configuration.AppSettings.Settings.AllKeys.Select(key => $"({key}: {_configuration.AppSettings.Settings[key]})");
+            return String.Join(", ", savedSettings);
+        }
+
+        public bool GetTopmostFromSettings()
+        {
+            var fallbackValue = false;
+            try
+            {
+                string? topMostSettings = _configuration.AppSettings?.Settings["Topmost"]?.Value;
+                topMostSettings ??= fallbackValue.ToString();
+
+                return bool.Parse(topMostSettings);
+            }
+            catch (Exception ex)
+            {
+                _state.DebugInfo = ex.ToString();
+                return fallbackValue;
+            }
+        }
+
         public string CurrentSavedColor => _configuration.AppSettings.Settings["BackgroundHex"] != null?
             $"#{_configuration.AppSettings.Settings["BackgroundHex"].Value}":
             "No saved configuration found";
@@ -61,14 +87,21 @@ namespace SpotlightDimmer
             _state.DebugInfo = "Saving settings";
             try
             {
+
                 if (_configuration.AppSettings.Settings["BackgroundHex"] == null)
                     _configuration.AppSettings.Settings.Add("BackgroundHex", _state.SelectedColor.ToString().Replace("#", String.Empty));
                 else
                     _configuration.AppSettings.Settings["BackgroundHex"].Value = _state.SelectedColor.ToString().Replace("#", String.Empty);
+
+                if (_configuration.AppSettings.Settings["Topmost"] == null)
+                    _configuration.AppSettings.Settings.Add("Topmost", _state.Topmost.ToString());
+                else
+                    _configuration.AppSettings.Settings["Topmost"].Value = _state.Topmost.ToString();
+
                 _configuration.Save(ConfigurationSaveMode.Full);
                 ConfigurationManager.RefreshSection("appSettings");
-                OnPropertyChanged(nameof(CurrentSavedColor));
-                _state.DebugInfo = $"Settings saved successfuly.\r\nSaved color: {_state.SelectedColor}";
+
+                _state.DebugInfo = $"Settings saved successfuly.\r\nSaved color: {_state.SelectedColor}\r\nTopmost: {_state.Topmost}";
             }
             catch (Exception ex)
             {
