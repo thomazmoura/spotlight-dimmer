@@ -30,18 +30,18 @@ namespace SpotlightDimmer.Models
             }
         }
 
-        private IEnumerable<Screen> _unfocusedScreens = Enumerable.Empty<Screen>();
-        public IEnumerable<Screen> UnfocusedScreens
+        private Screen _focusedScreen = Screen.PrimaryScreen;
+        public Screen FocusedScreen
         {
-            get => _unfocusedScreens;
+            get => _focusedScreen;
             set
             {
-                _unfocusedScreens = value;
-                OnPropertyChanged(nameof(UnfocusedScreens));
-                OnPropertyChanged(nameof(UnfocusedScreenNames));
+                _focusedScreen = value;
+                OnPropertyChanged(nameof(FocusedScreen));
+                OnPropertyChanged(nameof(FocusedScreenName));
             }
         }
-        public string UnfocusedScreenNames => String.Join(", ", UnfocusedScreens.Select(screen => screen.DeviceName).ToList());
+        public string FocusedScreenName => FocusedScreen.DeviceName;
 
         private bool _isDebugInfoVisible;
         private Color? _selectedColor;
