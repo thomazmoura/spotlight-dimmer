@@ -43,13 +43,6 @@ namespace SpotlightDimmer
         [DllImport("user32.dll")]
         private static extern IntPtr GetFocus();
 
-        public struct RECT
-        {
-            public int left;
-            public int top;
-            public int right;
-            public int bottom;
-        }
 
         public WindowsEventsManager(DimmerState state)
         {
@@ -76,12 +69,15 @@ namespace SpotlightDimmer
 
                 var rect = new RECT();
                 GetWindowRect(hwnd, ref rect);
-                int x = rect.left;
-                int y = rect.top;
-                var position = $"({x},{y})";
+                _state.ActiveWindowInfo = new ActiveWindowInfo(title, rect);
 
                 var inactiveScreens = GetNonIntersectingScreens(rect, -20);
                 _state.UnfocusedScreens = inactiveScreens;
+                //_state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) => {
+                //    if(e.PropertyName == nameof(_state.ActiveWindowInfo))
+                //    _state.DebugInfo = $"The window {_state.ActiveWindowInfo.Title} has been selected";
+                //};
+
             }
 
         }

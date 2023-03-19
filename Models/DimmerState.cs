@@ -41,7 +41,7 @@ namespace SpotlightDimmer.Models
                 OnPropertyChanged(nameof(UnfocusedScreenNames));
             }
         }
-        public string UnfocusedScreenNames => String.Join(", ", UnfocusedScreens.Select(screen => screen.DeviceName));
+        public string UnfocusedScreenNames => String.Join(", ", UnfocusedScreens.Select(screen => screen.DeviceName).ToList());
 
         private bool _isDebugInfoVisible;
         private Color? _selectedColor;
@@ -73,5 +73,26 @@ namespace SpotlightDimmer.Models
             }
         }
         public Visibility DebugInfoVisibility => IsDebugInfoVisible ? Visibility.Visible : Visibility.Collapsed;
+
+        private ActiveWindowInfo? _activeWindowInfo;
+        public ActiveWindowInfo ActiveWindowInfo
+        {
+            get {
+                return _activeWindowInfo?? new ActiveWindowInfo("Indefinido", new RECT());
+            }
+            set
+            {
+                _activeWindowInfo = value;
+                OnPropertyChanged(nameof(ActiveWindowInfo));
+            }
+        }
+    }
+
+    public record ActiveWindowInfo(string Title, RECT BoundsRectangle)
+    {
+        public override string ToString()
+        {
+            return $"Title: {Title}\r\n\r\nBounds:\r\nLeft:{BoundsRectangle.left}\r\nTop:{BoundsRectangle.top}\r\nRight:{BoundsRectangle.right}\r\nBottom:{BoundsRectangle.bottom}";
+        }
     }
 }

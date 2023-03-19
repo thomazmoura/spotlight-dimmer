@@ -1,5 +1,7 @@
 ﻿using SpotlightDimmer.Models;
 using System;
+using System.ComponentModel;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Forms;
@@ -37,8 +39,23 @@ namespace SpotlightDimmer
             Width = _screen.Bounds.Width;
             Height = _screen.Bounds.Height;
 
+            SetVisibilityRelatedToFocus();
+
             // Show the window
             Show();
+        }
+
+        public void SetVisibilityRelatedToFocus()
+        {
+            _state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) => 
+            {
+                if(e.PropertyName == nameof(_state.UnfocusedScreens))
+                {
+                    Visibility = _state.UnfocusedScreens.Contains(_screen) ?
+                        Visibility.Visible :
+                        Visibility.Hidden;
+                }
+            };
         }
 
         public static void SetWindowExTransparent(IntPtr hwnd)
