@@ -47,7 +47,7 @@ namespace SpotlightDimmer
         public WindowsEventsManager(DimmerState state)
         {
             _state = state;
-            _ignoredWindows = new[] { "Task Switching", "Iniciar", "Pesquisar" };
+            _ignoredWindows = new string[] {};
             _winEventDelegate = new WinEventDelegate(WinEventProc);
             _windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
             _windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
