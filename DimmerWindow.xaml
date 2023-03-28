@@ -12,6 +12,7 @@
         IsTabStop="False"
         ShowInTaskbar="False"
         Activated="ScreenDimmerWindow_Activated"
+        ShowActivated="False"
         Name="ScreenDimmerWindow">
     <Grid Name="MainGrid">
     </Grid>
