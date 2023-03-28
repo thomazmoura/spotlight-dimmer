@@ -9,6 +9,7 @@
         Name="MainDimmerWindow"
         Topmost="{Binding Topmost, Mode=OneWay}"
         Activated="Window_Activated"
+        ShowActivated="False"
         >
     <Grid Name="MainWindowGrid">
         <StackPanel Orientation="Horizontal" Margin="10,10,10,10" Grid.ColumnSpan="3">
