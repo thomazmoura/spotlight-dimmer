@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
     <PublishSingleFile>true</PublishSingleFile>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
