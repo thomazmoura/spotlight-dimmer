@@ -14,8 +14,8 @@ Feature List (✔ is working, 📅 is planned and ❓is wish that might eventual
 ✔ - Support for different sized monitors
 ✔ - Color and transparency customization
 ✔ - Optional persistence of chosen colors and transparency
+✔ - Minimizing to tray
 📅 - Support for changing number of monitors
-📅 - Minimizing to tray
 📅 - Pipeline for updating releases automatically
 ❓ - Installation from winget
 ❓ - Option to temporarily follow mouse position on cursor movement instead of focused window (would help with realizing where the mouse is when you have to resort to it)
