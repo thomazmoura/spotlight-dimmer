@@ -20,3 +20,6 @@ Feature List (✔ is working, 📅 is planned and ❓is wish that might eventual
 ❓ - Installation from winget
 ❓ - Option to temporarily follow mouse position on cursor movement instead of focused window (would help with realizing where the mouse is when you have to resort to it)
 
+Icon credits
+
+"Light Bulb or Idea Flat Icon Vector" by VideoPlasty is licensed under CC BY-SA 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/?ref=openverse.
