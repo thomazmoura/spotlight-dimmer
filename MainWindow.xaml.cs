@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Windows.Media;
 using SpotlightDimmer.Models;
 using System;
+using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 
 namespace SpotlightDimmer
 {
@@ -20,10 +22,9 @@ namespace SpotlightDimmer
         {
             InitializeComponent();
 
+            SetApplicationIcon();
             BuildTheViewModel();
-
-            SetTheIconAndMinimizeToTrayOptions();
-
+            SetMinimizeToTrayOptions();
             CreateTheDimmerWindows();
             Closing += OnClosing;
         }
@@ -47,12 +48,23 @@ namespace SpotlightDimmer
             }
         }
 
-        private void SetTheIconAndMinimizeToTrayOptions()
+        private void SetApplicationIcon()
+        {
+            var icon = GetSpotlightDimmerIcon();
+            var handle = icon.Handle;
+            this.Icon = Imaging.CreateBitmapSourceFromHIcon(handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+        }
+
+        private void SetMinimizeToTrayOptions()
         {
             // Create the NotifyIcon object
             _notifyIcon = new NotifyIcon();
-            _notifyIcon.Icon = new System.Drawing.Icon("icon.ico");
+            _notifyIcon.Icon = GetSpotlightDimmerIcon();
             _notifyIcon.Text = "Spotlight Dimmer";
+
+            _notifyIcon.BalloonTipText = "The application is still running on the system tray. Click here to open it again";
+            _notifyIcon.BalloonTipTitle = "Spotlight Dimmer";
+            _notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
 
             _notifyIcon.Visible = true;
 
@@ -60,7 +72,7 @@ namespace SpotlightDimmer
             this.StateChanged += MainWindow_StateChanged;
 
             // Handle the DoubleClick event of the NotifyIcon
-            _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+            _notifyIcon.Click += NotifyIcon_Click;
         }
 
         private void saveSettingsButton_Click(object? sender, RoutedEventArgs e)
@@ -77,16 +89,15 @@ namespace SpotlightDimmer
 
         private void MainWindow_StateChanged(object? sender, System.EventArgs e)
         {
-            if (WindowState == WindowState.Minimized)
+            if (WindowState == WindowState.Minimized && _state.MinimizeToTray)
             {
-                // Hide the window and show the NotifyIcon
                 Hide();
+                _notifyIcon.ShowBalloonTip((int)TimeSpan.FromSeconds(5).TotalMilliseconds);
             }
         }
 
-        private void NotifyIcon_DoubleClick(object? sender, System.EventArgs e)
+        private void NotifyIcon_Click(object? sender, System.EventArgs e)
         {
-            // Show the window again
             Show();
             this.Activate();
             this.Focus();
@@ -104,8 +115,13 @@ namespace SpotlightDimmer
                 childWindow.Close();
             _dimmerStateManager.Dispose();
 
-            // Dispose the NotifyIcon object
             _notifyIcon.Dispose();
+        }
+
+        private System.Drawing.Icon GetSpotlightDimmerIcon()
+        {
+            using var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("SpotlightDimmer.ico");
+            return new System.Drawing.Icon(stream);
         }
     }
 }
