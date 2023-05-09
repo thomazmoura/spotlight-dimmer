@@ -52,6 +52,17 @@ namespace SpotlightDimmer.Models
             }
         }
 
+        private bool _minimizeToTray = false;
+        public bool MinimizeToTray
+        {
+            get { return _minimizeToTray; }
+            set
+            {
+                _minimizeToTray = value;
+                OnPropertyChanged(nameof(MinimizeToTray));
+            }
+        }
+
         private Screen _focusedScreen = Screen.PrimaryScreen;
         public Screen FocusedScreen
         {
