@@ -19,6 +19,7 @@ namespace SpotlightDimmer
             _configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             _state.SelectedColor = GetColorFromSettings();
             _state.Topmost = GetTopmostFromSettings();
+            _state.MinimizeToTray = GetMinimizeToTrayFromSettings();
             _state.DebugInfo = $"Saved Settings: \r\n{GetSavedSettings()}";
         }
 
@@ -78,6 +79,23 @@ namespace SpotlightDimmer
             }
         }
 
+        public bool GetMinimizeToTrayFromSettings()
+        {
+            var fallbackValue = true;
+            try
+            {
+                string? minimizeToTray = _configuration.AppSettings?.Settings["MinimizeToTray"]?.Value;
+                minimizeToTray ??= fallbackValue.ToString();
+
+                return bool.Parse(minimizeToTray);
+            }
+            catch (Exception ex)
+            {
+                _state.DebugInfo = ex.ToString();
+                return fallbackValue;
+            }
+        }
+
         public string CurrentSavedColor => _configuration.AppSettings.Settings["BackgroundHex"] != null?
             $"#{_configuration.AppSettings.Settings["BackgroundHex"].Value}":
             "No saved configuration found";
@@ -98,10 +116,15 @@ namespace SpotlightDimmer
                 else
                     _configuration.AppSettings.Settings["Topmost"].Value = _state.Topmost.ToString();
 
+                if (_configuration.AppSettings.Settings["MinimizeToTray"] == null)
+                    _configuration.AppSettings.Settings.Add("MinimizeToTray", _state.MinimizeToTray.ToString());
+                else
+                    _configuration.AppSettings.Settings["MinimizeToTray"].Value = _state.MinimizeToTray.ToString();
+
                 _configuration.Save(ConfigurationSaveMode.Full);
                 ConfigurationManager.RefreshSection("appSettings");
 
-                _state.DebugInfo = $"Settings saved successfuly.\r\nSaved color: {_state.SelectedColor}\r\nTopmost: {_state.Topmost}";
+                _state.DebugInfo = $"Settings saved successfuly.\r\nSaved color: {_state.SelectedColor}\r\nTopmost: {_state.Topmost}\r\nMinimizeToTray: {_state.MinimizeToTray}";
             }
             catch (Exception ex)
             {
