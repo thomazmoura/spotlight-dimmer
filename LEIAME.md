@@ -14,8 +14,8 @@ Lista de Recursos (✔ são recursos já funcionais, 📅 são recursos planejad
 ✔ - Suporte a monitores de diferentes tamanhos
 ✔ - Personalização de cores e transparência
 ✔ - Persistência opcional para cores e transparência
+✔ - Minimizar para a bandeja
 📅 - Suporte para mudar a quantidade de monitores
-📅 - Minimizar para a bandeja
 📅 - Esteira automatizada para distribuição de novas versões
 ❓ - Instalação a partir do NuGet
 ❓ - Opção para rastrear temporariamente o movimento do mouse ao invés da janela focada (ajudaria a identificar onde está o mouse quando você tem que recorrer a ele)
