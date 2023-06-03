@@ -15,6 +15,8 @@ Feature List (✔ is working, 📅 is planned and ❓is wish that might eventual
 ✔ - Color and transparency customization
 ✔ - Optional persistence of chosen colors and transparency
 ✔ - Minimizing to tray
+📅 - Start minimized
+📅 - Enable and disable the dimmers dinamically
 📅 - Support for changing number of monitors
 📅 - Pipeline for updating releases automatically
 ❓ - Installation from winget

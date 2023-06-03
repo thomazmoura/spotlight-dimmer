@@ -15,6 +15,8 @@ Lista de Recursos (✔ são recursos já funcionais, 📅 são recursos planejad
 ✔ - Personalização de cores e transparência
 ✔ - Persistência opcional para cores e transparência
 ✔ - Minimizar para a bandeja
+📅 - Inicializar minimizado
+📅 - Habilitar e desabilitar os ofuscadores dinamicamente
 📅 - Suporte para mudar a quantidade de monitores
 📅 - Esteira automatizada para distribuição de novas versões
 ❓ - Instalação a partir do NuGet
