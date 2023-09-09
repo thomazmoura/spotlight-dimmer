@@ -44,6 +44,10 @@ namespace SpotlightDimmer
         private static extern IntPtr GetFocus();
 
 
+        /// <summary>
+        /// This class is responsible for managing interaction with the Windows APIs for things such as reacting when programs change focus or are moved.
+        /// </summary>
+        /// <param name="state">The state of the program so it can update it's state in reaction to windows events.</param>
         public WindowsEventsManager(DimmerState state)
         {
             _state = state;
