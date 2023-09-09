@@ -1,8 +1,5 @@
-﻿using System.ComponentModel;
-using System.Windows;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using System.Collections.Generic;
-using System.Windows.Media;
 using SpotlightDimmer.Models;
 using System;
 using System.Windows.Interop;
