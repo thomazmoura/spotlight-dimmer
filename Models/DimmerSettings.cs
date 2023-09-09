@@ -13,6 +13,10 @@ namespace SpotlightDimmer
         private readonly Configuration _configuration;
         private readonly DimmerState _state;
 
+        /// <summary>
+        /// This class is responsible for both persisting and retriving the program local settings.
+        /// </summary>
+        /// <param name="state">The current system state so it can update it's state based on the settings. </param>
         public DimmerSettings(DimmerState state)
         {
             _state = state;
