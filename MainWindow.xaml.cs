@@ -12,7 +12,7 @@ namespace SpotlightDimmer
         public DimmerSettings _dimmerSettings;
         public WindowsEventsManager _dimmerStateManager;
         public DimmerState _state;
-        private List<Window> _dimmerWindows;
+        private Dictionary<string, Window> _dimmerWindowsByScreen;
         private NotifyIcon _notifyIcon;
 
         public MainWindow()
@@ -36,12 +36,23 @@ namespace SpotlightDimmer
 
         protected void CreateTheDimmerWindows()
         {
-            _dimmerWindows = new List<Window>();
-            foreach(var screen in Screen.AllScreens)
+            _dimmerWindowsByScreen ??= new Dictionary<string, Window>();
+
+            foreach (var dimmerWindow in _dimmerWindowsByScreen.Values)
+                dimmerWindow.Hide();
+
+            foreach (var screen in Screen.AllScreens)
             {
-                var dimmerWindow = new DimmerWindow(screen, _state, this);
-                dimmerWindow.Show();
-                _dimmerWindows.Add(dimmerWindow);
+                if (!_dimmerWindowsByScreen.ContainsKey(screen.DeviceName))
+                {
+                    var dimmerWindow = new DimmerWindow(screen, _state, this);
+                    _dimmerWindowsByScreen.Add(screen.DeviceName, dimmerWindow);
+                    dimmerWindow.Show();
+                }
+                else
+                {
+                    _dimmerWindowsByScreen[screen.DeviceName].Show();
+                }
             }
         }
 
@@ -72,7 +83,7 @@ namespace SpotlightDimmer
             _notifyIcon.Click += NotifyIcon_Click;
         }
 
-        private void saveSettingsButton_Click(object? sender, RoutedEventArgs e)
+        private void SaveSettingsButton_Click(object? sender, RoutedEventArgs e)
         {
             _dimmerSettings.SaveSettings();
         }
@@ -108,10 +119,10 @@ namespace SpotlightDimmer
 
         private void OnClosing(object? sender, CancelEventArgs e)
         {
-            foreach (var childWindow in _dimmerWindows)
+            foreach (var childWindow in _dimmerWindowsByScreen.Values)
                 childWindow.Close();
-            _dimmerStateManager.Dispose();
 
+            _dimmerStateManager.Dispose();
             _notifyIcon.Dispose();
         }
 

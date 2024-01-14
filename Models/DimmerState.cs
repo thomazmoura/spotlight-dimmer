@@ -3,7 +3,7 @@ using Color = System.Windows.Media.Color;
 
 namespace SpotlightDimmer.Models;
 
-public class DimmerState: INotifyPropertyChanged
+public class DimmerState : INotifyPropertyChanged
 {
     public event PropertyChangedEventHandler? PropertyChanged;
     public void OnPropertyChanged(string propertyName)
@@ -67,7 +67,7 @@ public class DimmerState: INotifyPropertyChanged
         get { return _startMinimized; }
         set
         {
-            _startMinimized= value;
+            _startMinimized = value;
             OnPropertyChanged(nameof(StartMinimized));
         }
     }
@@ -89,8 +89,9 @@ public class DimmerState: INotifyPropertyChanged
     private Color? _selectedColor;
     public Color SelectedColor
     {
-        get {
-            return _selectedColor?? Color.FromArgb(0, 0, 0, 0);
+        get
+        {
+            return _selectedColor ?? Color.FromArgb(0, 0, 0, 0);
         }
         set
         {
@@ -119,8 +120,9 @@ public class DimmerState: INotifyPropertyChanged
     private ActiveWindowInfo? _activeWindowInfo;
     public ActiveWindowInfo ActiveWindowInfo
     {
-        get {
-            return _activeWindowInfo?? new ActiveWindowInfo("Indefinido", new RECT());
+        get
+        {
+            return _activeWindowInfo ?? new ActiveWindowInfo("Indefinido", new RECT());
         }
         set
         {
