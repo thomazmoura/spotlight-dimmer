@@ -1,6 +1,6 @@
 ﻿namespace SpotlightDimmer.Models;
 
-public class WindowsEventsManager: IDisposable
+public class WindowsEventsManager : IDisposable
 {
     private const int NChars = 256;
     private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
@@ -47,7 +47,7 @@ public class WindowsEventsManager: IDisposable
         _windowsFocusHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, _winEventDelegate, 0, 0, 0);
         _windowsResizedHook = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, IntPtr.Zero, _winEventDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
     }
-        
+
 
     private void WinEventProc(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
@@ -61,19 +61,19 @@ public class WindowsEventsManager: IDisposable
 
         var title = stringBuilder.ToString();
 
-        if(_state.Verbose)
+        if (_state.Verbose)
             _state.DebugInfo = $"Running event {eventType} on title {title} on hwnd {hwnd} with idObject {idObject} and idChild {idChild}";
 
         if (_ignoredWindows.Contains(title))
         {
-            if(_state.Verbose)
+            if (_state.Verbose)
                 _state.DebugInfo = $"Skipping ignored window {title}";
             return;
         }
 
         if (!HasFocus(hwnd))
         {
-            if(_state.Verbose)
+            if (_state.Verbose)
                 _state.DebugInfo = $"Skipping by lack of focus the window {title}";
             return;
         }
@@ -82,7 +82,7 @@ public class WindowsEventsManager: IDisposable
         GetWindowRect(hwnd, ref rect);
 
 
-        if (_state.ActiveWindowInfo.Title == title && 
+        if (_state.ActiveWindowInfo.Title == title &&
             rect.left == _state.ActiveWindowInfo.BoundsRectangle.left &&
             rect.right == _state.ActiveWindowInfo.BoundsRectangle.right &&
             rect.top == _state.ActiveWindowInfo.BoundsRectangle.top &&
@@ -92,7 +92,6 @@ public class WindowsEventsManager: IDisposable
         _state.ActiveWindowInfo = new ActiveWindowInfo(title, rect);
         _state.DebugInfo = $"Activating {title} on hwnd {hwnd} and event {eventType}";
 
-        //var inactiveScreens = GetNonIntersectingScreens(rect, -20);
         var activeScreen = GetIntersectingScreen(rect, -20);
         _state.FocusedScreen = activeScreen;
     }

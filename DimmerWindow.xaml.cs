@@ -8,8 +8,8 @@ namespace SpotlightDimmer
 {
     public partial class DimmerWindow : Window
     {
-        private Screen _screen;
-        private MainWindow _mainWindow;
+        private readonly string _screenDeviceName;
+        private readonly MainWindow _mainWindow;
         private readonly DimmerState _state;
         // Makes the window transparent and unclickable
         private const int WS_EX_TRANSPARENT = 0x00000020;
@@ -29,32 +29,39 @@ namespace SpotlightDimmer
             InitializeComponent();
 
             _mainWindow = mainWindow;
-            _screen = screen;
+            _screenDeviceName = screen.DeviceName;
             _state = state;
             DataContext = _state;
 
-            Left = _screen.Bounds.Left;
-            Top = _screen.Bounds.Top;
-            Width = _screen.Bounds.Width;
-            Height = _screen.Bounds.Height;
+            Left = screen.Bounds.Left;
+            Top = screen.Bounds.Top;
+            Width = screen.Bounds.Width;
+            Height = screen.Bounds.Height;
 
-            SetVisibilityRelatedToFocus();
+            UpdateVisibilityOnFocusedScreenChange();
 
-            // Show the window
             Show();
+        }
+
+        private void UpdateVisibilityOnFocusedScreenChange()
+        {
+            _state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) =>
+            {
+                if (e.PropertyName == nameof(_state.FocusedScreen))
+                {
+                    SetVisibilityRelatedToFocus();
+                }
+            };
         }
 
         public void SetVisibilityRelatedToFocus()
         {
-            _state.PropertyChanged += (object? sender, PropertyChangedEventArgs e) => 
-            {
-                if(e.PropertyName == nameof(_state.FocusedScreen))
-                {
-                    Visibility = _state.FocusedScreen == _screen?
-                        Visibility.Hidden :
-                        Visibility.Visible;
-                }
-            };
+            if (_state.FocusedScreen.DeviceName == _screenDeviceName)
+                Visibility = Visibility.Hidden;
+            else if (!Screen.AllScreens.Any(screen => screen.DeviceName == _screenDeviceName))
+                Visibility = Visibility.Hidden;
+            else
+                Visibility = Visibility.Visible;
         }
 
         public static void SetWindowExTransparent(IntPtr hwnd)
