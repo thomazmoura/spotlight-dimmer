@@ -103,6 +103,8 @@ async fn create_overlays(app_handle: &AppHandle, state: &AppState) -> Result<(),
 
     // Create new overlays for each display
     for display in displays {
+        println!("Creating overlay for display: {} at ({}, {}) size: {}x{}",
+                display.name, display.x, display.y, display.width, display.height);
         let overlay_id = format!("overlay_{}", display.id);
 
         match create_overlay_window(app_handle, &overlay_id, &display) {
@@ -123,6 +125,9 @@ fn create_overlay_window(
     overlay_id: &str,
     display: &DisplayInfo,
 ) -> Result<tauri::WebviewWindow, String> {
+    println!("Creating overlay window at position ({}, {}) with size {}x{}",
+             display.x, display.y, display.width, display.height);
+
     let window = WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::App("overlay.html".into()))
         .title("Spotlight Dimmer Overlay")
         .inner_size(display.width as f64, display.height as f64)
@@ -138,6 +143,152 @@ fn create_overlay_window(
         .focusable(false)
         .build()
         .map_err(|e| format!("Failed to create overlay window: {}", e))?;
+
+    // Verify the actual window position after creation
+    if let (Ok(actual_pos), Ok(actual_size)) = (window.outer_position(), window.outer_size()) {
+        println!("Actual window position: ({}, {}), size: {}x{}",
+                 actual_pos.x, actual_pos.y, actual_size.width, actual_size.height);
+
+        // Calculate the border size differences
+        let width_diff = (actual_size.width as i32) - display.width;
+        let height_diff = (actual_size.height as i32) - display.height;
+
+        if width_diff != 0 || height_diff != 0 {
+            println!("Window border detected: +{} width, +{} height", width_diff, height_diff);
+
+            // Adjust position to compensate for window borders
+            let adjusted_x = display.x - (width_diff / 2);
+            let adjusted_y = display.y - (height_diff / 2);
+
+            println!("Adjusting window position to ({}, {})", adjusted_x, adjusted_y);
+
+            // Move the window to the corrected position
+            if let Err(e) = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                x: adjusted_x,
+                y: adjusted_y,
+            })) {
+                println!("Failed to adjust window position: {}", e);
+            } else {
+                println!("Successfully adjusted window position");
+            }
+        }
+    }
+
+    // Add focus event handler to redirect focus back to main window only if spotlight dimmer was previously active
+    let app_handle_clone = app_handle.clone();
+    window.on_window_event(move |event| {
+        match event {
+            tauri::WindowEvent::Focused(focused) => {
+                if *focused {
+                    println!("Overlay window gained focus, checking if should redirect...");
+
+                    // Check if a spotlight dimmer window was the previously active window
+                    let should_redirect = {
+                        #[cfg(windows)]
+                        {
+                            let window_manager = platform::WindowsWindowManager;
+                            match window_manager.get_active_window() {
+                                Ok(active_window) => {
+                                    // If we can't determine the active window or it's already an overlay,
+                                    // check if any spotlight dimmer window is focused
+                                    if active_window.window_title.contains("Spotlight Dimmer") {
+                                        true
+                                    } else {
+                                        // Check if any of our windows are currently focused
+                                        let mut spotlight_dimmer_focused = false;
+                                        for (label, window) in app_handle_clone.webview_windows() {
+                                            if !label.starts_with("overlay_") {
+                                                if let Ok(is_focused) = window.is_focused() {
+                                                    if is_focused {
+                                                        spotlight_dimmer_focused = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        spotlight_dimmer_focused
+                                    }
+                                }
+                                Err(_) => {
+                                    // If we can't get active window info, check if any of our main windows are focused
+                                    let mut spotlight_dimmer_focused = false;
+                                    for (label, window) in app_handle_clone.webview_windows() {
+                                        if !label.starts_with("overlay_") {
+                                            if let Ok(is_focused) = window.is_focused() {
+                                                if is_focused {
+                                                    spotlight_dimmer_focused = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    spotlight_dimmer_focused
+                                }
+                            }
+                        }
+                        #[cfg(not(windows))]
+                        {
+                            // Fallback: check if any of our main windows are focused
+                            let mut spotlight_dimmer_focused = false;
+                            for (label, window) in app_handle_clone.webview_windows() {
+                                if !label.starts_with("overlay_") {
+                                    if let Ok(is_focused) = window.is_focused() {
+                                        if is_focused {
+                                            spotlight_dimmer_focused = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            spotlight_dimmer_focused
+                        }
+                    };
+
+                    if should_redirect {
+                        println!("Spotlight dimmer was active, redirecting focus to main window...");
+
+                        // Try to find the main window using common identifiers
+                        let possible_main_labels = ["main", "spotlight-dimmer", "Spotlight Dimmer"];
+                        let mut main_window_found = false;
+
+                        for label in &possible_main_labels {
+                            if let Some(main_window) = app_handle_clone.get_webview_window(label) {
+                                if let Err(e) = main_window.set_focus() {
+                                    println!("Failed to redirect focus to main window '{}': {}", label, e);
+                                } else {
+                                    println!("Successfully redirected focus to main window '{}'", label);
+                                    main_window_found = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // If no main window found by label, try to find any non-overlay window
+                        if !main_window_found {
+                            for (label, window) in app_handle_clone.webview_windows() {
+                                if !label.starts_with("overlay_") {
+                                    if let Err(e) = window.set_focus() {
+                                        println!("Failed to redirect focus to window '{}': {}", label, e);
+                                    } else {
+                                        println!("Successfully redirected focus to window '{}'", label);
+                                        main_window_found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if !main_window_found {
+                            println!("Could not find any main window to redirect focus");
+                        }
+                    } else {
+                        println!("Spotlight dimmer was not active, not redirecting focus");
+                    }
+                }
+            }
+            _ => {}
+        }
+    });
 
     // Try Tauri's setIgnoreCursorEvents API first
     println!("Attempting to set ignore cursor events...");
