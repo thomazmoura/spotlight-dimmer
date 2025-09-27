@@ -319,6 +319,7 @@ fn update_overlays_sync(app_handle: &AppHandle, state: &AppState, active_window:
 fn start_focus_monitoring(app_handle: AppHandle) {
     std::thread::spawn(move || {
         let mut last_window_handle: Option<u64> = None;
+        let mut last_display_id: Option<String> = None;
         println!("Focus monitoring thread started!");
 
         loop {
@@ -344,9 +345,22 @@ fn start_focus_monitoring(app_handle: AppHandle) {
                         continue;
                     }
 
-                    if Some(active_window.handle) != last_window_handle {
+                    // Check if either the window handle OR the display has changed
+                    let window_changed = Some(active_window.handle) != last_window_handle;
+                    let display_changed = last_display_id.as_ref() != Some(&active_window.display_id);
+
+                    if window_changed || display_changed {
+                        if window_changed {
+                            println!("Active window changed: {} ({})", active_window.window_title, active_window.process_name);
+                        }
+                        if display_changed && !window_changed {
+                            println!("Window moved to different display: {} -> {}",
+                                last_display_id.as_ref().unwrap_or(&"unknown".to_string()),
+                                active_window.display_id);
+                        }
+
                         last_window_handle = Some(active_window.handle);
-                        println!("Active window changed: {} ({})", active_window.window_title, active_window.process_name);
+                        last_display_id = Some(active_window.display_id.clone());
 
                         let state = app_handle.state::<AppState>();
 
@@ -360,6 +374,7 @@ fn start_focus_monitoring(app_handle: AppHandle) {
                     if last_window_handle.is_some() {
                         println!("Failed to get active window: {}", e);
                         last_window_handle = None;
+                        last_display_id = None;
                     }
                 }
             }
