@@ -55,7 +55,9 @@ python -m http.server 1420 --directory dist
 #### Overlay System
 - Creates transparent, click-through overlay windows on each display
 - Overlays are hidden on active display, shown on inactive displays
-- Uses Windows Extended Window Styles (`WS_EX_TRANSPARENT`, `WS_EX_LAYERED`) for click-through behavior
+- **Click-Through Implementation**: Uses Tauri's native `set_ignore_cursor_events(true)` API (preferred method)
+- **Fallback**: Windows API with `WS_EX_TRANSPARENT`, `WS_EX_LAYERED`, and `WS_EX_TOOLWINDOW` flags
+- **Auto-startup**: Application starts with dimming enabled by default
 
 ### Tauri Commands
 - `get_displays()`: Returns list of all displays with positioning info
@@ -64,8 +66,11 @@ python -m http.server 1420 --directory dist
 - `is_dimming_enabled()`: Returns current dimming state
 
 ### Focus Monitoring
-- Background thread continuously monitors active window changes
+- Background thread continuously monitors active window changes (100ms polling interval)
+- **Enhanced Detection**: Tracks both window handle changes AND display changes for comprehensive monitoring
+- **Window Movement**: Detects when windows move between displays, updating overlays immediately
 - Skips self-owned overlay windows to prevent focus loops
+- Uses `MonitorFromWindow` Windows API to determine display association
 - Emits `focus-changed` events to frontend when active display changes
 - Updates overlay visibility based on active display
 
@@ -112,3 +117,34 @@ python -m http.server 1420 --directory dist
 - All overlay operations are async and use the shared `AppState`
 - Overlays are keyed by display ID in the global HashMap
 - Always close existing overlays before creating new ones to prevent leaks
+- **Auto-startup Configuration**: `AppState::default()` initializes with `is_dimming_enabled: true`
+- **Startup Sequence**: 500ms delay ensures proper initialization before overlay creation
+
+## Implementation Notes & Troubleshooting
+
+### Click-Through Implementation
+The application successfully implements click-through overlays using multiple approaches:
+
+#### Primary Method (Recommended)
+- **Tauri Native API**: `window.set_ignore_cursor_events(true)`
+- **Status**: ✅ Working reliably in Tauri 2.x
+- **Advantages**: Clean, cross-platform, no manual Windows API calls needed
+
+#### Fallback Method
+- **Windows API**: Direct manipulation using `SetWindowLongPtrW`
+- **Flags**: `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`
+- **Usage**: Automatically attempted if Tauri API fails
+- **Note**: `WS_EX_TOOLWINDOW` prevents Alt+Tab visibility and focus issues
+
+### Window Movement Detection
+Enhanced focus monitoring system that goes beyond simple window handle tracking:
+
+```rust
+// Tracks both window changes and display changes
+let window_changed = Some(active_window.handle) != last_window_handle;
+let display_changed = last_display_id.as_ref() != Some(&active_window.display_id);
+
+if window_changed || display_changed {
+    // Update overlays for either type of change
+}
+```
