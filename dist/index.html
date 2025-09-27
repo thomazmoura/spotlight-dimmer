@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotlight Dimmer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>=& Spotlight Dimmer</h1>
+            <p class="subtitle">Focus on what matters by dimming inactive displays</p>
+        </header>
+
+        <main>
+            <section class="status-section">
+                <div class="status-card">
+                    <h2>Current Status</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <span class="label">Active Window:</span>
+                            <span id="activeWindow" class="value">Detecting...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">Active Display:</span>
+                            <span id="activeDisplay" class="value">Detecting...</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">Dimming Status:</span>
+                            <span id="dimmingStatus" class="value status-disabled">Disabled</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="control-section">
+                <div class="control-card">
+                    <h2>Controls</h2>
+                    <div class="button-group">
+                        <button id="toggleBtn" class="primary-btn">
+                            <span id="toggleText">Enable Dimming</span>
+                        </button>
+                        <button id="refreshBtn" class="secondary-btn">
+                            Refresh Displays
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="displays-section">
+                <div class="displays-card">
+                    <h2>Displays</h2>
+                    <div id="displaysList" class="displays-grid">
+                        Loading displays...
+                    </div>
+                </div>
+            </section>
+
+            <section class="info-section">
+                <div class="info-card">
+                    <h3>How it works</h3>
+                    <ul>
+                        <li>The app monitors which window currently has focus</li>
+                        <li>It identifies which display contains the active window</li>
+                        <li>All other displays are dimmed with a semi-transparent overlay</li>
+                        <li>The dimming follows your focus automatically</li>
+                    </ul>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Spotlight Dimmer v0.1.0 | Built with Tauri + Rust</p>
+        </footer>
+    </div>
+
+    <!-- Tauri API injection attempts -->
+    <script>
+        // Multiple attempts to load Tauri API
+        window.__TAURI_LOAD_ATTEMPTS__ = 0;
+
+        function attemptTauriLoad() {
+            window.__TAURI_LOAD_ATTEMPTS__++;
+            console.log('Tauri load attempt:', window.__TAURI_LOAD_ATTEMPTS__);
+
+            if (window.__TAURI__ && window.__TAURI__.tauri) {
+                console.log('Tauri API already available!');
+                return;
+            }
+
+            // Try different script sources
+            const sources = [
+                'tauri://localhost/tauri.js',
+                'tauri://localhost/__tauri.js',
+                'tauri://localhost/_tauri.js',
+                'https://tauri.localhost/tauri.js',
+                '__tauri.js',
+                '_tauri.js'
+            ];
+
+            if (window.__TAURI_LOAD_ATTEMPTS__ <= sources.length) {
+                const script = document.createElement('script');
+                script.src = sources[window.__TAURI_LOAD_ATTEMPTS__ - 1];
+                script.onload = function() {
+                    console.log('Tauri script loaded from:', script.src);
+                    if (window.__TAURI__) {
+                        console.log('Tauri API now available!');
+                    }
+                };
+                script.onerror = function() {
+                    console.log('Failed to load from:', script.src);
+                    if (window.__TAURI_LOAD_ATTEMPTS__ < sources.length) {
+                        setTimeout(attemptTauriLoad, 100);
+                    } else {
+                        console.log('All Tauri load attempts failed, will use mock API');
+                    }
+                };
+                document.head.appendChild(script);
+            }
+        }
+
+        // Start loading attempts
+        attemptTauriLoad();
+    </script>
+    <script src="main.js"></script>
+</body>
+</html>

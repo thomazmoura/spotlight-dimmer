@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:claude.ai)",
+      "Bash(cargo install:*)",
+      "Bash(rustc --version)",
+      "Bash(rustup:*)",
+      "Bash(cargo:*)",
+      "WebSearch",
+      "WebFetch(domain:v2.tauri.app)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "outputStyle": "Explanatory"
+}
