@@ -7,11 +7,20 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State, LogicalPosition, WebviewUrl, WebviewWindowBuilder, Emitter};
 
 // Global state for managing overlays and focus tracking
-#[derive(Default)]
 struct AppState {
     overlays: Arc<Mutex<HashMap<String, tauri::WebviewWindow>>>,
     is_dimming_enabled: Arc<Mutex<bool>>,
     current_active_display: Arc<Mutex<Option<String>>>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            overlays: Arc::new(Mutex::new(HashMap::new())),
+            is_dimming_enabled: Arc::new(Mutex::new(true)), // Start with dimming enabled
+            current_active_display: Arc::new(Mutex::new(None)),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -390,9 +399,27 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build())
         .setup(|app| {
+            let app_handle = app.handle().clone();
 
             // Start focus monitoring
-            start_focus_monitoring(app.handle().clone());
+            start_focus_monitoring(app_handle.clone());
+
+            // Auto-create overlays since dimming starts enabled
+            println!("Auto-creating overlays on startup...");
+
+            // Clone for the thread
+            let app_handle_clone = app_handle.clone();
+
+            // Use a small delay to ensure the app is fully initialized
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let state_clone = app_handle_clone.state::<AppState>();
+                if let Err(e) = tokio::runtime::Runtime::new().unwrap().block_on(create_overlays(&app_handle_clone, &state_clone)) {
+                    println!("Failed to auto-create overlays on startup: {}", e);
+                } else {
+                    println!("Successfully auto-created overlays on startup");
+                }
+            });
 
             Ok(())
         })
