@@ -52,6 +52,8 @@ async fn toggle_dimming(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<bool, String> {
+    println!("Toggle dimming called!");
+
     // Fix: Use scope to drop mutex guard before await
     let is_enabled = {
         let mut enabled = state.is_dimming_enabled.lock().unwrap();
@@ -59,10 +61,16 @@ async fn toggle_dimming(
         *enabled
     };
 
+    println!("Dimming is now: {}", is_enabled);
+
     if is_enabled {
+        println!("Creating overlays...");
         create_overlays(&app_handle, &state).await?;
+        println!("Overlays creation completed");
     } else {
+        println!("Closing overlays...");
         close_all_overlays(&state).await?;
+        println!("Overlays closed");
     }
 
     Ok(is_enabled)
@@ -122,33 +130,64 @@ fn create_overlay_window(
         .build()
         .map_err(|e| format!("Failed to create overlay window: {}", e))?;
 
-    // Make window click-through on Windows
-    #[cfg(windows)]
-    {
-        println!("Making overlay window click-through...");
-        if let Err(e) = make_window_click_through(&window) {
-            println!("Failed to make window click-through: {}", e);
-        } else {
-            println!("Successfully made overlay window click-through");
+    // Try Tauri's setIgnoreCursorEvents API first
+    println!("Attempting to set ignore cursor events...");
+    if let Err(e) = window.set_ignore_cursor_events(true) {
+        println!("Tauri setIgnoreCursorEvents failed: {}", e);
+
+        // Fallback to Windows API approach
+        #[cfg(windows)]
+        {
+            println!("Falling back to Windows API approach...");
+            if let Err(e) = make_window_click_through(&window) {
+                println!("Failed to make window click-through with Windows API: {}", e);
+            } else {
+                println!("Successfully made overlay window click-through with Windows API");
+            }
         }
+    } else {
+        println!("Successfully set ignore cursor events with Tauri API");
     }
+
+    println!("Created overlay window");
 
     Ok(window)
 }
 
 #[cfg(windows)]
 fn make_window_click_through(window: &tauri::WebviewWindow) -> Result<(), String> {
-    use winapi::um::winuser::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW, WS_EX_NOACTIVATE};
+    use winapi::um::winuser::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW};
+    use std::thread;
+    use std::time::Duration;
+
+    // Wait a bit to ensure window is fully initialized
+    thread::sleep(Duration::from_millis(50));
 
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
 
     unsafe {
-        let ex_style = GetWindowLongPtrW(hwnd.0 as _, GWL_EXSTYLE);
-        SetWindowLongPtrW(
+        let current_style = GetWindowLongPtrW(hwnd.0 as _, GWL_EXSTYLE);
+        println!("Current window style: 0x{:X}", current_style);
+
+        // Apply the click-through flags
+        let new_style = current_style | WS_EX_TRANSPARENT as isize | WS_EX_LAYERED as isize | WS_EX_TOOLWINDOW as isize;
+
+        let result = SetWindowLongPtrW(
             hwnd.0 as _,
             GWL_EXSTYLE,
-            ex_style | WS_EX_TRANSPARENT as isize | WS_EX_LAYERED as isize | WS_EX_TOOLWINDOW as isize | WS_EX_NOACTIVATE as isize,
+            new_style,
         );
+
+        if result == 0 {
+            return Err("SetWindowLongPtrW failed".to_string());
+        }
+
+        // Verify the style was applied
+        let verify_style = GetWindowLongPtrW(hwnd.0 as _, GWL_EXSTYLE);
+        println!("New window style: 0x{:X}", verify_style);
+        println!("WS_EX_TRANSPARENT: 0x{:X}", WS_EX_TRANSPARENT);
+        println!("WS_EX_LAYERED: 0x{:X}", WS_EX_LAYERED);
+        println!("WS_EX_TOOLWINDOW: 0x{:X}", WS_EX_TOOLWINDOW);
     }
 
     Ok(())
