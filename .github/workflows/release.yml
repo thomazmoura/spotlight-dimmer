@@ -39,49 +39,8 @@ jobs:
       - name: Extract changelog
         id: changelog
         run: |
-          # Extract unreleased section from CHANGELOG.md
-          python3 << 'EOF'
-          import re
-          import sys
-
-          try:
-              with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
-                  content = f.read()
-
-              # Find the unreleased section
-              unreleased_match = re.search(r'## \[Unreleased\]\s*(.*?)\s*(?=## \[|$)', content, re.DOTALL)
-
-              if unreleased_match:
-                  unreleased_content = unreleased_match.group(1).strip()
-                  if unreleased_content:
-                      # Clean up the content and prepare for GitHub release
-                      release_notes = unreleased_content
-
-                      # Write to GitHub output
-                      with open('release_notes.txt', 'w', encoding='utf-8') as f:
-                          f.write(release_notes)
-
-                      print("✅ Extracted release notes from changelog")
-                  else:
-                      print("⚠️ No changes found in unreleased section")
-                      with open('release_notes.txt', 'w', encoding='utf-8') as f:
-                          f.write("This release includes various improvements and bug fixes.")
-              else:
-                  print("⚠️ No unreleased section found in changelog")
-                  with open('release_notes.txt', 'w', encoding='utf-8') as f:
-                      f.write("This release includes various improvements and bug fixes.")
-
-          except FileNotFoundError:
-              print("⚠️ CHANGELOG.md not found")
-              with open('release_notes.txt', 'w', encoding='utf-8') as f:
-                  f.write("This release includes various improvements and bug fixes.")
-          EOF
-
-          {
-            echo "release-notes<<EOF"
-            cat release_notes.txt
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          # Extract unreleased section from CHANGELOG.md using external script
+          python3 .github/scripts/extract_changelog.py
 
   build-and-release:
     needs: changelog
@@ -174,44 +133,8 @@ jobs:
 
       - name: Update changelog
         run: |
-          # Update CHANGELOG.md to move unreleased content to new version
-          python3 << 'EOF'
-          import re
-          import datetime
-
-          version = "${{ needs.changelog.outputs.version }}"
-          today = datetime.date.today().strftime("%Y-%m-%d")
-
-          try:
-              with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
-                  content = f.read()
-
-              # Replace [Unreleased] section with new version and empty unreleased section
-              unreleased_pattern = r'## \[Unreleased\]\s*(.*?)\s*(?=## \[)'
-
-              def replace_unreleased(match):
-                  unreleased_content = match.group(1).strip()
-                  if unreleased_content:
-                      return "## [Unreleased]\n\n## [{}] - {}\n\n{}".format(version, today, unreleased_content)
-                  else:
-                      return "## [Unreleased]\n\n## [{}] - {}".format(version, today)
-
-              updated_content = re.sub(unreleased_pattern, replace_unreleased, content, flags=re.DOTALL)
-
-              # If no unreleased section found, add one at the top
-              if updated_content == content:
-                  # Find the first version section and insert before it
-                  version_pattern = r'(## \[)'
-                  updated_content = re.sub(version_pattern, '## [Unreleased]\\n\\n## [{}] - {}\\n\\n\\1'.format(version, today), content, count=1)
-
-              with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
-                  f.write(updated_content)
-
-              print("✅ Updated changelog for version {}".format(version))
-
-          except Exception as e:
-              print("❌ Error updating changelog: {}".format(e))
-          EOF
+          # Update CHANGELOG.md to move unreleased content to new version using external script
+          python3 .github/scripts/update_changelog.py "${{ needs.changelog.outputs.version }}"
 
       - name: Commit changelog update
         run: |

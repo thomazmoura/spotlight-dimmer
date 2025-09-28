@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GitHub Actions workflow for automated releases with cross-platform binaries
 - Comprehensive changelog maintenance system for AI agents
+- Portuguese translation requirement for all changelog entries
+- Automatic version increment rule for every prompt with code changes
+
+---
+
+### Adicionado
+- Fluxo de trabalho do GitHub Actions para releases automatizadas com binários multiplataforma
+- Sistema abrangente de manutenção de changelog para agentes de IA
+- Requisito de tradução em português para todas as entradas do changelog
+- Regra de incremento automático de versão para cada prompt com mudanças de código
 
 ## [0.1.0] - 2024-09-28
 

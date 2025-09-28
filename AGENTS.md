@@ -401,6 +401,39 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format. Always add entrie
 - Alternative solution: What users should use instead
 ```
 
+### Portuguese Translation Requirement (MANDATORY)
+
+**CRITICAL**: Every changelog entry MUST include a Portuguese translation. This is required for all entries without exception.
+
+#### Format Structure
+Each changelog entry must follow this bilingual format:
+```markdown
+### Added
+- Feature name: Clear description of what it does and why it's useful for users
+- Another feature: Focus on user-facing benefits, not internal implementation details
+
+---
+
+### Adicionado
+- Nome da funcionalidade: Descrição clara do que faz e por que é útil para os usuários
+- Outra funcionalidade: Foque nos benefícios voltados ao usuário, não em detalhes de implementação interna
+```
+
+#### Translation Guidelines
+1. **Maintain Technical Accuracy**: Ensure technical terms are correctly translated or kept in English when appropriate
+2. **User-Friendly Language**: Use Portuguese that Brazilian and Portuguese users can easily understand
+3. **Consistent Terminology**: Keep consistent translations for recurring technical terms
+4. **Section Headers**: Always translate section headers (Added→Adicionado, Fixed→Corrigido, Changed→Alterado, etc.)
+
+#### Section Header Translations
+- **Added** → **Adicionado**
+- **Fixed** → **Corrigido**
+- **Changed** → **Alterado**
+- **Improved** → **Melhorado**
+- **Removed** → **Removido**
+- **Security** → **Segurança**
+- **Deprecated** → **Obsoleto**
+
 ### Changelog Writing Guidelines
 
 1. **User-Focused**: Write for end users, not developers
@@ -408,6 +441,7 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format. Always add entrie
 3. **Actionable**: Include migration steps for breaking changes
 4. **Specific**: Use concrete examples rather than vague descriptions
 5. **Consistent**: Follow the same style and format for all entries
+6. **Bilingual**: Always include Portuguese translations using the format above
 
 ### Example Entry
 ```markdown
@@ -422,6 +456,20 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format. Always add entrie
 
 ### Changed
 - Overlay transparency: Changed default dimming from 30% to 50% for better visibility (users can adjust in settings)
+
+---
+
+### Adicionado
+- Alternância de modo escuro: Os usuários agora podem alternar entre temas claro e escuro através do menu da bandeja do sistema
+- Atalhos de teclado: Adicionado Ctrl+D para alternar o escurecimento e Ctrl+Q para sair da aplicação
+- Performance multi-monitor: Redução de 40% no uso de CPU ao gerenciar 3+ displays
+
+### Corrigido
+- Bug de detecção de display: A aplicação agora detecta adequadamente displays após ciclos de suspensão/despertar
+- Vazamento de memória: Corrigida a disposição inadequada das janelas de sobreposição quando displays são desconectados
+
+### Alterado
+- Transparência de sobreposição: Alterada transparência padrão de 30% para 50% para melhor visibilidade (usuários podem ajustar nas configurações)
 ```
 
 ### Release Process Integration
@@ -438,5 +486,97 @@ Each changelog entry should answer:
 - **Why** did it change?
 - **How** does it affect users?
 - **What** should users do (if action required)?
+- **Is the Portuguese translation accurate and user-friendly?**
 
-**Enforcement**: Pull requests without proper changelog updates will be considered incomplete.
+**Enforcement**: Pull requests without proper changelog updates (including Portuguese translations) will be considered incomplete.
+
+## Version Management (REQUIRED)
+
+**CRITICAL**: Every prompt that results in code changes, feature additions, bug fixes, or any modifications MUST increment the patch version (third number) in both configuration files.
+
+### Automatic Version Increment Rule
+
+On **EVERY PROMPT** that involves:
+- ✅ Code changes or modifications
+- ✅ Bug fixes
+- ✅ Feature additions or enhancements
+- ✅ Configuration changes
+- ✅ Documentation updates that affect functionality
+- ✅ Dependency updates
+- ✅ Build system changes
+- ✅ Any file modifications that would warrant a changelog entry
+
+**MUST increment the patch version (z in x.y.z) in BOTH files:**
+1. `package.json` - `"version": "x.y.z"`
+2. `src-tauri/Cargo.toml` - `version = "x.y.z"`
+
+### Version Increment Process
+
+#### Step 1: Always check current versions first
+```bash
+# Check package.json version
+grep '"version"' package.json
+
+# Check Cargo.toml version
+grep '^version' src-tauri/Cargo.toml
+```
+
+#### Step 2: Increment patch version (third number)
+- Current: `"0.1.0"` → New: `"0.1.1"`
+- Current: `"0.1.5"` → New: `"0.1.6"`
+- Current: `"1.2.3"` → New: `"1.2.4"`
+
+#### Step 3: Update both files simultaneously
+```bash
+# Update package.json
+sed -i 's/"version": "0.1.0"/"version": "0.1.1"/' package.json
+
+# Update Cargo.toml
+sed -i 's/version = "0.1.0"/version = "0.1.1"/' src-tauri/Cargo.toml
+```
+
+### Version Synchronization Rules
+
+1. **Always keep versions synchronized**: Both files must have identical version numbers
+2. **Increment on every prompt**: No exceptions - even small changes get version increments
+3. **Patch version only**: Only increment the third number (patch) unless explicitly requested otherwise
+4. **Verify after changes**: Always confirm both files were updated correctly
+
+### Examples
+
+#### ✅ Correct Version Management Flow
+```bash
+# Before making any changes
+Current versions: 0.1.0
+
+# Make code changes, then:
+# 1. Update package.json: 0.1.0 → 0.1.1
+# 2. Update Cargo.toml: 0.1.0 → 0.1.1
+# 3. Update changelog with new version number
+# 4. Commit all changes together
+```
+
+#### ❌ Incorrect Approach
+```bash
+# Making changes without version increment
+# OR
+# Updating only one file
+# OR
+# Forgetting to check current versions first
+```
+
+### Version Verification
+
+After any changes, always verify both files have matching versions:
+```bash
+echo "package.json version: $(grep '"version"' package.json)"
+echo "Cargo.toml version: $(grep '^version' src-tauri/Cargo.toml)"
+```
+
+### Special Cases
+
+- **Major version changes** (x.y.z → (x+1).0.0): Only when explicitly requested by user
+- **Minor version changes** (x.y.z → x.(y+1).0): Only when adding significant new features
+- **Patch version changes** (x.y.z → x.y.(z+1)): **DEFAULT for all prompts**
+
+**Enforcement**: Any code changes without proper version increments will be considered incomplete work.
