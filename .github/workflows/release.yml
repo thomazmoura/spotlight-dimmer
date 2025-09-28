@@ -69,6 +69,14 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      - name: Install WiX Toolset (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          # Install WiX Toolset v3 for MSI packaging
+          choco install wixtoolset -y
+          # Add WiX to PATH for current session
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
+
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         env:

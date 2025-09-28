@@ -580,3 +580,12 @@ echo "Cargo.toml version: $(grep '^version' src-tauri/Cargo.toml)"
 - **Patch version changes** (x.y.z → x.y.(z+1)): **DEFAULT for all prompts**
 
 **Enforcement**: Any code changes without proper version increments will be considered incomplete work.
+
+## Git Commit Messages
+
+**DO NOT** include "Generated with Claude Code" or "Co-Authored-By: Claude" in commit messages. This repository is built with Claude Code - these attributions are redundant.
+
+Use clear, descriptive commit messages:
+- Subject line (50 chars max)
+- Brief explanation of what changed and why
+- List specific changes if multiple

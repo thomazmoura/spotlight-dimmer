@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions workflow optimization: Removed unnecessary Node.js setup and frontend build steps since project uses static assets only
 - Reduced CI/CD build time and complexity by eliminating redundant npm operations
 
+### Fixed
+- GitHub Actions build failure: Added explicit WiX Toolset installation to resolve MSI packaging errors on Windows runners
+- Bundle identifier warning: Changed from com.spotlightdimmer.app to com.spotlightdimmer.desktop to avoid macOS conflicts
+- Version synchronization: Fixed version mismatch between package.json, Cargo.toml, and tauri.conf.json
+
 ---
 
 ### Adicionado
@@ -28,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Melhorado
 - Otimização do fluxo de trabalho do GitHub Actions: Removidos passos desnecessários de configuração Node.js e build frontend já que o projeto usa apenas assets estáticos
 - Redução do tempo de build CI/CD e complexidade ao eliminar operações npm redundantes
+
+### Corrigido
+- Falha de build do GitHub Actions: Adicionada instalação explícita do WiX Toolset para resolver erros de empacotamento MSI nos runners Windows
+- Aviso de identificador de bundle: Alterado de com.spotlightdimmer.app para com.spotlightdimmer.desktop para evitar conflitos no macOS
+- Sincronização de versão: Corrigida disparidade de versões entre package.json, Cargo.toml e tauri.conf.json
 
 ## [0.1.0] - 2024-09-28
 
