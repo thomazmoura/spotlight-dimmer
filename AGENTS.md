@@ -167,6 +167,33 @@ let window = match window_result {
 - Tauri CLI (`cargo install tauri-cli --version ^2.0.0`)
 - Windows development environment for Windows features
 
+### ⚠️ RUST BUILD TIME CONSIDERATIONS
+
+**IMPORTANT for AI Agents**: This is a Rust project with complex dependencies. Build times are significant:
+
+#### Expected Build Times
+- **Development builds** (`cargo tauri dev`): 60-120 seconds initial compile, faster on subsequent runs
+- **Production builds** (`cargo tauri build`): 90-180 seconds including bundling
+- **Cargo installs** (`cargo install --path .`): 30-60 seconds
+- **Clean rebuilds**: Can take 2-3 minutes for full compilation
+
+#### Agent Patience Guidelines
+1. **Use longer timeouts**: Set timeouts to at least 120-180 seconds for build commands
+2. **Monitor background processes**: Use `run_in_background=true` for build commands and monitor with `BashOutput`
+3. **Wait for compilation**: Don't interrupt builds - Rust compilation is CPU-intensive but reliable
+4. **Expect warnings**: The project generates several harmless warnings about unused imports/functions
+5. **Trust the process**: Builds will complete successfully - compilation messages indicate progress
+
+#### Build Command Best Practices
+```bash
+# Use extended timeouts for build commands
+cargo tauri dev --timeout=180000    # 3 minutes
+cargo tauri build --timeout=300000  # 5 minutes
+cargo install --path . --timeout=120000  # 2 minutes
+```
+
+**Note**: Build times vary based on hardware, but patience is key - Rust's compilation model ensures correct builds once complete.
+
 ### Configuration
 - Tauri config: `src-tauri/tauri.conf.json`
 - Cargo config: `src-tauri/Cargo.toml`
