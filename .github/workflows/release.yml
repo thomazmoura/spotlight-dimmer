@@ -69,13 +69,16 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install WiX Toolset (Windows)
+      - name: Install Windows Build Tools
         if: matrix.platform == 'windows-latest'
         run: |
-          # Install WiX Toolset v3 for MSI packaging
+          # Install WiX Toolset v3 and Windows SDK components
           choco install wixtoolset -y
+          choco install windows-sdk-10-version-2004-all -y
           # Add WiX to PATH for current session
           echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
+          # Ensure MSI build tools are available
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
@@ -113,7 +116,7 @@ jobs:
             🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --verbose
 
   update-changelog:
     needs: [changelog, build-and-release]

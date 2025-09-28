@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions build failure: Added explicit WiX Toolset installation to resolve MSI packaging errors on Windows runners
 - Bundle identifier warning: Changed from com.spotlightdimmer.app to com.spotlightdimmer.desktop to avoid macOS conflicts
 - Version synchronization: Fixed version mismatch between package.json, Cargo.toml, and tauri.conf.json
+- WiX template configuration: Removed missing main.wxs template reference to use Tauri's default template
+- Added verbose logging to GitHub Actions for better build diagnostics
 
 ---
 
@@ -38,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Falha de build do GitHub Actions: Adicionada instalação explícita do WiX Toolset para resolver erros de empacotamento MSI nos runners Windows
 - Aviso de identificador de bundle: Alterado de com.spotlightdimmer.app para com.spotlightdimmer.desktop para evitar conflitos no macOS
 - Sincronização de versão: Corrigida disparidade de versões entre package.json, Cargo.toml e tauri.conf.json
+- Configuração de template WiX: Removida referência ao template main.wxs inexistente para usar o template padrão do Tauri
+- Adicionado logging verboso ao GitHub Actions para melhor diagnóstico de builds
 
 ## [0.1.0] - 2024-09-28
 
