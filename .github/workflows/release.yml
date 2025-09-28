@@ -72,13 +72,10 @@ jobs:
       - name: Install Windows Build Tools
         if: matrix.platform == 'windows-latest'
         run: |
-          # Install WiX Toolset v3 and Windows SDK components
-          choco install wixtoolset -y
-          choco install windows-sdk-10-version-2004-all -y
-          # Add WiX to PATH for current session
-          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $GITHUB_PATH
-          # Ensure MSI build tools are available
-          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          # Install NSIS for Windows installer creation
+          choco install nsis -y
+          # Add NSIS to PATH for current session
+          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
@@ -93,7 +90,7 @@ jobs:
             ## Installation
 
             ### Windows Users (Recommended)
-            Download and run the `.msi` installer for the best experience with perfect transparency and all features.
+            Download and run the `-setup.exe` installer for the best experience with perfect transparency and all features.
 
             ### Developers/Advanced Users
             You can also install via Cargo:

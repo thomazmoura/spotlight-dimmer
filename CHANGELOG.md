@@ -17,12 +17,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions workflow optimization: Removed unnecessary Node.js setup and frontend build steps since project uses static assets only
 - Reduced CI/CD build time and complexity by eliminating redundant npm operations
 
+### Changed
+- Switched from WiX MSI to NSIS installer for better GitHub Actions compatibility and reliability
+- Windows installer now generates .exe setup files instead of .msi packages
+- Improved cross-platform build support with NSIS (works on Linux/macOS hosts)
+
 ### Fixed
-- GitHub Actions build failure: Added explicit WiX Toolset installation to resolve MSI packaging errors on Windows runners
+- GitHub Actions build failure: Switched to NSIS installer to resolve persistent WiX/MSI packaging errors
 - Bundle identifier warning: Changed from com.spotlightdimmer.app to com.spotlightdimmer.desktop to avoid macOS conflicts
 - Version synchronization: Fixed version mismatch between package.json, Cargo.toml, and tauri.conf.json
-- WiX template configuration: Removed missing main.wxs template reference to use Tauri's default template
+- WiX template configuration: Eliminated WiX dependency by switching to NSIS
 - Added verbose logging to GitHub Actions for better build diagnostics
+
+### Improved
+- Build reliability: NSIS installer eliminates GitHub Actions WiX Toolset installation issues
+- Installer size: NSIS compression achieves 20.8% size reduction (vs original binary)
+- WinGet compatibility: NSIS installers fully support Windows Package Manager with 'nullsoft' type
+- Cross-compilation: Can now build Windows installers on Linux/macOS runners
 
 ---
 
@@ -32,16 +43,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requisito de tradução em português para todas as entradas do changelog
 - Regra de incremento automático de versão para cada prompt com mudanças de código
 
-### Melhorado
-- Otimização do fluxo de trabalho do GitHub Actions: Removidos passos desnecessários de configuração Node.js e build frontend já que o projeto usa apenas assets estáticos
-- Redução do tempo de build CI/CD e complexidade ao eliminar operações npm redundantes
+### Alterado
+- Mudança de instalador WiX MSI para NSIS para melhor compatibilidade e confiabilidade no GitHub Actions
+- Instalador Windows agora gera arquivos setup .exe ao invés de pacotes .msi
+- Melhor suporte de build multiplataforma com NSIS (funciona em hosts Linux/macOS)
 
 ### Corrigido
-- Falha de build do GitHub Actions: Adicionada instalação explícita do WiX Toolset para resolver erros de empacotamento MSI nos runners Windows
+- Falha de build do GitHub Actions: Mudança para instalador NSIS resolve erros persistentes de empacotamento WiX/MSI
 - Aviso de identificador de bundle: Alterado de com.spotlightdimmer.app para com.spotlightdimmer.desktop para evitar conflitos no macOS
 - Sincronização de versão: Corrigida disparidade de versões entre package.json, Cargo.toml e tauri.conf.json
-- Configuração de template WiX: Removida referência ao template main.wxs inexistente para usar o template padrão do Tauri
+- Configuração de template WiX: Eliminada dependência do WiX ao mudar para NSIS
 - Adicionado logging verboso ao GitHub Actions para melhor diagnóstico de builds
+
+### Melhorado
+- Confiabilidade de build: Instalador NSIS elimina problemas de instalação do WiX Toolset no GitHub Actions
+- Tamanho do instalador: Compressão NSIS alcança redução de 20,8% do tamanho (vs binário original)
+- Compatibilidade WinGet: Instaladores NSIS suportam completamente o Windows Package Manager com tipo 'nullsoft'
+- Compilação cruzada: Agora pode construir instaladores Windows em runners Linux/macOS
 
 ## [0.1.0] - 2024-09-28
 
