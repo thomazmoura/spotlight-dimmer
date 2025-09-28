@@ -59,13 +59,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: package-lock.json
-
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -75,12 +68,6 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0

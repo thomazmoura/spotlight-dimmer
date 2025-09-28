@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Portuguese translation requirement for all changelog entries
 - Automatic version increment rule for every prompt with code changes
 
+### Improved
+- GitHub Actions workflow optimization: Removed unnecessary Node.js setup and frontend build steps since project uses static assets only
+- Reduced CI/CD build time and complexity by eliminating redundant npm operations
+
 ---
 
 ### Adicionado
@@ -20,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sistema abrangente de manutenção de changelog para agentes de IA
 - Requisito de tradução em português para todas as entradas do changelog
 - Regra de incremento automático de versão para cada prompt com mudanças de código
+
+### Melhorado
+- Otimização do fluxo de trabalho do GitHub Actions: Removidos passos desnecessários de configuração Node.js e build frontend já que o projeto usa apenas assets estáticos
+- Redução do tempo de build CI/CD e complexidade ao eliminar operações npm redundantes
 
 ## [0.1.0] - 2024-09-28
 
