@@ -7,7 +7,11 @@ use platform::{ActiveWindowInfo, DisplayInfo, DisplayManager, WindowManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, State, LogicalPosition, WebviewUrl, WebviewWindowBuilder, Emitter};
+use tauri::{
+    AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder, Emitter,
+    tray::{TrayIconBuilder, TrayIconEvent, MouseButton},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
+};
 
 // Global state for managing overlays and focus tracking
 struct AppState {
@@ -504,6 +508,86 @@ fn update_overlays_sync(app_handle: &AppHandle, state: &AppState, active_window:
     Ok(())
 }
 
+// Tauri commands for tray functionality
+#[tauri::command]
+async fn show_main_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Main window not found".to_string())
+    }
+}
+
+#[tauri::command]
+async fn hide_main_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.hide().map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Main window not found".to_string())
+    }
+}
+
+// System tray setup function
+fn setup_system_tray(app: &tauri::App) -> tauri::Result<()> {
+    // Create tray menu
+    let show_item = MenuItem::with_id(app, "show", "Show Spotlight Dimmer", true, None::<&str>)?;
+    let hide_item = MenuItem::with_id(app, "hide", "Hide to Tray", true, None::<&str>)?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let quit_item = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
+
+    let menu = Menu::with_items(app, &[&show_item, &hide_item, &separator, &quit_item])?;
+
+    // Create and configure tray icon
+    let _tray = TrayIconBuilder::new()
+        .menu(&menu)
+        .tooltip("Spotlight Dimmer")
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "show" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            "hide" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+            "quit" => {
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            // Handle left click to toggle window visibility
+            if let TrayIconEvent::Click { button: MouseButton::Left, .. } = event {
+                let app = tray.app_handle();
+                if let Some(window) = app.get_webview_window("main") {
+                    match window.is_visible() {
+                        Ok(true) => {
+                            let _ = window.hide();
+                        }
+                        Ok(false) => {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                        Err(_) => {
+                            // If we can't determine visibility, try to show
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                }
+            }
+        })
+        .build(app)?;
+
+    Ok(())
+}
+
 // Focus monitoring setup
 fn start_focus_monitoring(app_handle: AppHandle) {
     std::thread::spawn(move || {
@@ -582,6 +666,9 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
 
+            // Setup system tray
+            setup_system_tray(app)?;
+
             // Start focus monitoring
             start_focus_monitoring(app_handle.clone());
 
@@ -604,11 +691,26 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                // Only intercept close for main window, let overlays close normally
+                if window.label() == "main" {
+                    println!("Intercepting main window close, hiding to tray instead");
+                    let _ = window.hide();
+                    api.prevent_close();
+                } else {
+                    println!("Allowing overlay window '{}' to close normally", window.label());
+                }
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![
             get_displays,
             get_active_window,
             toggle_dimming,
-            is_dimming_enabled
+            is_dimming_enabled,
+            show_main_window,
+            hide_main_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
