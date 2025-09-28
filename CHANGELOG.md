@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - GitHub Actions changelog update: Fixed detached HEAD issue in post-release workflow step
+- GitHub Actions permissions: Added contents write permission to update-changelog job to fix 403 push errors
 
 ### Improved
 - Build reliability: NSIS installer eliminates GitHub Actions WiX Toolset installation issues
@@ -57,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sincronização de versão: Corrigida disparidade de versões entre package.json, Cargo.toml e tauri.conf.json
 - Configuração de template WiX: Eliminada dependência do WiX ao mudar para NSIS
 - Adicionado logging verboso ao GitHub Actions para melhor diagnóstico de builds
+- Atualização de changelog do GitHub Actions: Corrigido problema de HEAD desanexado no passo de workflow pós-release
+- Permissões do GitHub Actions: Adicionada permissão de escrita de conteúdo ao job update-changelog para corrigir erros 403 de push
 
 ### Melhorado
 - Confiabilidade de build: Instalador NSIS elimina problemas de instalação do WiX Toolset no GitHub Actions
