@@ -62,6 +62,34 @@ impl DisplayManager for WindowsDisplayManager {
         }
     }
 
+    fn get_display_count(&self) -> Result<usize, String> {
+        let mut count = 0usize;
+
+        unsafe {
+            extern "system" fn count_proc(
+                _hmonitor: HMONITOR,
+                _hdc: HDC,
+                _rect: LPRECT,
+                lparam: isize,
+            ) -> i32 {
+                unsafe {
+                    let count = &mut *(lparam as *mut usize);
+                    *count += 1;
+                }
+                1 // Continue enumeration
+            }
+
+            EnumDisplayMonitors(
+                ptr::null_mut(),
+                ptr::null_mut(),
+                Some(count_proc),
+                &mut count as *mut _ as isize,
+            );
+        }
+
+        Ok(count)
+    }
+
     fn get_primary_display(&self) -> Result<DisplayInfo, String> {
         let displays = self.get_displays()?;
         displays

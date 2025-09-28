@@ -37,6 +37,7 @@ function createMockTauriAPI() {
         },
 
         dimmingEnabled: false,
+        overlayColor: { r: 0, g: 0, b: 0, a: 0.5 },
 
         async toggleDimming() {
             this.dimmingEnabled = !this.dimmingEnabled;
@@ -46,6 +47,24 @@ function createMockTauriAPI() {
 
         async isDimmingEnabled() {
             return this.dimmingEnabled;
+        },
+
+        async getOverlayColor() {
+            console.log('Mock: Getting overlay color', this.overlayColor);
+            return this.overlayColor;
+        },
+
+        async setOverlayColor(color) {
+            console.log('Mock: Setting overlay color to', color);
+            this.overlayColor = { ...color };
+            return;
+        },
+
+        async resetOverlayColor() {
+            const defaultColor = { r: 0, g: 0, b: 0, a: 0.5 };
+            console.log('Mock: Resetting overlay color to default', defaultColor);
+            this.overlayColor = { ...defaultColor };
+            return defaultColor;
         }
     };
 
@@ -62,6 +81,12 @@ function createMockTauriAPI() {
                     return mockWindowManager.toggleDimming();
                 case 'is_dimming_enabled':
                     return mockWindowManager.isDimmingEnabled();
+                case 'get_overlay_color':
+                    return mockWindowManager.getOverlayColor();
+                case 'set_overlay_color':
+                    return mockWindowManager.setOverlayColor(args.color);
+                case 'reset_overlay_color':
+                    return mockWindowManager.resetOverlayColor();
                 default:
                     console.warn('Mock: Unknown command:', command);
                     return null;
@@ -133,6 +158,7 @@ class SpotlightDimmerApp {
         this.activeWindow = null;
         this.activeDisplay = null;
         this.isDimmingEnabled = false;
+        this.overlayColor = { r: 0, g: 0, b: 0, a: 0.5 };
 
         this.elements = {
             activeWindow: document.getElementById('activeWindow'),
@@ -141,7 +167,12 @@ class SpotlightDimmerApp {
             toggleBtn: document.getElementById('toggleBtn'),
             toggleText: document.getElementById('toggleText'),
             refreshBtn: document.getElementById('refreshBtn'),
-            displaysList: document.getElementById('displaysList')
+            displaysList: document.getElementById('displaysList'),
+            colorPicker: document.getElementById('colorPicker'),
+            colorPreview: document.getElementById('colorPreview'),
+            opacitySlider: document.getElementById('opacitySlider'),
+            opacityValue: document.getElementById('opacityValue'),
+            resetColorBtn: document.getElementById('resetColorBtn')
         };
 
         this.init();
@@ -184,6 +215,7 @@ class SpotlightDimmerApp {
 
             // Load initial state
             await this.loadDimmingStatus();
+            await this.loadOverlayColor();
             await this.loadDisplays();
             await this.updateActiveWindow();
 
@@ -198,6 +230,11 @@ class SpotlightDimmerApp {
     setupEventListeners() {
         this.elements.toggleBtn.addEventListener('click', () => this.toggleDimming());
         this.elements.refreshBtn.addEventListener('click', () => this.refreshDisplays());
+
+        // Color picker event listeners
+        this.elements.colorPicker.addEventListener('input', (e) => this.onColorChange(e.target.value));
+        this.elements.opacitySlider.addEventListener('input', (e) => this.onOpacityChange(e.target.value));
+        this.elements.resetColorBtn.addEventListener('click', () => this.resetColor());
     }
 
     async testTauriConnectivity() {
@@ -404,6 +441,111 @@ class SpotlightDimmerApp {
         // TODO: Implement proper error notification system
         console.error(message);
         alert(message); // Temporary solution
+    }
+
+    // Color management methods
+    async loadOverlayColor() {
+        try {
+            console.log('Loading overlay color...');
+            this.overlayColor = await invoke('get_overlay_color');
+            console.log('Overlay color loaded:', this.overlayColor);
+            this.updateColorUI();
+        } catch (error) {
+            console.error('Failed to load overlay color:', error);
+            console.error('Error details:', error.message);
+        }
+    }
+
+    updateColorUI() {
+        // Update color picker
+        const hexColor = this.rgbToHex(this.overlayColor.r, this.overlayColor.g, this.overlayColor.b);
+        this.elements.colorPicker.value = hexColor;
+
+        // Update opacity slider (convert from 0.0-1.0 to 0-100)
+        const opacityPercent = Math.round(this.overlayColor.a * 100);
+        this.elements.opacitySlider.value = opacityPercent;
+        this.elements.opacityValue.textContent = opacityPercent + '%';
+
+        // Update color preview
+        const rgbaString = `rgba(${this.overlayColor.r}, ${this.overlayColor.g}, ${this.overlayColor.b}, ${this.overlayColor.a})`;
+        this.elements.colorPreview.style.backgroundColor = rgbaString;
+
+        console.log('Updated color UI with:', rgbaString);
+    }
+
+    async onColorChange(hexColor) {
+        try {
+            console.log('Color picker changed to:', hexColor);
+
+            // Convert hex to RGB
+            const rgb = this.hexToRgb(hexColor);
+            if (rgb) {
+                this.overlayColor.r = rgb.r;
+                this.overlayColor.g = rgb.g;
+                this.overlayColor.b = rgb.b;
+
+                // Update preview immediately
+                this.updateColorPreview();
+
+                // Send to backend
+                await invoke('set_overlay_color', { color: this.overlayColor });
+                console.log('Successfully updated overlay color');
+            }
+        } catch (error) {
+            console.error('Failed to update overlay color:', error);
+            this.showError('Failed to update overlay color: ' + error.message);
+        }
+    }
+
+    async onOpacityChange(value) {
+        try {
+            console.log('Opacity slider changed to:', value);
+
+            // Convert from 0-100 to 0.0-1.0
+            this.overlayColor.a = parseFloat(value) / 100;
+
+            // Update UI
+            this.elements.opacityValue.textContent = value + '%';
+            this.updateColorPreview();
+
+            // Send to backend
+            await invoke('set_overlay_color', { color: this.overlayColor });
+            console.log('Successfully updated overlay opacity');
+        } catch (error) {
+            console.error('Failed to update overlay opacity:', error);
+            this.showError('Failed to update overlay opacity: ' + error.message);
+        }
+    }
+
+    updateColorPreview() {
+        const rgbaString = `rgba(${this.overlayColor.r}, ${this.overlayColor.g}, ${this.overlayColor.b}, ${this.overlayColor.a})`;
+        this.elements.colorPreview.style.backgroundColor = rgbaString;
+    }
+
+    async resetColor() {
+        try {
+            console.log('Resetting color to default...');
+            this.overlayColor = await invoke('reset_overlay_color');
+            this.updateColorUI();
+            console.log('Successfully reset overlay color');
+        } catch (error) {
+            console.error('Failed to reset overlay color:', error);
+            this.showError('Failed to reset overlay color: ' + error.message);
+        }
+    }
+
+    // Utility functions
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
     }
 }
 

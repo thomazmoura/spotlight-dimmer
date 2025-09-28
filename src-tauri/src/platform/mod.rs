@@ -38,6 +38,7 @@ pub struct ActiveWindowInfo {
 pub trait DisplayManager {
     fn get_displays(&self) -> Result<Vec<DisplayInfo>, String>;
     fn get_primary_display(&self) -> Result<DisplayInfo, String>;
+    fn get_display_count(&self) -> Result<usize, String>;
 }
 
 pub trait WindowManager {

@@ -7,17 +7,64 @@ use platform::{ActiveWindowInfo, DisplayInfo, DisplayManager, WindowManager};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
 use tauri::{
     AppHandle, Manager, State, WebviewUrl, WebviewWindowBuilder, Emitter,
     tray::{TrayIconBuilder, TrayIconEvent, MouseButton},
     menu::{Menu, MenuItem, PredefinedMenuItem},
 };
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct OverlayColor {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: f32, // opacity from 0.0 to 1.0
+}
+
+impl Default for OverlayColor {
+    fn default() -> Self {
+        Self {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.5,
+        }
+    }
+}
+
+impl OverlayColor {
+    fn to_rgba_string(&self) -> String {
+        format!("rgba({}, {}, {}, {})", self.r, self.g, self.b, self.a)
+    }
+
+    fn to_hex_string(&self) -> String {
+        format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct AppConfig {
+    overlay_color: OverlayColor,
+    is_dimming_enabled: bool,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            overlay_color: OverlayColor::default(),
+            is_dimming_enabled: true,
+        }
+    }
+}
+
 // Global state for managing overlays and focus tracking
 struct AppState {
     overlays: Arc<Mutex<HashMap<String, tauri::WebviewWindow>>>,
     is_dimming_enabled: Arc<Mutex<bool>>,
     current_active_display: Arc<Mutex<Option<String>>>,
+    overlay_color: Arc<Mutex<OverlayColor>>,
+    config_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 impl Default for AppState {
@@ -26,7 +73,91 @@ impl Default for AppState {
             overlays: Arc::new(Mutex::new(HashMap::new())),
             is_dimming_enabled: Arc::new(Mutex::new(true)), // Start with dimming enabled
             current_active_display: Arc::new(Mutex::new(None)),
+            overlay_color: Arc::new(Mutex::new(OverlayColor::default())),
+            config_path: Arc::new(Mutex::new(None)),
         }
+    }
+}
+
+impl AppState {
+    async fn load_config(&self, app_handle: &AppHandle) -> Result<(), String> {
+        let config_dir = app_handle.path().app_config_dir()
+            .map_err(|e| format!("Failed to get config directory: {}", e))?;
+
+        // Create config directory if it doesn't exist
+        if let Err(e) = std::fs::create_dir_all(&config_dir) {
+            println!("Warning: Failed to create config directory: {}", e);
+        }
+
+        let config_file = config_dir.join("spotlight-dimmer-config.json");
+
+        // Store config path for later use
+        {
+            let mut path = self.config_path.lock().unwrap();
+            *path = Some(config_file.clone());
+        }
+
+        if config_file.exists() {
+            match std::fs::read_to_string(&config_file) {
+                Ok(content) => {
+                    match serde_json::from_str::<AppConfig>(&content) {
+                        Ok(config) => {
+                            let color_string = config.overlay_color.to_rgba_string();
+                            let dimming_enabled = config.is_dimming_enabled;
+
+                            {
+                                let mut color = self.overlay_color.lock().unwrap();
+                                *color = config.overlay_color;
+                            }
+                            {
+                                let mut enabled = self.is_dimming_enabled.lock().unwrap();
+                                *enabled = dimming_enabled;
+                            }
+                            println!("Loaded config: overlay color = {}, dimming enabled = {}",
+                                color_string, dimming_enabled);
+                        }
+                        Err(e) => {
+                            println!("Warning: Failed to parse config file, using defaults: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Warning: Failed to read config file, using defaults: {}", e);
+                }
+            }
+        } else {
+            println!("Config file doesn't exist, using defaults");
+        }
+
+        Ok(())
+    }
+
+    async fn save_config(&self) -> Result<(), String> {
+        let config_path = {
+            let path = self.config_path.lock().unwrap();
+            path.clone()
+        };
+
+        if let Some(path) = config_path {
+            let config = {
+                let color = self.overlay_color.lock().unwrap();
+                let enabled = self.is_dimming_enabled.lock().unwrap();
+                AppConfig {
+                    overlay_color: color.clone(),
+                    is_dimming_enabled: *enabled,
+                }
+            };
+
+            let content = serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+            std::fs::write(&path, content)
+                .map_err(|e| format!("Failed to write config file: {}", e))?;
+
+            println!("Saved config to {:?}", path);
+        }
+
+        Ok(())
     }
 }
 
@@ -43,6 +174,19 @@ async fn get_displays() -> Result<Vec<DisplayInfo>, String> {
     {
         let display_manager = platform::WindowsDisplayManager;
         display_manager.get_displays()
+    }
+    #[cfg(not(windows))]
+    {
+        Err("Platform not supported yet".to_string())
+    }
+}
+
+// Helper function for lightweight display count checking
+fn get_display_count() -> Result<usize, String> {
+    #[cfg(windows)]
+    {
+        let display_manager = platform::WindowsDisplayManager;
+        display_manager.get_display_count()
     }
     #[cfg(not(windows))]
     {
@@ -98,10 +242,96 @@ async fn is_dimming_enabled(state: State<'_, AppState>) -> Result<bool, String> 
     Ok(*is_enabled)
 }
 
+#[tauri::command]
+async fn get_overlay_color(state: State<'_, AppState>) -> Result<OverlayColor, String> {
+    let color = state.overlay_color.lock().unwrap();
+    Ok(color.clone())
+}
+
+#[tauri::command]
+async fn set_overlay_color(
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+    color: OverlayColor,
+) -> Result<(), String> {
+    println!("Setting overlay color to: {}", color.to_rgba_string());
+
+    // Validate color values
+    if color.a < 0.0 || color.a > 1.0 {
+        return Err("Opacity must be between 0.0 and 1.0".to_string());
+    }
+
+    // Update the color in state
+    {
+        let mut current_color = state.overlay_color.lock().unwrap();
+        *current_color = color.clone();
+    }
+
+    // Save config
+    if let Err(e) = state.save_config().await {
+        println!("Warning: Failed to save config: {}", e);
+    }
+
+    // Update existing overlays if dimming is enabled
+    let is_enabled = {
+        let enabled = state.is_dimming_enabled.lock().unwrap();
+        *enabled
+    };
+
+    if is_enabled {
+        // Recreate overlays with new color
+        close_all_overlays(&state).await?;
+        create_overlays(&app_handle, &state).await?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn reset_overlay_color(
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<OverlayColor, String> {
+    let default_color = OverlayColor::default();
+
+    println!("Resetting overlay color to default: {}", default_color.to_rgba_string());
+
+    // Update the color in state
+    {
+        let mut current_color = state.overlay_color.lock().unwrap();
+        *current_color = default_color.clone();
+    }
+
+    // Save config
+    if let Err(e) = state.save_config().await {
+        println!("Warning: Failed to save config: {}", e);
+    }
+
+    // Update existing overlays if dimming is enabled
+    let is_enabled = {
+        let enabled = state.is_dimming_enabled.lock().unwrap();
+        *enabled
+    };
+
+    if is_enabled {
+        // Recreate overlays with new color
+        close_all_overlays(&state).await?;
+        create_overlays(&app_handle, &state).await?;
+    }
+
+    Ok(default_color)
+}
+
 // Helper functions
 async fn create_overlays(app_handle: &AppHandle, state: &AppState) -> Result<(), String> {
     let displays = get_displays().await?;
     let mut overlays = state.overlays.lock().unwrap();
+
+    // Get current color from state
+    let overlay_color = {
+        let color = state.overlay_color.lock().unwrap();
+        color.clone()
+    };
 
     // Close existing overlays first
     for (_, window) in overlays.drain() {
@@ -110,11 +340,11 @@ async fn create_overlays(app_handle: &AppHandle, state: &AppState) -> Result<(),
 
     // Create new overlays for each display
     for display in displays {
-        println!("Creating overlay for display: {} at ({}, {}) size: {}x{}",
-                display.name, display.x, display.y, display.width, display.height);
+        println!("Creating overlay for display: {} at ({}, {}) size: {}x{} with color {}",
+                display.name, display.x, display.y, display.width, display.height, overlay_color.to_rgba_string());
         let overlay_id = format!("overlay_{}", display.id);
 
-        match create_overlay_window(app_handle, &overlay_id, &display) {
+        match create_overlay_window(app_handle, &overlay_id, &display, &overlay_color) {
             Ok(window) => {
                 overlays.insert(display.id.clone(), window);
             }
@@ -127,13 +357,45 @@ async fn create_overlays(app_handle: &AppHandle, state: &AppState) -> Result<(),
     Ok(())
 }
 
+fn create_dynamic_overlay_html(color: &OverlayColor) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotlight Dimmer Overlay</title>
+    <style>
+        body, html {{
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: {};
+            overflow: hidden;
+            pointer-events: none;
+        }}
+    </style>
+</head>
+<body>
+    <!-- This is a transparent overlay that dims the inactive displays -->
+</body>
+</html>"#,
+        color.to_rgba_string()
+    )
+}
+
 fn create_overlay_window(
     app_handle: &AppHandle,
     overlay_id: &str,
     display: &DisplayInfo,
+    color: &OverlayColor,
 ) -> Result<tauri::WebviewWindow, String> {
-    println!("Creating overlay window at position ({}, {}) with size {}x{}",
-             display.x, display.y, display.width, display.height);
+    println!("Creating overlay window at position ({}, {}) with size {}x{} and color {}",
+             display.x, display.y, display.width, display.height, color.to_rgba_string());
+
+    // Create HTML content with dynamic color for embedded fallback
+    let dynamic_overlay_html = create_dynamic_overlay_html(color);
 
     // Try file-based approach first (preserves transparency), fallback to embedded content
     let window_result = WebviewWindowBuilder::new(app_handle, &format!("{}_file", overlay_id), WebviewUrl::App("overlay.html".into()))
@@ -152,12 +414,22 @@ fn create_overlay_window(
         .build();
 
     let window = match window_result {
-        Ok(win) => win,
+        Ok(win) => {
+            // For file-based overlays, we need to inject the color via JavaScript
+            println!("Using file-based overlay, injecting color via JavaScript");
+            let color_js = format!(
+                "document.body.style.backgroundColor = '{}';",
+                color.to_rgba_string()
+            );
+            if let Err(e) = win.eval(&color_js) {
+                println!("Warning: Failed to inject color into file-based overlay: {}", e);
+            }
+            win
+        },
         Err(_) => {
-            // Fallback to embedded content for cargo install
-            println!("File-based overlay not found, using embedded content");
-            let overlay_html_content = get_asset("overlay.html").unwrap_or(OVERLAY_HTML);
-            let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(overlay_html_content));
+            // Fallback to embedded content for cargo install with dynamic color
+            println!("File-based overlay not found, using embedded content with dynamic color");
+            let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(&dynamic_overlay_html));
 
             WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::External(data_url.parse().unwrap()))
                 .title("Spotlight Dimmer Overlay")
@@ -394,6 +666,78 @@ async fn close_all_overlays(state: &AppState) -> Result<(), String> {
     Ok(())
 }
 
+// Synchronous version for display configuration changes
+fn recreate_overlays_for_display_change(app_handle: &AppHandle, state: &AppState) -> Result<(), String> {
+    // Only recreate overlays if dimming is enabled
+    let is_enabled = {
+        let enabled = state.is_dimming_enabled.lock().unwrap();
+        *enabled
+    };
+
+    if !is_enabled {
+        println!("Dimming disabled, skipping overlay recreation");
+        return Ok(());
+    }
+
+    println!("Recreating overlays for display configuration change...");
+
+    // Get current display list
+    let displays = {
+        #[cfg(windows)]
+        {
+            let display_manager = platform::WindowsDisplayManager;
+            display_manager.get_displays()
+        }
+        #[cfg(not(windows))]
+        {
+            Err("Platform not supported yet".to_string())
+        }
+    }?;
+
+    // Get current overlay color
+    let overlay_color = {
+        let color = state.overlay_color.lock().unwrap();
+        color.clone()
+    };
+
+    // Close all existing overlays and clear the HashMap
+    {
+        let mut overlays = state.overlays.lock().unwrap();
+        for (_, window) in overlays.drain() {
+            let _ = window.close();
+        }
+        println!("Closed all existing overlays");
+    }
+
+    // Create new overlays for current displays
+    {
+        let mut overlays = state.overlays.lock().unwrap();
+        for display in displays {
+            println!("Creating overlay for display: {} at ({}, {}) size: {}x{}",
+                    display.name, display.x, display.y, display.width, display.height);
+            let overlay_id = format!("overlay_{}", display.id);
+
+            match create_overlay_window(app_handle, &overlay_id, &display, &overlay_color) {
+                Ok(window) => {
+                    overlays.insert(display.id.clone(), window);
+                }
+                Err(e) => {
+                    println!("Failed to create overlay for display {}: {}", display.id, e);
+                }
+            }
+        }
+    }
+
+    // Reset active display tracking to ensure proper overlay visibility
+    {
+        let mut current_display = state.current_active_display.lock().unwrap();
+        *current_display = None;
+    }
+
+    println!("Overlay recreation completed successfully");
+    Ok(())
+}
+
 async fn update_overlays(app_handle: &AppHandle, state: &AppState) -> Result<(), String> {
     let is_enabled = *state.is_dimming_enabled.lock().unwrap();
     if !is_enabled {
@@ -594,10 +938,33 @@ fn start_focus_monitoring(app_handle: AppHandle) {
     std::thread::spawn(move || {
         let mut last_window_handle: Option<u64> = None;
         let mut last_display_id: Option<String> = None;
+        let mut last_display_count: Option<usize> = None;
         println!("Focus monitoring thread started!");
 
         loop {
             std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Check for display configuration changes (lightweight)
+            if let Ok(current_display_count) = get_display_count() {
+                if Some(current_display_count) != last_display_count {
+                    println!("Display configuration changed: {} -> {} displays",
+                        last_display_count.unwrap_or(0), current_display_count);
+
+                    // Display configuration changed - recreate overlays
+                    let state = app_handle.state::<AppState>();
+                    if let Err(e) = recreate_overlays_for_display_change(&app_handle, &state) {
+                        println!("Failed to recreate overlays after display change: {}", e);
+                    } else {
+                        println!("Successfully recreated overlays for new display configuration");
+                    }
+
+                    last_display_count = Some(current_display_count);
+                    // Reset tracking since display configuration changed
+                    last_window_handle = None;
+                    last_display_id = None;
+                    continue; // Skip normal processing this cycle
+                }
+            }
 
             // Create a sync version of get_active_window
             let active_window_result = {
@@ -667,6 +1034,12 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
 
+            // Load saved configuration
+            let state = app.state::<AppState>();
+            if let Err(e) = tokio::runtime::Runtime::new().unwrap().block_on(state.load_config(&app_handle)) {
+                println!("Warning: Failed to load config: {}", e);
+            }
+
             // Setup system tray
             setup_system_tray(app)?;
 
@@ -711,6 +1084,9 @@ pub fn run() {
             get_active_window,
             toggle_dimming,
             is_dimming_enabled,
+            get_overlay_color,
+            set_overlay_color,
+            reset_overlay_color,
             show_main_window,
             hide_main_window
         ])

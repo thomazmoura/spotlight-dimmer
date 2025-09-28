@@ -48,6 +48,27 @@
                 </div>
             </section>
 
+            <section class="color-section">
+                <div class="color-card">
+                    <h2>Overlay Color</h2>
+                    <div class="color-controls">
+                        <div class="color-input-group">
+                            <label for="colorPicker" class="color-label">Color:</label>
+                            <input type="color" id="colorPicker" value="#000000" class="color-picker">
+                            <div class="color-preview" id="colorPreview"></div>
+                        </div>
+                        <div class="opacity-input-group">
+                            <label for="opacitySlider" class="opacity-label">Opacity:</label>
+                            <input type="range" id="opacitySlider" min="0" max="100" value="50" class="opacity-slider">
+                            <span id="opacityValue" class="opacity-value">50%</span>
+                        </div>
+                        <div class="color-actions">
+                            <button id="resetColorBtn" class="reset-btn">Reset to Default</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="displays-section">
                 <div class="displays-card">
                     <h2>Displays</h2>
