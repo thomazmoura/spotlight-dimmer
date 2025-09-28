@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WiX template configuration: Eliminated WiX dependency by switching to NSIS
 - Added verbose logging to GitHub Actions for better build diagnostics
 
+### Fixed
+- GitHub Actions changelog update: Fixed detached HEAD issue in post-release workflow step
+
 ### Improved
 - Build reliability: NSIS installer eliminates GitHub Actions WiX Toolset installation issues
 - Installer size: NSIS compression achieves 20.8% size reduction (vs original binary)
