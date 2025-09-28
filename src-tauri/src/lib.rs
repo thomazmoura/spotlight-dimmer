@@ -687,6 +687,7 @@ pub fn run() {
                     println!("Failed to auto-create overlays on startup: {}", e);
                 } else {
                     println!("Successfully auto-created overlays on startup");
+                    println!("Spotlight Dimmer started in tray - click tray icon to open interface");
                 }
             });
 
