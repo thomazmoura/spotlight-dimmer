@@ -77,9 +77,11 @@ jobs:
                   f.write("This release includes various improvements and bug fixes.")
           EOF
 
-          echo "release-notes<<EOF" >> $GITHUB_OUTPUT
-          cat release_notes.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "release-notes<<EOF"
+            cat release_notes.txt
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   build-and-release:
     needs: changelog

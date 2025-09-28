@@ -9,7 +9,8 @@
       "WebSearch",
       "WebFetch(domain:v2.tauri.app)",
       "Bash(spotlight-dimmer.exe --help)",
-      "Bash(spotlight-dimmer.exe:*)"
+      "Bash(spotlight-dimmer.exe:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
