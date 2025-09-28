@@ -6,25 +6,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Spotlight Dimmer is a cross-platform application that dims inactive displays to highlight the active one. Currently Windows-only but designed for future cross-platform support. It helps users with multiple monitors focus by dimming all displays except the one with the currently focused window.
 
-## Build Commands
+## Installation & Build Methods
 
-### Development
+Spotlight Dimmer supports **two distinct installation methods**, each with different characteristics and use cases:
+
+### Method 1: Tauri Builds (Recommended for Full Features)
+Full GUI application with perfect transparency and all features.
+
+#### Development
 ```bash
 # Start development server with hot reload
 cargo tauri dev
 ```
 
-### Building
+#### Production Build
 ```bash
-# Build for production
+# Build for production (creates installer/executable)
 cargo tauri build
 ```
 
-### Testing Frontend Changes
+#### Testing Frontend Changes
 ```bash
 # Serve the frontend files locally for testing (Python required)
 python -m http.server 1420 --directory dist
 ```
+
+### Method 2: Cargo Install (Portable Installation)
+Direct installation via Cargo package manager for developers.
+
+#### Installation
+```bash
+# Install from local source
+cd src-tauri && cargo install --path .
+
+# Install from crates.io (when published)
+cargo install spotlight-dimmer
+```
+
+#### Uninstallation
+```bash
+cargo uninstall spotlight-dimmer
+```
+
+### Key Differences Between Installation Methods
+
+| Feature | Tauri Build | Cargo Install |
+|---------|-------------|---------------|
+| **Installation** | Requires Tauri CLI + build | Standard `cargo install` |
+| **Transparency** | ✅ Perfect (file-based overlays) | ⚠️ Limited (data URL fallback) |
+| **File Size** | Larger (includes webview) | Smaller (embedded assets) |
+| **Dependencies** | Requires `dist/` files | Self-contained binary |
+| **Use Case** | End users, full GUI | Developers, automation |
+| **Update Method** | Rebuild + reinstall | `cargo install --force` |
+
+### ⚠️ CRITICAL BUILD COMPATIBILITY WARNINGS
+
+**DO NOT make changes that break either installation method:**
+
+1. **Never remove the `dist/` directory** - Required for Tauri builds
+2. **Never remove embedded asset fallbacks** - Required for cargo install
+3. **Never change overlay creation logic** without testing both methods
+4. **Always test both installation methods** before committing changes
+5. **Preserve the hybrid overlay approach** in `lib.rs:create_overlay_window()`
 
 ## Architecture Overview
 
@@ -58,6 +101,38 @@ python -m http.server 1420 --directory dist
 - **Click-Through Implementation**: Uses Tauri's native `set_ignore_cursor_events(true)` API (preferred method)
 - **Fallback**: Windows API with `WS_EX_TRANSPARENT`, `WS_EX_LAYERED`, and `WS_EX_TOOLWINDOW` flags
 - **Auto-startup**: Application starts with dimming enabled by default
+
+#### Hybrid Overlay Loading System
+The overlay system uses a **hybrid approach** to support both installation methods:
+
+1. **Primary Method (File-based)**: `WebviewUrl::App("overlay.html".into())`
+   - Used when `dist/overlay.html` exists (Tauri builds)
+   - Provides perfect transparency with `rgba(0, 0, 0, 0.5)` dimming
+   - Preserves all CSS styling and functionality
+
+2. **Fallback Method (Embedded)**: Data URL with embedded content
+   - Used when file-based loading fails (cargo install)
+   - Serves embedded HTML from `build.rs` generated assets
+   - May have transparency limitations on Windows due to data URL constraints
+
+```rust
+// Implementation in lib.rs:create_overlay_window()
+let window_result = WebviewWindowBuilder::new(app_handle, &format!("{}_file", overlay_id), WebviewUrl::App("overlay.html".into()))
+    .build();
+
+let window = match window_result {
+    Ok(win) => win,  // File-based overlay (preferred)
+    Err(_) => {
+        // Fallback to embedded content
+        let overlay_html_content = get_asset("overlay.html").unwrap_or(OVERLAY_HTML);
+        let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(overlay_html_content));
+        WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::External(data_url.parse().unwrap()))
+            .build()?
+    }
+};
+```
+
+**⚠️ Critical**: Never modify this hybrid loading logic without testing both installation methods!
 
 ### Tauri Commands
 - `get_displays()`: Returns list of all displays with positioning info
@@ -148,3 +223,97 @@ if window_changed || display_changed {
     // Update overlays for either type of change
 }
 ```
+
+## Installation Troubleshooting
+
+### Cargo Install Issues
+
+#### Problem: "Access denied" during installation
+```bash
+error: failed to move spotlight-dimmer.exe
+Caused by: Acesso negado. (os error 5)
+```
+**Solution**: The binary is currently running. Stop all instances first:
+```bash
+cargo uninstall spotlight-dimmer
+# or manually close any running spotlight-dimmer processes
+cargo install --path . --force
+```
+
+#### Problem: "webview-data-url feature not found"
+**Cause**: Missing Tauri feature for data URL support in embedded content fallback.
+**Solution**: Ensure `Cargo.toml` includes:
+```toml
+tauri = { version = "2.8.5", features = ["tray-icon", "devtools", "webview-data-url"] }
+```
+
+#### Problem: Overlays appear completely transparent (no dimming)
+**Cause**: Using data URL fallback which has Windows transparency limitations.
+**Solutions**:
+1. Use Tauri build instead: `cargo tauri build`
+2. Verify `dist/overlay.html` exists for file-based loading
+3. Check console output for "File-based overlay not found" message
+
+### Tauri Build Issues
+
+#### Problem: "Frontend dist directory not found"
+**Solution**: Ensure `dist/` directory exists with required files:
+```bash
+ls dist/  # Should show: index.html, overlay.html, style.css, main.js
+```
+
+#### Problem: Overlays not showing proper transparency
+**Solution**: Verify `dist/overlay.html` contains correct CSS:
+```css
+body, html {
+    background-color: rgba(0, 0, 0, 0.5);  /* 50% transparent black */
+    pointer-events: none;  /* Essential for click-through */
+    overflow: hidden;
+}
+```
+
+### General Issues
+
+#### Problem: Focus monitoring not working
+**Diagnostics**: Check console output for:
+- "Focus monitoring thread started!"
+- "Active window changed: [window name]"
+- "Successfully emitted focus-changed event"
+
+#### Problem: Click-through not working
+**Solution**: Verify console shows:
+- "Successfully set ignore cursor events with Tauri API"
+- If not, check Windows permissions and Tauri version
+
+### Testing Both Installation Methods
+
+Before making any changes, always test both methods:
+
+```bash
+# Test Tauri build
+cargo tauri dev
+# Verify transparency and functionality
+
+# Test cargo install
+cd src-tauri
+cargo install --path . --force
+spotlight-dimmer
+# Verify it works (may have limited transparency)
+
+# Clean up
+cargo uninstall spotlight-dimmer
+```
+
+### Build System Maintenance
+
+#### Embedded Assets (`build.rs`)
+- Automatically embeds `dist/` files into binary
+- Provides fallback HTML/CSS for cargo install
+- Regenerates on `dist/` changes
+
+#### Dependencies for Both Methods
+- **Tauri builds**: Requires Tauri CLI, `dist/` files
+- **Cargo install**: Requires `webview-data-url` feature, embedded assets
+- **Both**: Windows API dependencies, Rust 1.77.2+
+
+**Remember**: Any changes to overlay creation logic in `lib.rs:create_overlay_window()` must be tested with both installation methods to ensure compatibility!
