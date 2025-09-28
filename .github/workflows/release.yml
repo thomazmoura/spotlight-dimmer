@@ -190,15 +190,9 @@ jobs:
               def replace_unreleased(match):
                   unreleased_content = match.group(1).strip()
                   if unreleased_content:
-                      return f"""## [Unreleased]
-
-{unreleased_content}
-
-## [{version}] - {today}"""
+                      return "## [Unreleased]\n\n## [{}] - {}\n\n{}".format(version, today, unreleased_content)
                   else:
-                      return f"""## [Unreleased]
-
-## [{version}] - {today}"""
+                      return "## [Unreleased]\n\n## [{}] - {}".format(version, today)
 
               updated_content = re.sub(unreleased_pattern, replace_unreleased, content, flags=re.DOTALL)
 
@@ -206,15 +200,15 @@ jobs:
               if updated_content == content:
                   # Find the first version section and insert before it
                   version_pattern = r'(## \[)'
-                  updated_content = re.sub(version_pattern, f'## [Unreleased]\n\n## [{version}] - {today}\n\n\\1', content, count=1)
+                  updated_content = re.sub(version_pattern, '## [Unreleased]\\n\\n## [{}] - {}\\n\\n\\1'.format(version, today), content, count=1)
 
               with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
                   f.write(updated_content)
 
-              print(f"✅ Updated changelog for version {version}")
+              print("✅ Updated changelog for version {}".format(version))
 
           except Exception as e:
-              print(f"❌ Error updating changelog: {e}")
+              print("❌ Error updating changelog: {}".format(e))
           EOF
 
       - name: Commit changelog update
