@@ -542,6 +542,7 @@ fn setup_system_tray(app: &tauri::App) -> tauri::Result<()> {
 
     // Create and configure tray icon
     let _tray = TrayIconBuilder::new()
+        .icon(app.default_window_icon().unwrap().clone())
         .menu(&menu)
         .tooltip("Spotlight Dimmer")
         .on_menu_event(|app, event| match event.id.as_ref() {
