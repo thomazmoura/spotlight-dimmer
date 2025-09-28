@@ -35,6 +35,20 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "Spotlight Dimmer Team",
+    "copyright": "Copyright © 2024 Spotlight Dimmer Team. All rights reserved.",
+    "category": "Productivity",
+    "shortDescription": "Dims inactive displays to highlight the active one",
+    "longDescription": "Spotlight Dimmer is a cross-platform application that helps users with multiple monitors focus by dimming all displays except the one with the currently focused window. Features real-time focus monitoring, click-through overlays, and system tray integration.",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "wix": {
+        "language": ["en-US"],
+        "template": "main.wxs"
+      }
+    }
   }
 }

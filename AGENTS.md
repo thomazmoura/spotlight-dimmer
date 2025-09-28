@@ -344,3 +344,99 @@ cargo uninstall spotlight-dimmer
 - **Both**: Windows API dependencies, Rust 1.77.2+
 
 **Remember**: Any changes to overlay creation logic in `lib.rs:create_overlay_window()` must be tested with both installation methods to ensure compatibility!
+
+## Changelog Management (REQUIRED)
+
+**CRITICAL**: Every code change, feature addition, bug fix, or improvement MUST be documented in `CHANGELOG.md`. This is not optional.
+
+### When to Update the Changelog
+
+Update `CHANGELOG.md` for ANY of these changes:
+- ✅ New features or functionality
+- ✅ Bug fixes and issue resolutions
+- ✅ Breaking changes or API modifications
+- ✅ Performance improvements
+- ✅ UI/UX enhancements
+- ✅ Configuration changes
+- ✅ Dependency updates (if user-facing)
+- ✅ Security fixes
+- ✅ Documentation improvements (if significant)
+
+### Changelog Format
+
+Follow [Keep a Changelog](https://keepachangelog.com/) format. Always add entries under the `## [Unreleased]` section:
+
+#### For New Features
+```markdown
+### Added
+- Feature name: Clear description of what it does and why it's useful for users
+- Another feature: Focus on user-facing benefits, not internal implementation details
+```
+
+#### For Bug Fixes
+```markdown
+### Fixed
+- Issue description: What was broken and how it affects users
+- Bug name: Clear explanation of the fix and its impact
+```
+
+#### For Breaking Changes
+```markdown
+### Changed
+- Breaking change description: What changed and why
+- Migration steps: If users need to take action, explain how
+```
+
+#### For Performance/Internal Improvements
+```markdown
+### Improved
+- Performance enhancement: Measurable impact on user experience
+- Internal optimization: Only if it affects user-visible behavior
+```
+
+#### For Removed Features
+```markdown
+### Removed
+- Deprecated feature: What was removed and why
+- Alternative solution: What users should use instead
+```
+
+### Changelog Writing Guidelines
+
+1. **User-Focused**: Write for end users, not developers
+2. **Clear Impact**: Explain what changed and why it matters
+3. **Actionable**: Include migration steps for breaking changes
+4. **Specific**: Use concrete examples rather than vague descriptions
+5. **Consistent**: Follow the same style and format for all entries
+
+### Example Entry
+```markdown
+### Added
+- Dark mode toggle: Users can now switch between light and dark themes via the system tray menu
+- Keyboard shortcuts: Added Ctrl+D to toggle dimming and Ctrl+Q to quit application
+- Multi-monitor performance: Reduced CPU usage by 40% when managing 3+ displays
+
+### Fixed
+- Display detection bug: Application now properly detects displays after sleep/wake cycles
+- Memory leak: Fixed overlay windows not being properly disposed when displays are disconnected
+
+### Changed
+- Overlay transparency: Changed default dimming from 30% to 50% for better visibility (users can adjust in settings)
+```
+
+### Release Process Integration
+
+The changelog directly feeds into GitHub Releases:
+- Release notes are automatically generated from the `[Unreleased]` section
+- This ensures comprehensive, professional release documentation
+- No manual release note writing required
+
+### Quality Standards
+
+Each changelog entry should answer:
+- **What** changed?
+- **Why** did it change?
+- **How** does it affect users?
+- **What** should users do (if action required)?
+
+**Enforcement**: Pull requests without proper changelog updates will be considered incomplete.
