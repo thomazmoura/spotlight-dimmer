@@ -51,7 +51,28 @@ fn read_asset_file(path: &Path) -> String {
             if filename == index_name {
                 String::from("<!DOCTYPE html><html><head><title>Spotlight Dimmer</title></head><body><h1>Spotlight Dimmer</h1><p>Default interface</p></body></html>")
             } else if filename == overlay_name {
-                String::from("<!DOCTYPE html><html><head><style>body{margin:0;padding:0;background-color:rgba(0,0,0,0.7);width:100vw;height:100vh;}</style></head><body></body></html>")
+                String::from(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotlight Dimmer Overlay</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- This is a transparent overlay that dims the inactive displays -->
+</body>
+</html>"#)
             } else if filename == style_name {
                 String::from("body { font-family: sans-serif; }")
             } else if filename == js_name {

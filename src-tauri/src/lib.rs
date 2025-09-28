@@ -131,10 +131,8 @@ fn create_overlay_window(
     println!("Creating overlay window at position ({}, {}) with size {}x{}",
              display.x, display.y, display.width, display.height);
 
-    // Use embedded HTML content as a data URL
-    let overlay_html_content = get_asset("overlay.html").unwrap_or(OVERLAY_HTML);
-    let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(overlay_html_content));
-    let window = WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::External(data_url.parse().unwrap()))
+    // Try file-based approach first (preserves transparency), fallback to embedded content
+    let window_result = WebviewWindowBuilder::new(app_handle, &format!("{}_file", overlay_id), WebviewUrl::App("overlay.html".into()))
         .title("Spotlight Dimmer Overlay")
         .inner_size(display.width as f64, display.height as f64)
         .position(display.x as f64, display.y as f64)
@@ -147,8 +145,33 @@ fn create_overlay_window(
         .minimizable(false)
         .closable(false)
         .focusable(false)
-        .build()
-        .map_err(|e| format!("Failed to create overlay window: {}", e))?;
+        .build();
+
+    let window = match window_result {
+        Ok(win) => win,
+        Err(_) => {
+            // Fallback to embedded content for cargo install
+            println!("File-based overlay not found, using embedded content");
+            let overlay_html_content = get_asset("overlay.html").unwrap_or(OVERLAY_HTML);
+            let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(overlay_html_content));
+
+            WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::External(data_url.parse().unwrap()))
+                .title("Spotlight Dimmer Overlay")
+                .inner_size(display.width as f64, display.height as f64)
+                .position(display.x as f64, display.y as f64)
+                .decorations(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .transparent(true)
+                .resizable(false)
+                .maximizable(false)
+                .minimizable(false)
+                .closable(false)
+                .focusable(false)
+                .build()
+                .map_err(|e| format!("Failed to create overlay window with embedded content: {}", e))?
+        }
+    };
 
     // Verify the actual window position after creation
     if let (Ok(actual_pos), Ok(actual_size)) = (window.outer_position(), window.outer_size()) {
