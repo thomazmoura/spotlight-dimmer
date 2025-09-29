@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- GitHub Codespaces development environment with complete Rust, Tauri, and Claude Code setup
 - GitHub Actions workflow for automated releases with cross-platform binaries
 - Comprehensive changelog maintenance system for AI agents
 - Portuguese translation requirement for all changelog entries
@@ -42,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- Ambiente de desenvolvimento GitHub Codespaces com configuração completa de Rust, Tauri e Claude Code
 - Fluxo de trabalho do GitHub Actions para releases automatizadas com binários multiplataforma
 - Sistema abrangente de manutenção de changelog para agentes de IA
 - Requisito de tradução em português para todas as entradas do changelog
