@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2025-09-29
+
 ### Added
 - GitHub Codespaces development environment with complete Rust, Tauri, and Claude Code setup
 - GitHub Actions workflow for automated releases with cross-platform binaries
