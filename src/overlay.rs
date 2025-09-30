@@ -10,11 +10,10 @@ use winapi::shared::windef::{HBRUSH, HWND, RECT};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::wingdi::{CreateSolidBrush, RGB};
 use winapi::um::winuser::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
-    GetWindowLongPtrW, PostQuitMessage, RegisterClassExW, SetLayeredWindowAttributes,
-    SetWindowLongPtrW, ShowWindow, TranslateMessage, GWL_EXSTYLE, LWA_ALPHA, MSG, SW_HIDE,
-    SW_SHOW, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, PostQuitMessage, RegisterClassExW,
+    SetLayeredWindowAttributes, ShowWindow, LWA_ALPHA, SW_HIDE, SW_SHOW, WNDCLASSEXW,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    WS_POPUP,
 };
 
 const INACTIVE_CLASS_NAME: &str = "SpotlightDimmerInactiveOverlay";
@@ -190,20 +189,32 @@ impl OverlayManager {
     }
 
     /// Update overlay visibility based on active display
+    /// Uses ShowWindow for safe visibility changes on layered windows
     pub fn update_visibility(&self, active_display_id: &str) {
-        // Manage inactive overlays - show on non-active displays only
-        for (display_id, &hwnd) in &self.inactive_overlays {
-            let should_show = display_id != active_display_id;
-            unsafe {
+        unsafe {
+            // Manage inactive overlays - show on non-active displays only
+            for (display_id, &hwnd) in &self.inactive_overlays {
+                let should_show = display_id != active_display_id;
+                ShowWindow(hwnd, if should_show { SW_SHOW } else { SW_HIDE });
+            }
+
+            // Manage active overlays - show on active display only
+            for (display_id, &hwnd) in &self.active_overlays {
+                let should_show = display_id == active_display_id;
                 ShowWindow(hwnd, if should_show { SW_SHOW } else { SW_HIDE });
             }
         }
+    }
 
-        // Manage active overlays - show on active display only
-        for (display_id, &hwnd) in &self.active_overlays {
-            let should_show = display_id == active_display_id;
-            unsafe {
-                ShowWindow(hwnd, if should_show { SW_SHOW } else { SW_HIDE });
+    /// Hide all overlays (both inactive and active)
+    /// Used during drag operations to prevent ghost window creation
+    pub fn hide_all(&self) {
+        unsafe {
+            for (_, &hwnd) in &self.inactive_overlays {
+                ShowWindow(hwnd, SW_HIDE);
+            }
+            for (_, &hwnd) in &self.active_overlays {
+                ShowWindow(hwnd, SW_HIDE);
             }
         }
     }

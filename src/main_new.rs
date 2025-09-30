@@ -7,7 +7,22 @@ use overlay::OverlayManager;
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
+
+#[cfg(windows)]
+fn is_mouse_button_down() -> bool {
+    use winapi::um::winuser::{GetAsyncKeyState, VK_LBUTTON};
+    unsafe {
+        // GetAsyncKeyState returns i16, high-order bit indicates if key is currently down
+        // Check if the value is negative (high bit set)
+        GetAsyncKeyState(VK_LBUTTON) < 0
+    }
+}
+
+#[cfg(not(windows))]
+fn is_mouse_button_down() -> bool {
+    false
+}
 
 #[cfg(windows)]
 fn hide_console_if_not_launched_from_terminal() {
@@ -102,6 +117,10 @@ fn main() {
     // Track config file modification time for periodic reloading
     let mut last_config_modified = Config::last_modified();
     let mut loop_counter: u32 = 0;
+
+    // Drag detection state to prevent overlay updates during active mouse dragging
+    let mut last_mouse_down_state: bool = false;
+    let mut pending_display_id_during_drag: Option<String> = None;
 
     println!("[Main] Starting focus monitoring loop...");
 
@@ -233,6 +252,34 @@ fn main() {
             }
         }
 
+        // Check mouse button state for drag detection
+        let mouse_down = is_mouse_button_down();
+
+        // Detect mouse button press (start of potential drag) - hide all overlays to prevent ghost windows
+        if !last_mouse_down_state && mouse_down {
+            println!("[Main] Mouse button pressed - hiding overlays to prevent ghost windows");
+            let manager = overlay_manager.lock().unwrap();
+            manager.hide_all();
+        }
+
+        // Detect mouse button release (end of drag)
+        if last_mouse_down_state && !mouse_down {
+            // Mouse was released - apply any pending display change from drag
+            if let Some(pending_display) = pending_display_id_during_drag.take() {
+                println!("[Main] Mouse released, applying deferred overlay update to display: {}", pending_display);
+                let manager = overlay_manager.lock().unwrap();
+                manager.update_visibility(&pending_display);
+                last_display_id = Some(pending_display);
+            } else if let Some(current_display) = last_display_id.as_ref() {
+                // No pending change, just restore visibility based on current state
+                println!("[Main] Mouse released, restoring overlay visibility");
+                let manager = overlay_manager.lock().unwrap();
+                manager.update_visibility(current_display);
+            }
+        }
+
+        last_mouse_down_state = mouse_down;
+
         // Get active window
         match window_manager.get_active_window() {
             Ok(active_window) => {
@@ -251,20 +298,33 @@ fn main() {
                             "[Main] Active window: {} ({})",
                             active_window.window_title, active_window.process_name
                         );
-                    }
-                    if display_changed && !window_changed {
+
+                        // Window focus change - update overlays immediately regardless of mouse state
+                        let manager = overlay_manager.lock().unwrap();
+                        manager.update_visibility(&active_window.display_id);
+
+                        last_window_handle = Some(active_window.handle);
+                        last_display_id = Some(active_window.display_id.clone());
+                        pending_display_id_during_drag = None;
+                    } else if display_changed {
+                        // Same window, different display (window moved)
                         println!(
                             "[Main] Window moved to display: {}",
                             active_window.display_id
                         );
+
+                        if mouse_down {
+                            // Mouse is down - likely dragging, defer overlay update
+                            println!("[Main] Mouse button down - deferring overlay update until release");
+                            pending_display_id_during_drag = Some(active_window.display_id.clone());
+                        } else {
+                            // Mouse is up - keyboard shortcut or programmatic move, update immediately
+                            let manager = overlay_manager.lock().unwrap();
+                            manager.update_visibility(&active_window.display_id);
+                            last_display_id = Some(active_window.display_id.clone());
+                            pending_display_id_during_drag = None;
+                        }
                     }
-
-                    // Update overlay visibility
-                    let manager = overlay_manager.lock().unwrap();
-                    manager.update_visibility(&active_window.display_id);
-
-                    last_window_handle = Some(active_window.handle);
-                    last_display_id = Some(active_window.display_id);
                 }
             }
             Err(_) => {
@@ -272,6 +332,7 @@ fn main() {
                 if last_window_handle.is_some() {
                     last_window_handle = None;
                     last_display_id = None;
+                    pending_display_id_during_drag = None;
                 }
             }
         }
