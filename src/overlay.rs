@@ -78,6 +78,10 @@ impl OverlayManager {
             let window_name = to_wstring(&format!("Overlay {}", display.id));
             let hinstance = GetModuleHandleW(ptr::null());
 
+            // Create a brush with the overlay color
+            let colorref = RGB(self.overlay_color.r, self.overlay_color.g, self.overlay_color.b);
+            let brush = CreateSolidBrush(colorref);
+
             let hwnd = CreateWindowExW(
                 WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
                 class_name.as_ptr(),
@@ -98,11 +102,15 @@ impl OverlayManager {
                 return Err(format!("Failed to create overlay window: error {}", err));
             }
 
-            // Set the transparency
-            let alpha = self.overlay_color.to_alpha_byte();
-            let colorref = self.overlay_color.to_colorref();
+            // Set window background color using WM_PAINT handling with our brush
+            // We need to set the class background
+            use winapi::um::winuser::{SetClassLongPtrW, GCLP_HBRBACKGROUND};
+            SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, brush as isize);
 
-            if SetLayeredWindowAttributes(hwnd, colorref, alpha, LWA_ALPHA) == 0 {
+            // Set the transparency (alpha only)
+            let alpha = self.overlay_color.to_alpha_byte();
+
+            if SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA) == 0 {
                 DestroyWindow(hwnd);
                 return Err("Failed to set window transparency".to_string());
             }
@@ -111,8 +119,9 @@ impl OverlayManager {
             ShowWindow(hwnd, SW_SHOW);
 
             println!(
-                "[Overlay] Created for display {} at ({}, {}) size {}x{} with alpha {}",
-                display.id, display.x, display.y, display.width, display.height, alpha
+                "[Overlay] Created for display {} at ({}, {}) size {}x{} with color RGB({}, {}, {}) alpha {}",
+                display.id, display.x, display.y, display.width, display.height,
+                self.overlay_color.r, self.overlay_color.g, self.overlay_color.b, alpha
             );
 
             self.overlays.insert(display.id.clone(), hwnd);

@@ -8,12 +8,16 @@
       "Bash(cargo:*)",
       "WebSearch",
       "WebFetch(domain:v2.tauri.app)",
-      "Bash(spotlight-dimmer.exe --help)",
       "Bash(spotlight-dimmer.exe:*)",
       "Bash(python:*)",
       "WebFetch(domain:github.com)",
       "Bash(git tag:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(./spotlight-dimmer-config.exe status)",
+      "Bash(start spotlight-dimmer.exe)",
+      "Bash(./spotlight-dimmer-config.exe disable)",
+      "Bash(./spotlight-dimmer-config.exe enable)",
+      "Bash(./spotlight-dimmer-config.exe color 255 0 0 0.6)"
     ],
     "deny": [],
     "ask": []

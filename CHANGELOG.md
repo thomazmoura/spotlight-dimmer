@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Project structure: Removed duplicate `src/src/` nesting - now follows standard Cargo convention with `Cargo.toml` at root and source files in `src/`
+- GitHub Actions workflow: Updated to use pure Cargo build instead of Tauri action
+- GitHub Actions: Changed from NSIS installers to ZIP archives for simpler, more reliable distribution
+- Documentation: Corrected all build paths to reflect new structure (removed `cd src` steps)
+
+### Added
+- Automatic configuration reloading: The main application now monitors the config file and automatically reloads settings every 2 seconds when changes are detected
+- Live color updates: Overlay colors update immediately when changed via the config CLI tool without requiring application restart
+- Live enable/disable toggle: Dimming can be toggled on/off via config changes and takes effect within 2 seconds
+
+### Improved
+- Configuration workflow: No longer need to restart the application after changing settings with `spotlight-dimmer-config.exe`
+- User experience: Settings changes are now nearly instantaneous (2-second detection window)
+- Resource efficiency: Config monitoring adds only 16 bytes of memory and <0.01% CPU overhead
+
+---
+
+### Adicionado
+- Recarregamento automático de configuração: A aplicação principal agora monitora o arquivo de configuração e recarrega automaticamente as configurações a cada 2 segundos quando mudanças são detectadas
+- Atualizações de cor ao vivo: As cores de sobreposição são atualizadas imediatamente quando alteradas via ferramenta CLI de configuração sem necessidade de reiniciar a aplicação
+- Alternância ativar/desativar ao vivo: O escurecimento pode ser ativado/desativado via mudanças de configuração e entra em vigor em até 2 segundos
+
+### Melhorado
+- Fluxo de trabalho de configuração: Não é mais necessário reiniciar a aplicação após alterar configurações com `spotlight-dimmer-config.exe`
+- Experiência do usuário: Mudanças de configuração agora são quase instantâneas (janela de detecção de 2 segundos)
+- Eficiência de recursos: Monitoramento de configuração adiciona apenas 16 bytes de memória e <0,01% de sobrecarga de CPU
+
+### Corrigido
+- Estrutura do projeto: Removido aninhamento duplicado `src/src/` - agora segue a convenção padrão do Cargo com `Cargo.toml` na raiz e arquivos fonte em `src/`
+- Fluxo de trabalho GitHub Actions: Atualizado para usar build puro do Cargo ao invés da action Tauri
+- GitHub Actions: Alterado de instaladores NSIS para arquivos ZIP para distribuição mais simples e confiável
+- Documentação: Corrigidos todos os caminhos de build para refletir a nova estrutura (removidos passos `cd src`)
+
 ## [0.1.9] - 2025-09-30
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "spotlight-dimmer",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "A cross-platform application that dims inactive displays to highlight the active one",
   "scripts": {
     "build": "echo 'Frontend build completed - using existing dist/ files'",

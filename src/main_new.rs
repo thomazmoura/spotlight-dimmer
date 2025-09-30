@@ -7,7 +7,7 @@ use overlay::OverlayManager;
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 fn main() {
     println!("[Main] Spotlight Dimmer starting...");
@@ -64,11 +64,62 @@ fn main() {
     let mut last_display_id: Option<String> = None;
     let mut last_display_count = displays.len();
 
+    // Track config file modification time for periodic reloading
+    let mut last_config_modified = Config::last_modified();
+    let mut loop_counter: u32 = 0;
+
     println!("[Main] Starting focus monitoring loop...");
 
     // Main monitoring loop
     loop {
         thread::sleep(Duration::from_millis(100));
+        loop_counter = loop_counter.wrapping_add(1);
+
+        // Check for config file changes every 2 seconds (20 iterations of 100ms)
+        if loop_counter % 20 == 0 {
+            if let Some((new_config, new_modified_time)) = Config::reload_if_changed(last_config_modified) {
+                let mut cfg = config.lock().unwrap();
+                let old_dimming_enabled = cfg.is_dimming_enabled;
+                let old_color = cfg.overlay_color.clone();
+
+                // Update config
+                *cfg = new_config.clone();
+                drop(cfg); // Release lock before potentially recreating overlays
+
+                last_config_modified = Some(new_modified_time);
+
+                // Handle dimming enable/disable toggle
+                if old_dimming_enabled != new_config.is_dimming_enabled {
+                    if new_config.is_dimming_enabled {
+                        println!("[Main] Dimming enabled via config change");
+                        if let Ok(current_displays) = display_manager.get_displays() {
+                            let mut manager = overlay_manager.lock().unwrap();
+                            if let Err(e) = manager.create_overlays(&current_displays) {
+                                eprintln!("[Main] Failed to create overlays: {}", e);
+                            }
+                        }
+                    } else {
+                        println!("[Main] Dimming disabled via config change");
+                        let mut manager = overlay_manager.lock().unwrap();
+                        manager.close_all();
+                    }
+                }
+                // Handle color change (only if dimming is enabled)
+                else if new_config.is_dimming_enabled &&
+                        (old_color.r != new_config.overlay_color.r ||
+                         old_color.g != new_config.overlay_color.g ||
+                         old_color.b != new_config.overlay_color.b ||
+                         old_color.a != new_config.overlay_color.a) {
+                    println!("[Main] Overlay color changed via config");
+                    if let Ok(current_displays) = display_manager.get_displays() {
+                        let mut manager = overlay_manager.lock().unwrap();
+                        if let Err(e) = manager.set_color(new_config.overlay_color.clone(), &current_displays) {
+                            eprintln!("[Main] Failed to update overlay color: {}", e);
+                        }
+                    }
+                }
+            }
+        }
 
         // Check if dimming is enabled
         let is_dimming_enabled = {

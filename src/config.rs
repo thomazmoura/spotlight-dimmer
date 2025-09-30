@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OverlayColor {
@@ -109,5 +110,36 @@ impl Config {
 
         println!("[Config] Saved to {:?}", path);
         Ok(())
+    }
+
+    /// Get the last modification time of the config file
+    pub fn last_modified() -> Option<SystemTime> {
+        if let Ok(path) = Self::config_path() {
+            if let Ok(metadata) = fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    return Some(modified);
+                }
+            }
+        }
+        None
+    }
+
+    /// Reload configuration if the file has been modified since last check
+    /// Returns Some((new_config, new_modified_time)) if changed, None if unchanged or error
+    pub fn reload_if_changed(last_modified: Option<SystemTime>) -> Option<(Self, SystemTime)> {
+        // Check current modification time
+        let current_modified = Self::last_modified()?;
+
+        // If we have a last_modified time and it matches current, no change
+        if let Some(last) = last_modified {
+            if last == current_modified {
+                return None;
+            }
+        }
+
+        // File was modified or this is first check - reload
+        let new_config = Self::load();
+        println!("[Config] Reloaded from disk due to file change");
+        Some((new_config, current_modified))
     }
 }

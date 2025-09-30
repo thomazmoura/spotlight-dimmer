@@ -26,11 +26,10 @@ It's intended to help people who use multiple monitores to focus and assist in q
 ### From Source
 
 ```bash
-cd src
 cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
-Binaries will be in `src\target\release\`:
+Binaries will be in `target\release\`:
 - `spotlight-dimmer.exe` - Main application
 - `spotlight-dimmer-config.exe` - Configuration tool
 
@@ -49,7 +48,17 @@ The application will:
 2. Detect all connected displays
 3. Create semi-transparent overlay windows on each display
 4. Monitor active window focus and hide overlay on active display
-5. Run indefinitely until terminated (Ctrl+C or Task Manager)
+5. Run indefinitely until terminated
+
+#### Stopping the Application
+
+To stop the running application, use PowerShell:
+
+```powershell
+Get-Process spotlight-dimmer | Stop-Process
+```
+
+Or use Task Manager to end the `spotlight-dimmer.exe` process.
 
 #### Configuration Tool
 
@@ -71,7 +80,7 @@ spotlight-dimmer-config color 50 50 50 0.3   # 30% gray overlay
 spotlight-dimmer-config reset
 ```
 
-**Note**: Configuration changes require restarting `spotlight-dimmer.exe` to take effect.
+**Note**: Configuration changes are automatically detected and reloaded within 2 seconds. No restart needed!
 
 ## Configuration File
 
@@ -126,7 +135,7 @@ a = 0.5
 ### Project Structure
 
 ```
-src/
+.
 ├── src/
 │   ├── main_new.rs          # Main application entry point
 │   ├── config_cli.rs        # Configuration CLI tool
@@ -142,7 +151,6 @@ src/
 ### Building
 
 ```bash
-cd src
 cargo build --release
 ```
 
@@ -155,7 +163,7 @@ cargo build --release
 ## Roadmap
 
 - [ ] System tray icon (optional, using `trayicon` crate)
-- [ ] Hot reload configuration without restart
+- [x] Hot reload configuration without restart (2-second detection window)
 - [ ] Per-display color customization
 - [ ] Linux support (using X11/Wayland)
 

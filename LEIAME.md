@@ -26,11 +26,10 @@ Spotlight Dimmer é um programa para Windows que escurece todos os monitores exc
 ### A Partir do Código-Fonte
 
 ```bash
-cd src
 cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
-Os binários estarão em `src\target\release\`:
+Os binários estarão em `target\release\`:
 - `spotlight-dimmer.exe` - Aplicação principal
 - `spotlight-dimmer-config.exe` - Ferramenta de configuração
 
@@ -49,7 +48,17 @@ A aplicação irá:
 2. Detectar todos os displays conectados
 3. Criar janelas de sobreposição semi-transparentes em cada display
 4. Monitorar foco da janela ativa e esconder sobreposição no display ativo
-5. Executar indefinidamente até ser terminado (Ctrl+C ou Gerenciador de Tarefas)
+5. Executar indefinidamente até ser terminado
+
+#### Parando a Aplicação
+
+Para parar a aplicação em execução, use PowerShell:
+
+```powershell
+Get-Process spotlight-dimmer | Stop-Process
+```
+
+Ou use o Gerenciador de Tarefas para encerrar o processo `spotlight-dimmer.exe`.
 
 #### Ferramenta de Configuração
 
@@ -71,7 +80,7 @@ spotlight-dimmer-config color 50 50 50 0.3   # Sobreposição cinza 30%
 spotlight-dimmer-config reset
 ```
 
-**Nota**: Mudanças de configuração requerem reiniciar `spotlight-dimmer.exe` para ter efeito.
+**Nota**: Mudanças de configuração são detectadas e recarregadas automaticamente em até 2 segundos. Não é necessário reiniciar!
 
 ## Arquivo de Configuração
 
@@ -126,7 +135,7 @@ a = 0.5
 ### Estrutura do Projeto
 
 ```
-src/
+.
 ├── src/
 │   ├── main_new.rs          # Ponto de entrada da aplicação principal
 │   ├── config_cli.rs        # Ferramenta CLI de configuração
@@ -142,7 +151,6 @@ src/
 ### Construindo
 
 ```bash
-cd src
 cargo build --release
 ```
 
@@ -155,7 +163,7 @@ cargo build --release
 ## Roadmap
 
 - [ ] Ícone na bandeja do sistema (opcional, usando crate `trayicon`)
-- [ ] Hot reload de configuração sem reiniciar
+- [x] Hot reload de configuração sem reiniciar (janela de detecção de 2 segundos)
 - [ ] Customização de cor por display
 - [ ] Suporte a Linux (usando X11/Wayland)
 

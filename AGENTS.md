@@ -13,18 +13,16 @@ Spotlight Dimmer is a lightweight native Windows application built with pure Rus
 ### Building from Source
 
 ```bash
-cd src
 cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
-This creates two binaries in `src/target/release/`:
+This creates two binaries in `target/release/`:
 - `spotlight-dimmer.exe` (561 KB) - Main application
 - `spotlight-dimmer-config.exe` (627 KB) - Configuration tool
 
 ### Installation
 
 ```bash
-cd src
 cargo install --path . --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
@@ -34,6 +32,12 @@ Binaries will be installed to `~/.cargo/bin/` (ensure it's in your PATH).
 
 ```bash
 cargo uninstall spotlight-dimmer
+```
+
+### Stopping the Application
+
+```powershell
+Get-Process spotlight-dimmer | Stop-Process
 ```
 
 ## Architecture Overview

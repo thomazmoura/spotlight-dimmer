@@ -66,54 +66,58 @@ jobs:
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
 
-      - name: Install Windows Build Tools
+      - name: Build binaries
+        run: |
+          cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+
+      - name: Create ZIP archive
         if: matrix.platform == 'windows-latest'
         run: |
-          # Install NSIS for Windows installer creation
-          choco install nsis -y
-          # Add NSIS to PATH for current session
-          echo "C:\Program Files (x86)\NSIS" >> $GITHUB_PATH
+          $version = "${{ needs.changelog.outputs.version }}"
+          $zipName = "spotlight-dimmer-v${version}-windows-x86_64.zip"
+          Compress-Archive -Path target/release/spotlight-dimmer.exe,target/release/spotlight-dimmer-config.exe -DestinationPath $zipName
+          echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
+        shell: pwsh
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v0
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ needs.changelog.outputs.version && format('v{0}', needs.changelog.outputs.version) || github.ref_name }}
-          releaseName: 'Spotlight Dimmer v${{ needs.changelog.outputs.version || github.ref_name }}'
-          releaseBody: |
+          tag_name: ${{ needs.changelog.outputs.version && format('v{0}', needs.changelog.outputs.version) || github.ref_name }}
+          name: 'Spotlight Dimmer v${{ needs.changelog.outputs.version || github.ref_name }}'
+          body: |
             ${{ needs.changelog.outputs.release-notes }}
 
             ## Installation
 
-            ### Windows Users (Recommended)
-            Download and run the `-setup.exe` installer for the best experience with perfect transparency and all features.
+            ### Direct Download (Recommended)
+            Download the ZIP file below and extract the binaries:
+            - `spotlight-dimmer.exe` - Main application (~561 KB)
+            - `spotlight-dimmer-config.exe` - Configuration tool (~627 KB)
 
-            ### Developers/Advanced Users
-            You can also install via Cargo:
+            ### Via Cargo
             ```bash
-            cargo install spotlight-dimmer
+            cargo install --git https://github.com/thomazmoura/spotlight-dimmer --branch main spotlight-dimmer
             ```
 
             ## What's Spotlight Dimmer?
 
             Spotlight Dimmer dims inactive displays to help you focus on the active one. Perfect for multi-monitor setups!
 
-            - 🎯 **Focus Enhancement**: Dims all displays except the one with your active window
-            - 🔄 **Real-time Monitoring**: Instantly detects when you switch between displays
+            - 🎯 **Ultra-lightweight**: Only ~7.6 MB RAM usage
+            - 🔄 **Real-time Monitoring**: Instantly detects window focus changes (100ms polling)
             - 👻 **Click-through Overlays**: Dimming overlays don't interfere with your workflow
-            - 🚀 **Auto-startup**: Starts dimming automatically when launched
-            - ⚙️  **System Tray Control**: Easy toggle from your system tray
+            - ⚡ **Native Windows API**: No browser engine overhead, instant startup
+            - ⚙️ **Auto-reload Config**: Changes detected within 2 seconds, no restart needed
 
             ---
 
             🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
-          releaseDraft: false
+          draft: false
           prerelease: false
-          args: ${{ matrix.args }} --verbose
+          files: ${{ env.ASSET_PATH }}
 
   update-changelog:
     needs: [changelog, build-and-release]
