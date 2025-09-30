@@ -23,9 +23,11 @@ The agent will:
 5. Generate a descriptive commit message based on the changes
 6. Present a **single bash command** that does all of the following:
    ```bash
-   git add . && git commit -m "message" && git tag vX.Y.Z && git push origin main && git push origin vX.Y.Z
+   git add . && git commit -m "message" && git tag vX.Y.Z && git pull --rebase origin main && git push origin main && git push origin vX.Y.Z
    ```
 7. Wait for user approval to execute the command
+
+**Important**: The command includes `git pull --rebase origin main` before pushing to handle any remote changes that may have occurred since the last pull.
 
 ## Important Notes:
 
@@ -66,5 +68,12 @@ If current version is `0.1.9`, the command will:
 - Update to `0.1.10` in both files
 - Create command like:
   ```bash
-  git add . && git commit -m "Complete WinAPI refactor with 96% memory reduction" && git tag v0.1.10 && git push origin main && git push origin v0.1.10
+  git add . && git commit -m "Complete WinAPI refactor with 96% memory reduction
+
+Migrated from Tauri to pure Rust with Windows API implementation for dramatic performance improvements.
+
+- Remove Tauri dependency and web framework overhead
+- Implement native Windows overlay system with layered windows
+- Add direct Windows API calls for display and window management
+- Reduce binary size by 95% and memory usage by 96%" && git tag v0.1.10 && git pull --rebase origin main && git push origin main && git push origin v0.1.10
   ```
