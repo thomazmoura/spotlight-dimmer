@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-30
+
 ### Added
 - **System tray icon**: Application now includes a system tray icon with context menu for easy management
   - Icon appears in Windows system tray when application is running
