@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Critical stability fix**: Resolved system crash and eliminated black "ghost windows" when dragging windows between monitors with mouse
+  - Root cause: Rapid `ShowWindow()` calls on layered topmost windows during active drag operations created race conditions with Windows' drag-and-drop message loop
+  - Windows created black "ghost windows" when it couldn't deliver messages to overlays during drag operations
+  - Solution: Implemented intelligent drag detection using `GetAsyncKeyState(VK_LBUTTON)` to detect when left mouse button is held down
+  - All overlays are immediately hidden when mouse button is pressed (preventing ghost window creation)
+  - Overlays remain hidden during entire drag operation (clean user experience, no black screens)
+  - Overlays restore with correct visibility when mouse button is released (drag operation completes)
+  - Normal focus changes and keyboard shortcuts (Win+Arrow) maintain instant responsiveness with immediate overlay updates
+  - Result: Stable operation during window dragging, no crashes, no black ghost windows, instant response for all other operations
+
+---
+
+### Corrigido
+- **Correção crítica de estabilidade**: Resolvido crash do sistema e eliminadas "janelas fantasmas" pretas ao arrastar janelas entre monitores com o mouse
+  - Causa raiz: Chamadas rápidas de `ShowWindow()` em janelas topmost em camadas durante operações de arrastar ativas criavam condições de corrida com o loop de mensagens de arrastar e soltar do Windows
+  - O Windows criava "janelas fantasmas" pretas quando não conseguia entregar mensagens às sobreposições durante operações de arraste
+  - Solução: Implementada detecção inteligente de arraste usando `GetAsyncKeyState(VK_LBUTTON)` para detectar quando o botão esquerdo do mouse está pressionado
+  - Todas as sobreposições são imediatamente ocultadas quando o botão do mouse é pressionado (prevenindo criação de janelas fantasmas)
+  - Sobreposições permanecem ocultas durante toda a operação de arraste (experiência limpa do usuário, sem telas pretas)
+  - Sobreposições restauram com visibilidade correta quando o botão do mouse é solto (operação de arraste é concluída)
+  - Mudanças de foco normais e atalhos de teclado (Win+Seta) mantêm responsividade instantânea com atualizações imediatas de sobreposição
+  - Resultado: Operação estável durante arraste de janelas, sem crashes, sem janelas fantasmas pretas, resposta instantânea para todas as outras operações
+
 ## [0.1.12] - 2025-09-30
 
 ### Added

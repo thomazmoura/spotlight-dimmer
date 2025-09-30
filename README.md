@@ -160,6 +160,19 @@ cargo build --release
 - `toml` - TOML configuration parsing
 - `winapi` - Windows API bindings
 
+## Known Limitations
+
+### Window Dragging Behavior
+
+When dragging windows between monitors with the mouse, overlays are temporarily hidden to prevent system instability:
+
+- **During drag**: All overlays disappear when the left mouse button is pressed
+- **After drag**: Overlays reappear with correct visibility when the mouse button is released
+- **Why**: Windows' drag-and-drop message loop conflicts with overlay visibility updates, causing system instability if overlays remain visible
+- **Workaround**: Use keyboard shortcuts (Win+Arrow keys) for instant overlay updates without hiding
+
+This is a Windows API limitation, not a bug. Focus changes and keyboard-based window movement work instantly without hiding overlays.
+
 ## Roadmap
 
 - [ ] System tray icon (optional, using `trayicon` crate)

@@ -160,6 +160,19 @@ cargo build --release
 - `toml` - Parsing de configuração TOML
 - `winapi` - Bindings da Windows API
 
+## Limitações Conhecidas
+
+### Comportamento ao Arrastar Janelas
+
+Ao arrastar janelas entre monitores com o mouse, as sobreposições são temporariamente ocultadas para prevenir instabilidade do sistema:
+
+- **Durante o arraste**: Todas as sobreposições desaparecem quando o botão esquerdo do mouse é pressionado
+- **Após o arraste**: Sobreposições reaparecem com visibilidade correta quando o botão do mouse é solto
+- **Por quê**: O loop de mensagens de arrastar e soltar do Windows conflita com atualizações de visibilidade de sobreposição, causando instabilidade do sistema se as sobreposições permanecerem visíveis
+- **Solução alternativa**: Use atalhos de teclado (teclas Win+Seta) para atualizações instantâneas de sobreposição sem ocultação
+
+Esta é uma limitação da API do Windows, não um bug. Mudanças de foco e movimentação de janelas baseada em teclado funcionam instantaneamente sem ocultar sobreposições.
+
 ## Roadmap
 
 - [ ] Ícone na bandeja do sistema (opcional, usando crate `trayicon`)

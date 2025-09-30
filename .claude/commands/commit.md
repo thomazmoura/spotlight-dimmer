@@ -35,6 +35,31 @@ The agent will:
 - The commit message should be concise and descriptive
 - Tag format: `vX.Y.Z` (e.g., `v0.1.10`)
 
+## Commit Message Format (CRITICAL):
+
+**DO NOT** include these in commit messages:
+- ❌ "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+- ❌ "Co-Authored-By: Claude <noreply@anthropic.com>"
+
+This repository is built with Claude Code - these attributions are redundant.
+
+**DO** use clear, descriptive commit messages:
+- Subject line (50 chars max)
+- Brief explanation of what changed and why
+- List specific changes if multiple
+
+### Example Format:
+```
+Fix window dragging crash and ghost windows
+
+Implemented intelligent mouse button detection to prevent system instability during window drag operations.
+
+- Add GetAsyncKeyState mouse button detection
+- Hide overlays when mouse button pressed
+- Restore overlays when mouse released
+- Document known limitation in README files
+```
+
 ## Example:
 
 If current version is `0.1.9`, the command will:
