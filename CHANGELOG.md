@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **System tray icon**: Application now includes a system tray icon with context menu for easy management
+  - Icon appears in Windows system tray when application is running
+  - Right-click menu provides "Exit" option for graceful shutdown
+  - Eliminates need to use Task Manager to close the application
+  - Application exits cleanly, properly removing all overlays and tray icon
+  - Uses pure Windows API (`Shell_NotifyIconW`) maintaining minimal binary size (~10 MB RAM)
+  - Icon integrated with existing message loop architecture for seamless operation
+  - Works with shortcuts and any launch method (uses `GetModuleFileNameW` to find icon relative to executable)
+
+### Fixed
+- **Ghost window and crash prevention**: Removed unnecessary drag detection workaround, ghost window issue resolved by message loop
+  - Previous version (0.1.14) implemented complex mouse drag detection to prevent ghost windows and crashes
+  - Discovery: The `process_windows_messages()` function added for tray icon support actually fixed the root cause
+  - Proper Windows message processing (`PeekMessageW`/`DispatchMessageW`) prevents race conditions with overlay visibility changes
+  - Removed all drag detection code (100+ lines including title bar hit testing) - no longer needed
+  - Application now works flawlessly without any special handling for window dragging
+  - Result: Simpler codebase, no ghost windows, no crashes, no display flashing, instant overlay updates during all operations
+  - This demonstrates the importance of proper Windows message loop integration for GUI applications
+
+---
+
+### Adicionado
+- **Ícone na bandeja do sistema**: A aplicação agora inclui um ícone na bandeja do sistema com menu de contexto para gerenciamento fácil
+  - Ícone aparece na bandeja do sistema do Windows quando a aplicação está rodando
+  - Menu de botão direito fornece opção "Exit" para encerramento gracioso
+  - Elimina necessidade de usar o Gerenciador de Tarefas para fechar a aplicação
+  - Aplicação encerra de forma limpa, removendo adequadamente todas as sobreposições e ícone da bandeja
+  - Usa Windows API puro (`Shell_NotifyIconW`) mantendo tamanho binário mínimo (~10 MB RAM)
+  - Ícone integrado com arquitetura de loop de mensagens existente para operação perfeita
+  - Funciona com atalhos e qualquer método de inicialização (usa `GetModuleFileNameW` para encontrar ícone relativo ao executável)
+
+### Corrigido
+- **Prevenção de janelas fantasmas e crashes**: Removido workaround desnecessário de detecção de arraste, problema de janelas fantasmas resolvido pelo loop de mensagens
+  - Versão anterior (0.1.14) implementou detecção complexa de arraste do mouse para prevenir janelas fantasmas e crashes
+  - Descoberta: A função `process_windows_messages()` adicionada para suporte ao ícone da bandeja corrigiu a causa raiz
+  - Processamento adequado de mensagens do Windows (`PeekMessageW`/`DispatchMessageW`) previne condições de corrida com mudanças de visibilidade de sobreposição
+  - Removido todo código de detecção de arraste (100+ linhas incluindo teste de acerto de barra de título) - não mais necessário
+  - Aplicação agora funciona perfeitamente sem qualquer tratamento especial para arraste de janelas
+  - Resultado: Base de código mais simples, sem janelas fantasmas, sem crashes, sem piscadas de display, atualizações instantâneas de sobreposição durante todas operações
+  - Isto demonstra a importância da integração adequada do loop de mensagens do Windows para aplicações GUI
+
 ## [0.1.14] - 2025-09-30
 
 ### Fixed

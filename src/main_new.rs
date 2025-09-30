@@ -1,28 +1,16 @@
 mod config;
 mod overlay;
 mod platform;
+mod tray;
 
 use config::Config;
 use overlay::OverlayManager;
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
-
-#[cfg(windows)]
-fn is_mouse_button_down() -> bool {
-    use winapi::um::winuser::{GetAsyncKeyState, VK_LBUTTON};
-    unsafe {
-        // GetAsyncKeyState returns i16, high-order bit indicates if key is currently down
-        // Check if the value is negative (high bit set)
-        GetAsyncKeyState(VK_LBUTTON) < 0
-    }
-}
-
-#[cfg(not(windows))]
-fn is_mouse_button_down() -> bool {
-    false
-}
+use std::time::Duration;
+use tray::TrayIcon;
 
 #[cfg(windows)]
 fn hide_console_if_not_launched_from_terminal() {
@@ -47,11 +35,44 @@ fn hide_console_if_not_launched_from_terminal() {
     // No-op on non-Windows platforms
 }
 
+#[cfg(windows)]
+fn process_windows_messages() {
+    use winapi::um::winuser::{PeekMessageW, TranslateMessage, DispatchMessageW, PM_REMOVE, MSG};
+    use std::mem;
+
+    unsafe {
+        let mut msg: MSG = mem::zeroed();
+        // Process all available messages without blocking
+        while PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn process_windows_messages() {
+    // No-op on non-Windows platforms
+}
+
 fn main() {
     // Hide console if not launched from terminal
     hide_console_if_not_launched_from_terminal();
 
     println!("[Main] Spotlight Dimmer starting...");
+
+    // Create exit flag for coordinating shutdown
+    let exit_flag = Arc::new(AtomicBool::new(false));
+
+    // Create system tray icon
+    let tray_icon = match TrayIcon::new("icon.ico", "Spotlight Dimmer", exit_flag.clone()) {
+        Ok(tray) => tray,
+        Err(e) => {
+            eprintln!("[Main] Failed to create system tray icon: {}", e);
+            eprintln!("[Main] Make sure icon.ico exists in the same directory as the executable");
+            return;
+        }
+    };
 
     // Load configuration
     let config = Arc::new(Mutex::new(Config::load()));
@@ -118,14 +139,19 @@ fn main() {
     let mut last_config_modified = Config::last_modified();
     let mut loop_counter: u32 = 0;
 
-    // Drag detection state to prevent overlay updates during active mouse dragging
-    let mut last_mouse_down_state: bool = false;
-    let mut pending_display_id_during_drag: Option<String> = None;
-
     println!("[Main] Starting focus monitoring loop...");
 
     // Main monitoring loop
     loop {
+        // Process Windows messages (for tray icon events)
+        process_windows_messages();
+
+        // Check if exit was requested via tray icon
+        if exit_flag.load(Ordering::SeqCst) {
+            println!("[Main] Exit requested, shutting down...");
+            break;
+        }
+
         thread::sleep(Duration::from_millis(100));
         loop_counter = loop_counter.wrapping_add(1);
 
@@ -252,34 +278,6 @@ fn main() {
             }
         }
 
-        // Check mouse button state for drag detection
-        let mouse_down = is_mouse_button_down();
-
-        // Detect mouse button press (start of potential drag) - hide all overlays to prevent ghost windows
-        if !last_mouse_down_state && mouse_down {
-            println!("[Main] Mouse button pressed - hiding overlays to prevent ghost windows");
-            let manager = overlay_manager.lock().unwrap();
-            manager.hide_all();
-        }
-
-        // Detect mouse button release (end of drag)
-        if last_mouse_down_state && !mouse_down {
-            // Mouse was released - apply any pending display change from drag
-            if let Some(pending_display) = pending_display_id_during_drag.take() {
-                println!("[Main] Mouse released, applying deferred overlay update to display: {}", pending_display);
-                let manager = overlay_manager.lock().unwrap();
-                manager.update_visibility(&pending_display);
-                last_display_id = Some(pending_display);
-            } else if let Some(current_display) = last_display_id.as_ref() {
-                // No pending change, just restore visibility based on current state
-                println!("[Main] Mouse released, restoring overlay visibility");
-                let manager = overlay_manager.lock().unwrap();
-                manager.update_visibility(current_display);
-            }
-        }
-
-        last_mouse_down_state = mouse_down;
-
         // Get active window
         match window_manager.get_active_window() {
             Ok(active_window) => {
@@ -298,33 +296,21 @@ fn main() {
                             "[Main] Active window: {} ({})",
                             active_window.window_title, active_window.process_name
                         );
+                    }
 
-                        // Window focus change - update overlays immediately regardless of mouse state
-                        let manager = overlay_manager.lock().unwrap();
-                        manager.update_visibility(&active_window.display_id);
-
-                        last_window_handle = Some(active_window.handle);
-                        last_display_id = Some(active_window.display_id.clone());
-                        pending_display_id_during_drag = None;
-                    } else if display_changed {
-                        // Same window, different display (window moved)
+                    if display_changed {
                         println!(
                             "[Main] Window moved to display: {}",
                             active_window.display_id
                         );
-
-                        if mouse_down {
-                            // Mouse is down - likely dragging, defer overlay update
-                            println!("[Main] Mouse button down - deferring overlay update until release");
-                            pending_display_id_during_drag = Some(active_window.display_id.clone());
-                        } else {
-                            // Mouse is up - keyboard shortcut or programmatic move, update immediately
-                            let manager = overlay_manager.lock().unwrap();
-                            manager.update_visibility(&active_window.display_id);
-                            last_display_id = Some(active_window.display_id.clone());
-                            pending_display_id_during_drag = None;
-                        }
                     }
+
+                    // Update overlays for any window or display change
+                    let manager = overlay_manager.lock().unwrap();
+                    manager.update_visibility(&active_window.display_id);
+
+                    last_window_handle = Some(active_window.handle);
+                    last_display_id = Some(active_window.display_id.clone());
                 }
             }
             Err(_) => {
@@ -332,9 +318,14 @@ fn main() {
                 if last_window_handle.is_some() {
                     last_window_handle = None;
                     last_display_id = None;
-                    pending_display_id_during_drag = None;
                 }
             }
         }
     }
+
+    // Cleanup on exit
+    println!("[Main] Performing cleanup...");
+    drop(overlay_manager);
+    drop(tray_icon);
+    println!("[Main] Spotlight Dimmer exited successfully");
 }
