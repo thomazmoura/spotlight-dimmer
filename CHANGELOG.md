@@ -7,37 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.11] - 2025-09-30
+### Added
+- **Active display overlay**: New optional overlay that highlights the active display instead of dimming inactive ones
+  - Independent enable/disable control via `active-enable` and `active-disable` commands
+  - Configurable color and opacity via `active-color <r> <g> <b> [a]` command
+  - Can be used alone, with inactive dimming, or both simultaneously
+  - Use cases: Highlight active display with subtle color, or dim both active/inactive with different intensities
+  - Default subtle blue highlight (RGB 50, 100, 255, alpha 0.15) when enabled without color configuration
+- **Dual overlay system**: Both inactive (dimming) and active (highlighting) overlays can now run simultaneously
+  - Inactive overlays dim non-active displays (traditional behavior)
+  - Active overlays highlight the currently active display
+  - Each overlay type independently managed with separate Windows handles
+  - Real-time visibility updates for both overlay types on window focus changes
+- **CLI commands for active overlay management**:
+  - `active-enable`: Enable active display overlay highlighting
+  - `active-disable`: Disable active display overlay highlighting
+  - `active-color <r> <g> <b> [a]`: Set active overlay color and opacity
+  - Enhanced `status` command now displays both inactive and active overlay configurations
+  - Enhanced help text with comprehensive usage examples for all overlay modes
 
 ### Fixed
+- **Color bleeding between overlay types**: Fixed bug where moving windows between displays would cause inactive overlays to adopt active overlay colors
+  - Root cause: Both overlay types shared the same Windows window class, causing `SetClassLongPtrW(GCLP_HBRBACKGROUND)` to affect all windows
+  - Solution: Implemented separate window classes (`SpotlightDimmerInactiveOverlay` and `SpotlightDimmerActiveOverlay`) for each overlay type
+  - Each window class now maintains its own independent background brush, preventing color cross-contamination
 - Project structure: Removed duplicate `src/src/` nesting - now follows standard Cargo convention with `Cargo.toml` at root and source files in `src/`
 - GitHub Actions workflow: Updated to use pure Cargo build instead of Tauri action
 - GitHub Actions: Changed from NSIS installers to ZIP archives for simpler, more reliable distribution
 - Documentation: Corrected all build paths to reflect new structure (removed `cd src` steps)
 
-### Added
-- Automatic configuration reloading: The main application now monitors the config file and automatically reloads settings every 2 seconds when changes are detected
-- Live color updates: Overlay colors update immediately when changed via the config CLI tool without requiring application restart
-- Live enable/disable toggle: Dimming can be toggled on/off via config changes and takes effect within 2 seconds
-
 ### Improved
 - Configuration workflow: No longer need to restart the application after changing settings with `spotlight-dimmer-config.exe`
 - User experience: Settings changes are now nearly instantaneous (2-second detection window)
 - Resource efficiency: Config monitoring adds only 16 bytes of memory and <0.01% CPU overhead
+- Overlay architecture: Refactored to support multiple overlay types with independent lifecycle management
+- Configuration reload logic: Now handles both inactive and active overlay changes independently
+- Display hotplug handling: Both overlay types properly recreated when displays are connected/disconnected
 
 ---
 
 ### Adicionado
-- Recarregamento automático de configuração: A aplicação principal agora monitora o arquivo de configuração e recarrega automaticamente as configurações a cada 2 segundos quando mudanças são detectadas
-- Atualizações de cor ao vivo: As cores de sobreposição são atualizadas imediatamente quando alteradas via ferramenta CLI de configuração sem necessidade de reiniciar a aplicação
-- Alternância ativar/desativar ao vivo: O escurecimento pode ser ativado/desativado via mudanças de configuração e entra em vigor em até 2 segundos
+- **Sobreposição de display ativo**: Nova sobreposição opcional que destaca o display ativo ao invés de escurecer os inativos
+  - Controle independente de ativar/desativar via comandos `active-enable` e `active-disable`
+  - Cor e opacidade configuráveis via comando `active-color <r> <g> <b> [a]`
+  - Pode ser usado sozinho, com escurecimento inativo, ou ambos simultaneamente
+  - Casos de uso: Destacar display ativo com cor sutil, ou escurecer ambos ativo/inativo com intensidades diferentes
+  - Destaque azul sutil padrão (RGB 50, 100, 255, alpha 0.15) quando habilitado sem configuração de cor
+- **Sistema de sobreposição dupla**: Sobreposições inativas (escurecimento) e ativas (destaque) agora podem rodar simultaneamente
+  - Sobreposições inativas escurecem displays não-ativos (comportamento tradicional)
+  - Sobreposições ativas destacam o display atualmente ativo
+  - Cada tipo de sobreposição gerenciado independentemente com handles Windows separados
+  - Atualizações de visibilidade em tempo real para ambos os tipos de sobreposição em mudanças de foco de janela
+- **Comandos CLI para gerenciamento de sobreposição ativa**:
+  - `active-enable`: Habilitar destaque de sobreposição do display ativo
+  - `active-disable`: Desabilitar destaque de sobreposição do display ativo
+  - `active-color <r> <g> <b> [a]`: Definir cor e opacidade da sobreposição ativa
+  - Comando `status` melhorado agora exibe configurações de sobreposições inativas e ativas
+  - Texto de ajuda melhorado com exemplos abrangentes de uso para todos os modos de sobreposição
 
 ### Melhorado
 - Fluxo de trabalho de configuração: Não é mais necessário reiniciar a aplicação após alterar configurações com `spotlight-dimmer-config.exe`
 - Experiência do usuário: Mudanças de configuração agora são quase instantâneas (janela de detecção de 2 segundos)
 - Eficiência de recursos: Monitoramento de configuração adiciona apenas 16 bytes de memória e <0,01% de sobrecarga de CPU
+- Arquitetura de sobreposição: Refatorada para suportar múltiplos tipos de sobreposição com gerenciamento de ciclo de vida independente
+- Lógica de recarregamento de configuração: Agora lida com mudanças de sobreposições inativas e ativas independentemente
+- Tratamento de hotplug de display: Ambos os tipos de sobreposição adequadamente recriados quando displays são conectados/desconectados
 
 ### Corrigido
+- **Sangramento de cor entre tipos de sobreposição**: Corrigido bug onde mover janelas entre displays fazia sobreposições inativas adotarem cores de sobreposições ativas
+  - Causa raiz: Ambos os tipos de sobreposição compartilhavam a mesma classe de janela Windows, fazendo `SetClassLongPtrW(GCLP_HBRBACKGROUND)` afetar todas as janelas
+  - Solução: Implementadas classes de janela separadas (`SpotlightDimmerInactiveOverlay` e `SpotlightDimmerActiveOverlay`) para cada tipo de sobreposição
+  - Cada classe de janela agora mantém seu próprio pincel de fundo independente, prevenindo contaminação cruzada de cores
 - Estrutura do projeto: Removido aninhamento duplicado `src/src/` - agora segue a convenção padrão do Cargo com `Cargo.toml` na raiz e arquivos fonte em `src/`
 - Fluxo de trabalho GitHub Actions: Atualizado para usar build puro do Cargo ao invés da action Tauri
 - GitHub Actions: Alterado de instaladores NSIS para arquivos ZIP para distribuição mais simples e confiável

@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct OverlayColor {
     pub r: u8,
     pub g: u8,
@@ -37,6 +37,8 @@ impl OverlayColor {
 pub struct Config {
     pub overlay_color: OverlayColor,
     pub is_dimming_enabled: bool,
+    pub active_overlay_color: Option<OverlayColor>,
+    pub is_active_overlay_enabled: bool,
 }
 
 impl Default for Config {
@@ -44,6 +46,8 @@ impl Default for Config {
         Self {
             overlay_color: OverlayColor::default(),
             is_dimming_enabled: true,
+            active_overlay_color: None,
+            is_active_overlay_enabled: false,
         }
     }
 }
