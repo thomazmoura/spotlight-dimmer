@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.12] - 2025-09-30
+
 ### Added
 - **Active display overlay**: New optional overlay that highlights the active display instead of dimming inactive ones
   - Independent enable/disable control via `active-enable` and `active-disable` commands
