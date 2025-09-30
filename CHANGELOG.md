@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.14] - 2025-09-30
+
 ### Fixed
 - **Critical stability fix**: Resolved system crash and eliminated black "ghost windows" when dragging windows between monitors with mouse
   - Root cause: Rapid `ShowWindow()` calls on layered topmost windows during active drag operations created race conditions with Windows' drag-and-drop message loop
