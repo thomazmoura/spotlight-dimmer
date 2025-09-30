@@ -1,6 +1,6 @@
 [package]
 name = "spotlight-dimmer"
-version = "0.1.12"
+version = "0.1.13"
 description = "A lightweight application that dims inactive displays to highlight the active one"
 authors = ["Spotlight Dimmer Team"]
 license = "MIT"
@@ -15,6 +15,10 @@ categories = ["gui", "multimedia", "os::windows-apis"]
 [[bin]]
 name = "spotlight-dimmer"
 path = "src/main_new.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
 
 [[bin]]
 name = "spotlight-dimmer-config"
@@ -34,5 +38,7 @@ winapi = { version = "0.3", features = [
     "psapi",
     "libloaderapi",
     "errhandlingapi",
-    "handleapi"
+    "handleapi",
+    "wincon",
+    "consoleapi"
 ] }

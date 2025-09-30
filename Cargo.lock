@@ -89,7 +89,7 @@ dependencies = [
 
 [[package]]
 name = "spotlight-dimmer"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "serde",
  "toml",

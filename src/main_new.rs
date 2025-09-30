@@ -9,7 +9,33 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+#[cfg(windows)]
+fn hide_console_if_not_launched_from_terminal() {
+    use winapi::um::wincon::{FreeConsole, GetConsoleProcessList};
+
+    unsafe {
+        // Check how many processes are attached to this console
+        let mut process_list = [0u32; 2];
+        let count = GetConsoleProcessList(process_list.as_mut_ptr(), 2);
+
+        // If count == 1, only this process is attached (launched from GUI)
+        // If count > 1, launched from terminal with parent process
+        if count == 1 {
+            // Hide the console window since we weren't launched from a terminal
+            FreeConsole();
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn hide_console_if_not_launched_from_terminal() {
+    // No-op on non-Windows platforms
+}
+
 fn main() {
+    // Hide console if not launched from terminal
+    hide_console_if_not_launched_from_terminal();
+
     println!("[Main] Spotlight Dimmer starting...");
 
     // Load configuration

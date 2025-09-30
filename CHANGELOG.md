@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Smart console behavior**: Application now intelligently manages console window visibility
+  - Shows console output with logs when launched from terminal (Command Prompt, PowerShell, etc.)
+  - Hides console window when launched from Start Menu, desktop shortcuts, or GUI
+  - Uses runtime detection via `GetConsoleProcessList()` to determine launch context
+  - Seamless user experience: CLI-friendly when needed, GUI-silent otherwise
 - **Active display overlay**: New optional overlay that highlights the active display instead of dimming inactive ones
   - Independent enable/disable control via `active-enable` and `active-disable` commands
   - Configurable color and opacity via `active-color <r> <g> <b> [a]` command
@@ -47,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Comportamento inteligente de console**: A aplicação agora gerencia inteligentemente a visibilidade da janela de console
+  - Mostra saída do console com logs quando iniciado a partir do terminal (Prompt de Comando, PowerShell, etc.)
+  - Oculta a janela do console quando iniciado a partir do Menu Iniciar, atalhos da área de trabalho ou GUI
+  - Usa detecção em tempo de execução via `GetConsoleProcessList()` para determinar o contexto de inicialização
+  - Experiência do usuário perfeita: amigável para CLI quando necessário, silencioso na GUI caso contrário
 - **Sobreposição de display ativo**: Nova sobreposição opcional que destaca o display ativo ao invés de escurecer os inativos
   - Controle independente de ativar/desativar via comandos `active-enable` e `active-disable`
   - Cor e opacidade configuráveis via comando `active-color <r> <g> <b> [a]`
