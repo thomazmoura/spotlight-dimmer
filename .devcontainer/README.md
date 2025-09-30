@@ -49,7 +49,7 @@ cargo tauri dev
 cargo tauri build
 
 # Install from source (cargo method)
-cd src-tauri && cargo install --path .
+cd src && cargo install --path .
 
 # Start Claude Code
 claude-code

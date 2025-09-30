@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-09-30
+
+### Changed
+- **Complete architecture rewrite**: Removed Tauri dependency in favor of pure Windows API implementation
+- Binary size reduced from 10.1 MB to 561 KB (~95% reduction)
+- Memory footprint reduced from ~200 MB to ~7.6 MB (~96% reduction)
+- Replaced webview-based overlays with native Windows layered windows for perfect transparency
+- Configuration now persists in TOML format at `%APPDATA%\spotlight-dimmer\config.toml`
+- Split functionality into two binaries: `spotlight-dimmer.exe` (core) and `spotlight-dimmer-config.exe` (settings)
+
+### Added
+- Native Windows API overlay implementation using `WS_EX_LAYERED` windows with alpha blending
+- TOML-based configuration system for persistent settings
+- CLI configuration tool (`spotlight-dimmer-config.exe`) for managing settings without GUI overhead
+- Support for custom overlay colors via configuration (RGB + alpha)
+- Automatic configuration loading from user AppData directory
+
+### Removed
+- Tauri framework and all web-based UI components
+- WebView2 dependency (no longer needed)
+- System tray icon (can be re-added with lightweight `trayicon` crate if needed)
+- JavaScript/HTML/CSS frontend files (dist/ directory no longer required at runtime)
+- ~25 MB of dependency crates (tokio full features, serde_json, tauri-plugin-log, etc.)
+
+### Improved
+- Startup time is now instantaneous (no webview initialization overhead)
+- CPU usage reduced during idle monitoring
+- Focus tracking remains at 100ms polling interval with enhanced detection
+- Click-through overlays work flawlessly with native Windows API flags
+
+---
+
+### Alterado
+- **Reescrita completa da arquitetura**: Removida dependência do Tauri em favor de implementação pura com Windows API
+- Tamanho do binário reduzido de 10,1 MB para 561 KB (redução de ~95%)
+- Pegada de memória reduzida de ~200 MB para ~7,6 MB (redução de ~96%)
+- Substituídas sobreposições baseadas em webview por janelas em camadas nativas do Windows para transparência perfeita
+- Configuração agora persiste em formato TOML em `%APPDATA%\spotlight-dimmer\config.toml`
+- Funcionalidade dividida em dois binários: `spotlight-dimmer.exe` (núcleo) e `spotlight-dimmer-config.exe` (configurações)
+
+### Adicionado
+- Implementação de sobreposição nativa com Windows API usando janelas `WS_EX_LAYERED` com mistura alfa
+- Sistema de configuração baseado em TOML para configurações persistentes
+- Ferramenta de configuração CLI (`spotlight-dimmer-config.exe`) para gerenciar configurações sem sobrecarga de GUI
+- Suporte para cores de sobreposição personalizadas via configuração (RGB + alfa)
+- Carregamento automático de configuração do diretório AppData do usuário
+
+### Removido
+- Framework Tauri e todos os componentes de interface baseados em web
+- Dependência do WebView2 (não mais necessário)
+- Ícone da bandeja do sistema (pode ser readicionado com crate `trayicon` leve se necessário)
+- Arquivos frontend JavaScript/HTML/CSS (diretório dist/ não mais necessário em tempo de execução)
+- ~25 MB de crates de dependência (recursos completos do tokio, serde_json, tauri-plugin-log, etc.)
+
+### Melhorado
+- Tempo de inicialização agora é instantâneo (sem sobrecarga de inicialização de webview)
+- Uso de CPU reduzido durante monitoramento ocioso
+- Rastreamento de foco permanece em intervalo de polling de 100ms com detecção aprimorada
+- Sobreposições click-through funcionam perfeitamente com flags nativas da Windows API
+
 ## [0.1.8] - 2025-09-29
 
 ### Added

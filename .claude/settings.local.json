@@ -12,7 +12,8 @@
       "Bash(spotlight-dimmer.exe:*)",
       "Bash(python:*)",
       "WebFetch(domain:github.com)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

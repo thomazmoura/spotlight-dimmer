@@ -6,148 +6,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Spotlight Dimmer is a cross-platform application that dims inactive displays to highlight the active one. Currently Windows-only but designed for future cross-platform support. It helps users with multiple monitors focus by dimming all displays except the one with the currently focused window.
 
-## Installation & Build Methods
+## Installation & Build
 
-Spotlight Dimmer supports **two distinct installation methods**, each with different characteristics and use cases:
+Spotlight Dimmer is a lightweight native Windows application built with pure Rust and Windows API.
 
-### Method 1: Tauri Builds (Recommended for Full Features)
-Full GUI application with perfect transparency and all features.
+### Building from Source
 
-#### Development
 ```bash
-# Start development server with hot reload
-cargo tauri dev
+cd src
+cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
-#### Production Build
+This creates two binaries in `src/target/release/`:
+- `spotlight-dimmer.exe` (561 KB) - Main application
+- `spotlight-dimmer-config.exe` (627 KB) - Configuration tool
+
+### Installation
+
 ```bash
-# Build for production (creates installer/executable)
-cargo tauri build
+cd src
+cargo install --path . --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
-#### Testing Frontend Changes
-```bash
-# Serve the frontend files locally for testing (Python required)
-python -m http.server 1420 --directory dist
-```
+Binaries will be installed to `~/.cargo/bin/` (ensure it's in your PATH).
 
-### Method 2: Cargo Install (Portable Installation)
-Direct installation via Cargo package manager for developers.
+### Uninstallation
 
-#### Installation
-```bash
-# Install from local source
-cd src-tauri && cargo install --path .
-
-# Install from crates.io (when published)
-cargo install spotlight-dimmer
-```
-
-#### Uninstallation
 ```bash
 cargo uninstall spotlight-dimmer
 ```
 
-### Key Differences Between Installation Methods
-
-| Feature | Tauri Build | Cargo Install |
-|---------|-------------|---------------|
-| **Installation** | Requires Tauri CLI + build | Standard `cargo install` |
-| **Transparency** | ✅ Perfect (file-based overlays) | ⚠️ Limited (data URL fallback) |
-| **File Size** | Larger (includes webview) | Smaller (embedded assets) |
-| **Dependencies** | Requires `dist/` files | Self-contained binary |
-| **Use Case** | End users, full GUI | Developers, automation |
-| **Update Method** | Rebuild + reinstall | `cargo install --force` |
-
-### ⚠️ CRITICAL BUILD COMPATIBILITY WARNINGS
-
-**DO NOT make changes that break either installation method:**
-
-1. **Never remove the `dist/` directory** - Required for Tauri builds
-2. **Never remove embedded asset fallbacks** - Required for cargo install
-3. **Never change overlay creation logic** without testing both methods
-4. **Always test both installation methods** before committing changes
-5. **Preserve the hybrid overlay approach** in `lib.rs:create_overlay_window()`
-
 ## Architecture Overview
 
-### Backend (Rust/Tauri)
-- **Main Application Logic**: `src-tauri/src/lib.rs` - Contains core dimming functionality, overlay management, and Tauri commands
-- **Platform Abstraction**: `src-tauri/src/platform/` - Abstracts platform-specific display and window management
-- **Windows Implementation**: `src-tauri/src/platform/windows.rs` - Windows API integration for display enumeration and window tracking
-- **Entry Point**: `src-tauri/src/main.rs` - Simple entry point that calls the main lib
+**Pure Windows API Implementation** - No web framework, no browser engine, just native code.
 
-### Frontend (HTML/CSS/JS)
-- **Main UI**: `dist/index.html` - Primary control interface with status display and toggle controls
-- **Overlay**: `dist/overlay.html` - Transparent overlay windows for dimming inactive displays
-- **Styling**: `dist/style.css` - All UI styling
-- **JavaScript**: `dist/main.js` - Frontend logic for Tauri communication and UI updates
+### Core Application (`main_new.rs`)
+- **Entry Point**: `src/main_new.rs` - Main application loop
+- **Memory Usage**: ~7.6 MB RAM, 561 KB binary
+- **Focus Monitoring**: 100ms polling using `GetForegroundWindow()`
+- **Display Detection**: Real-time hotplug support via `EnumDisplayMonitors()`
 
-### Key Components
+### Configuration System (`config.rs`)
+- **Format**: TOML (human-readable text format)
+- **Location**: `%APPDATA%\spotlight-dimmer\config.toml`
+- **Settings**: Overlay color (RGB + alpha), dimming enabled/disabled
+- **Auto-loading**: Configuration loaded on startup
 
-#### State Management (`lib.rs`)
-- `AppState` struct manages global application state including overlay windows, dimming status, and active display tracking
-- Thread-safe using `Arc<Mutex<>>` for concurrent access
-- Focus monitoring runs in background thread with 100ms polling interval
+### Configuration CLI (`config_cli.rs`)
+- **Purpose**: Standalone tool for managing settings
+- **Commands**: `status`, `enable`, `disable`, `color`, `reset`
+- **Binary Size**: 627 KB
+- **No overhead**: Doesn't affect main application performance
 
-#### Platform Layer (`platform/`)
-- `DisplayManager` trait: Cross-platform display enumeration and information
-- `WindowManager` trait: Active window detection and display association
-- Windows implementation uses WinAPI for display/window management
+### Platform Layer (`platform/`)
+- **Cross-platform traits**: `DisplayManager`, `WindowManager`
+- **Windows Implementation**: `src/platform/windows.rs`
+- **APIs Used**: `EnumDisplayMonitors`, `GetForegroundWindow`, `MonitorFromWindow`
+- **Display Info**: Position, size, primary status for each display
 
-#### Overlay System
-- Creates transparent, click-through overlay windows on each display
-- Overlays are hidden on active display, shown on inactive displays
-- **Click-Through Implementation**: Uses Tauri's native `set_ignore_cursor_events(true)` API (preferred method)
-- **Fallback**: Windows API with `WS_EX_TRANSPARENT`, `WS_EX_LAYERED`, and `WS_EX_TOOLWINDOW` flags
-- **Auto-startup**: Application starts with dimming enabled by default
+### Overlay System (`overlay.rs`)
+- **Implementation**: Native Windows layered windows (`WS_EX_LAYERED`)
+- **Transparency**: `SetLayeredWindowAttributes()` with alpha blending
+- **Click-Through**: `WS_EX_TRANSPARENT` flag ensures no input capture
+- **Always On Top**: `WS_EX_TOPMOST` keeps overlays above all windows
+- **No Taskbar**: `WS_EX_TOOLWINDOW` prevents Alt+Tab appearance
+- **No Focus**: `WS_EX_NOACTIVATE` prevents focus stealing
+- **Window Class**: Custom registered class "SpotlightDimmerOverlay"
 
-#### Hybrid Overlay Loading System
-The overlay system uses a **hybrid approach** to support both installation methods:
+### Key Implementation Details
 
-1. **Primary Method (File-based)**: `WebviewUrl::App("overlay.html".into())`
-   - Used when `dist/overlay.html` exists (Tauri builds)
-   - Provides perfect transparency with `rgba(0, 0, 0, 0.5)` dimming
-   - Preserves all CSS styling and functionality
-
-2. **Fallback Method (Embedded)**: Data URL with embedded content
-   - Used when file-based loading fails (cargo install)
-   - Serves embedded HTML from `build.rs` generated assets
-   - May have transparency limitations on Windows due to data URL constraints
-
+#### Overlay Creation
 ```rust
-// Implementation in lib.rs:create_overlay_window()
-let window_result = WebviewWindowBuilder::new(app_handle, &format!("{}_file", overlay_id), WebviewUrl::App("overlay.html".into()))
-    .build();
-
-let window = match window_result {
-    Ok(win) => win,  // File-based overlay (preferred)
-    Err(_) => {
-        // Fallback to embedded content
-        let overlay_html_content = get_asset("overlay.html").unwrap_or(OVERLAY_HTML);
-        let data_url = format!("data:text/html;charset=utf-8,{}", urlencoding::encode(overlay_html_content));
-        WebviewWindowBuilder::new(app_handle, overlay_id, WebviewUrl::External(data_url.parse().unwrap()))
-            .build()?
-    }
-};
+CreateWindowExW(
+    WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST |
+    WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+    class_name, window_name, WS_POPUP,
+    x, y, width, height, ...
+);
+SetLayeredWindowAttributes(hwnd, colorref, alpha, LWA_ALPHA);
 ```
 
-**⚠️ Critical**: Never modify this hybrid loading logic without testing both installation methods!
-
-### Tauri Commands
-- `get_displays()`: Returns list of all displays with positioning info
-- `get_active_window()`: Returns currently focused window information
-- `toggle_dimming()`: Enables/disables dimming functionality
-- `is_dimming_enabled()`: Returns current dimming state
-
-### Focus Monitoring
-- Background thread continuously monitors active window changes (100ms polling interval)
-- **Enhanced Detection**: Tracks both window handle changes AND display changes for comprehensive monitoring
-- **Window Movement**: Detects when windows move between displays, updating overlays immediately
-- Skips self-owned overlay windows to prevent focus loops
-- Uses `MonitorFromWindow` Windows API to determine display association
-- Emits `focus-changed` events to frontend when active display changes
-- Updates overlay visibility based on active display
+#### Focus Monitoring Loop
+- Polls active window every 100ms
+- Compares window handle and display ID with last known state
+- Updates overlay visibility (hide on active display, show on others)
+- Detects display configuration changes (connect/disconnect)
+- Automatically recreates overlays when display count changes
 
 ## Development Notes
 
@@ -157,58 +101,31 @@ let window = match window_result {
 - Cross-platform traits designed for easy platform additions
 
 ### Dependencies
-- **Tauri 2.x**: Main framework for desktop app
-- **WinAPI**: Windows system integration
-- **Tokio**: Async runtime for Tauri commands
-- **Serde**: JSON serialization for frontend communication
+- **serde**: Configuration serialization/deserialization
+- **toml**: TOML configuration file parsing
+- **winapi**: Windows API bindings (minimal feature set)
 
 ### Build Requirements
 - Rust 1.77.2+
-- Tauri CLI (`cargo install tauri-cli --version ^2.0.0`)
-- Windows development environment for Windows features
+- Windows development environment
+- No additional tools required (no Tauri CLI, no Node.js, no frontend build)
 
-### ⚠️ RUST BUILD TIME CONSIDERATIONS
-
-**IMPORTANT for AI Agents**: This is a Rust project with complex dependencies. Build times are significant:
-
-#### Expected Build Times
-- **Development builds** (`cargo tauri dev`): 60-120 seconds initial compile, faster on subsequent runs
-- **Production builds** (`cargo tauri build`): 90-180 seconds including bundling
-- **Cargo installs** (`cargo install --path .`): 30-60 seconds
-- **Clean rebuilds**: Can take 2-3 minutes for full compilation
-
-#### Agent Patience Guidelines
-1. **Use longer timeouts**: Set timeouts to at least 120-180 seconds for build commands
-2. **Monitor background processes**: Use `run_in_background=true` for build commands and monitor with `BashOutput`
-3. **Wait for compilation**: Don't interrupt builds - Rust compilation is CPU-intensive but reliable
-4. **Expect warnings**: The project generates several harmless warnings about unused imports/functions
-5. **Trust the process**: Builds will complete successfully - compilation messages indicate progress
-
-#### Build Command Best Practices
-```bash
-# Use extended timeouts for build commands
-cargo tauri dev --timeout=180000    # 3 minutes
-cargo tauri build --timeout=300000  # 5 minutes
-cargo install --path . --timeout=120000  # 2 minutes
-```
-
-**Note**: Build times vary based on hardware, but patience is key - Rust's compilation model ensures correct builds once complete.
+### Build Times
+- **Initial build**: ~10-15 seconds (minimal dependencies)
+- **Incremental builds**: ~1-2 seconds
+- **Clean rebuild**: ~10-15 seconds
+- **Much faster than Tauri version**: No web framework compilation overhead
 
 ### Configuration
-- Tauri config: `src-tauri/tauri.conf.json`
-- Cargo config: `src-tauri/Cargo.toml`
+- User settings: `%APPDATA%\spotlight-dimmer\config.toml` (TOML format)
+- Build config: `src/Cargo.toml` (Rust dependencies only)
 
 ### Debugging
-- Tauri supports devtools for frontend debugging
-- Rust logs via `env_logger` and `tauri-plugin-log`
-- Console output for focus monitoring and overlay operations
+- Console output shows focus monitoring and overlay operations
+- Use `println!` or `eprintln!` for debug logging
+- Task Manager shows accurate memory usage (~7.6 MB)
 
 ## Common Development Patterns
-
-### Adding New Tauri Commands
-1. Define async function in `lib.rs` with `#[tauri::command]` attribute
-2. Add to `invoke_handler` in `run()` function
-3. Call from frontend using `window.__TAURI__.core.invoke()`
 
 ### Platform-Specific Code
 - Use `#[cfg(windows)]` for Windows-only code
@@ -216,30 +133,32 @@ cargo install --path . --timeout=120000  # 2 minutes
 - Keep cross-platform types in `platform/mod.rs`
 
 ### Overlay Management
-- All overlay operations are async and use the shared `AppState`
-- Overlays are keyed by display ID in the global HashMap
+- Overlays stored in `HashMap<String, HWND>` keyed by display ID
 - Always close existing overlays before creating new ones to prevent leaks
-- **Auto-startup Configuration**: `AppState::default()` initializes with `is_dimming_enabled: true`
-- **Startup Sequence**: 500ms delay ensures proper initialization before overlay creation
+- Use `ShowWindow(SW_HIDE/SW_SHOW)` to toggle visibility
+- Register window class once at startup with `RegisterClassExW`
+
+### Adding Configuration Options
+1. Update `Config` struct in `config.rs`
+2. Add field to TOML serialization
+3. Update `Config::default()` with sensible default
+4. Add CLI command in `config_cli.rs` if user-facing
+5. Update main loop in `main_new.rs` to use new setting
 
 ## Implementation Notes & Troubleshooting
 
 ### Click-Through Implementation
-The application successfully implements click-through overlays using multiple approaches:
+The application uses Windows API directly for click-through overlays:
 
-#### Primary Method (Recommended)
-- **Tauri Native API**: `window.set_ignore_cursor_events(true)`
-- **Status**: ✅ Working reliably in Tauri 2.x
-- **Advantages**: Clean, cross-platform, no manual Windows API calls needed
-
-#### Fallback Method
-- **Windows API**: Direct manipulation using `SetWindowLongPtrW`
-- **Flags**: `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`
-- **Usage**: Automatically attempted if Tauri API fails
-- **Note**: `WS_EX_TOOLWINDOW` prevents Alt+Tab visibility and focus issues
+- **Windows API**: `WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW`
+- **`WS_EX_TRANSPARENT`**: Passes all mouse/keyboard input through to underlying windows
+- **`WS_EX_LAYERED`**: Enables alpha blending via `SetLayeredWindowAttributes()`
+- **`WS_EX_TOOLWINDOW`**: Prevents Alt+Tab visibility and taskbar appearance
+- **`WS_EX_NOACTIVATE`**: Prevents window from stealing focus
+- **Status**: ✅ Works perfectly with native Windows API
 
 ### Window Movement Detection
-Enhanced focus monitoring system that goes beyond simple window handle tracking:
+Enhanced focus monitoring that tracks both window changes and display changes:
 
 ```rust
 // Tracks both window changes and display changes
@@ -251,99 +170,73 @@ if window_changed || display_changed {
 }
 ```
 
-## Installation Troubleshooting
+## Troubleshooting
 
-### Cargo Install Issues
+### Build Issues
 
-#### Problem: "Access denied" during installation
-```bash
-error: failed to move spotlight-dimmer.exe
-Caused by: Acesso negado. (os error 5)
-```
+#### Problem: "Access denied" during cargo install
 **Solution**: The binary is currently running. Stop all instances first:
 ```bash
-cargo uninstall spotlight-dimmer
-# or manually close any running spotlight-dimmer processes
+# Stop running instances
+taskkill /F /IM spotlight-dimmer.exe
+
+# Then reinstall
+cd src
 cargo install --path . --force
 ```
 
-#### Problem: "webview-data-url feature not found"
-**Cause**: Missing Tauri feature for data URL support in embedded content fallback.
-**Solution**: Ensure `Cargo.toml` includes:
-```toml
-tauri = { version = "2.8.5", features = ["tray-icon", "devtools", "webview-data-url"] }
-```
-
-#### Problem: Overlays appear completely transparent (no dimming)
-**Cause**: Using data URL fallback which has Windows transparency limitations.
-**Solutions**:
-1. Use Tauri build instead: `cargo tauri build`
-2. Verify `dist/overlay.html` exists for file-based loading
-3. Check console output for "File-based overlay not found" message
-
-### Tauri Build Issues
-
-#### Problem: "Frontend dist directory not found"
-**Solution**: Ensure `dist/` directory exists with required files:
+#### Problem: Compilation errors
+**Solution**: Ensure you have the required dependencies:
 ```bash
-ls dist/  # Should show: index.html, overlay.html, style.css, main.js
+# Check Rust version (1.77.2+)
+rustc --version
+
+# Update Rust if needed
+rustup update stable
 ```
 
-#### Problem: Overlays not showing proper transparency
-**Solution**: Verify `dist/overlay.html` contains correct CSS:
-```css
-body, html {
-    background-color: rgba(0, 0, 0, 0.5);  /* 50% transparent black */
-    pointer-events: none;  /* Essential for click-through */
-    overflow: hidden;
-}
-```
+### Runtime Issues
 
-### General Issues
+#### Problem: Overlays not visible
+**Diagnostics**: Check console output for:
+- "[Overlay] Created for display..." messages
+- Display count matches your actual monitors
+- No error messages during overlay creation
+
+**Solution**: Run in console to see debug output:
+```bash
+cd src/target/release
+./spotlight-dimmer.exe
+```
 
 #### Problem: Focus monitoring not working
 **Diagnostics**: Check console output for:
-- "Focus monitoring thread started!"
-- "Active window changed: [window name]"
-- "Successfully emitted focus-changed event"
+- "[Main] Focus monitoring loop started..."
+- "[Main] Active window: ..." messages when switching windows
+- Display ID changes when moving windows between monitors
+
+**Solution**: Windows may require administrator privileges for some window tracking operations.
 
 #### Problem: Click-through not working
-**Solution**: Verify console shows:
-- "Successfully set ignore cursor events with Tauri API"
-- If not, check Windows permissions and Tauri version
+**Solution**: This shouldn't happen with direct Windows API implementation. If it does:
+- Check Windows version (Windows 7+)
+- Ensure no antivirus is blocking window manipulation
+- Run as administrator if needed
 
-### Testing Both Installation Methods
+### Configuration Issues
 
-Before making any changes, always test both methods:
-
+#### Problem: Configuration not persisting
+**Solution**: Check config file location:
 ```bash
-# Test Tauri build
-cargo tauri dev
-# Verify transparency and functionality
+# Config file should be at:
+# %APPDATA%\spotlight-dimmer\config.toml
 
-# Test cargo install
-cd src-tauri
-cargo install --path . --force
-spotlight-dimmer
-# Verify it works (may have limited transparency)
+# View current config
+spotlight-dimmer-config status
 
-# Clean up
-cargo uninstall spotlight-dimmer
+# Reset to defaults
+spotlight-dimmer-config reset
 ```
-
-### Build System Maintenance
-
-#### Embedded Assets (`build.rs`)
-- Automatically embeds `dist/` files into binary
-- Provides fallback HTML/CSS for cargo install
-- Regenerates on `dist/` changes
-
-#### Dependencies for Both Methods
-- **Tauri builds**: Requires Tauri CLI, `dist/` files
-- **Cargo install**: Requires `webview-data-url` feature, embedded assets
-- **Both**: Windows API dependencies, Rust 1.77.2+
-
-**Remember**: Any changes to overlay creation logic in `lib.rs:create_overlay_window()` must be tested with both installation methods to ensure compatibility!
 
 ## Changelog Management (REQUIRED)
 
@@ -490,96 +383,15 @@ Each changelog entry should answer:
 
 **Enforcement**: Pull requests without proper changelog updates (including Portuguese translations) will be considered incomplete.
 
-## Version Management (REQUIRED)
+## Version Management
 
-**CRITICAL**: Every prompt that results in code changes, feature additions, bug fixes, or any modifications MUST increment the patch version (third number) in both configuration files.
+Version management is handled automatically by the `/commit` slash command, which:
+1. Increments the patch version (third number) in both `package.json` and `src/Cargo.toml`
+2. Creates a commit with all changes
+3. Creates a git tag with the new version
+4. Pushes both commit and tag to the repository
 
-### Automatic Version Increment Rule
-
-On **EVERY PROMPT** that involves:
-- ✅ Code changes or modifications
-- ✅ Bug fixes
-- ✅ Feature additions or enhancements
-- ✅ Configuration changes
-- ✅ Documentation updates that affect functionality
-- ✅ Dependency updates
-- ✅ Build system changes
-- ✅ Any file modifications that would warrant a changelog entry
-
-**MUST increment the patch version (z in x.y.z) in BOTH files:**
-1. `package.json` - `"version": "x.y.z"`
-2. `src-tauri/Cargo.toml` - `version = "x.y.z"`
-
-### Version Increment Process
-
-#### Step 1: Always check current versions first
-```bash
-# Check package.json version
-grep '"version"' package.json
-
-# Check Cargo.toml version
-grep '^version' src-tauri/Cargo.toml
-```
-
-#### Step 2: Increment patch version (third number)
-- Current: `"0.1.0"` → New: `"0.1.1"`
-- Current: `"0.1.5"` → New: `"0.1.6"`
-- Current: `"1.2.3"` → New: `"1.2.4"`
-
-#### Step 3: Update both files simultaneously
-```bash
-# Update package.json
-sed -i 's/"version": "0.1.0"/"version": "0.1.1"/' package.json
-
-# Update Cargo.toml
-sed -i 's/version = "0.1.0"/version = "0.1.1"/' src-tauri/Cargo.toml
-```
-
-### Version Synchronization Rules
-
-1. **Always keep versions synchronized**: Both files must have identical version numbers
-2. **Increment on every prompt**: No exceptions - even small changes get version increments
-3. **Patch version only**: Only increment the third number (patch) unless explicitly requested otherwise
-4. **Verify after changes**: Always confirm both files were updated correctly
-
-### Examples
-
-#### ✅ Correct Version Management Flow
-```bash
-# Before making any changes
-Current versions: 0.1.0
-
-# Make code changes, then:
-# 1. Update package.json: 0.1.0 → 0.1.1
-# 2. Update Cargo.toml: 0.1.0 → 0.1.1
-# 3. Update changelog with new version number
-# 4. Commit all changes together
-```
-
-#### ❌ Incorrect Approach
-```bash
-# Making changes without version increment
-# OR
-# Updating only one file
-# OR
-# Forgetting to check current versions first
-```
-
-### Version Verification
-
-After any changes, always verify both files have matching versions:
-```bash
-echo "package.json version: $(grep '"version"' package.json)"
-echo "Cargo.toml version: $(grep '^version' src-tauri/Cargo.toml)"
-```
-
-### Special Cases
-
-- **Major version changes** (x.y.z → (x+1).0.0): Only when explicitly requested by user
-- **Minor version changes** (x.y.z → x.(y+1).0): Only when adding significant new features
-- **Patch version changes** (x.y.z → x.y.(z+1)): **DEFAULT for all prompts**
-
-**Enforcement**: Any code changes without proper version increments will be considered incomplete work.
+To create a versioned commit, use: `/commit`
 
 ## Git Commit Messages
 
