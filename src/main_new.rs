@@ -141,6 +141,9 @@ fn main() {
     let mut last_display_id: Option<String> = None;
     let mut last_display_count = displays.len();
     let mut last_paused = pause_flag.load(Ordering::SeqCst);
+    let mut last_window_rect: Option<winapi::shared::windef::RECT> = None;
+    let mut last_rect_change_time: Option<std::time::Instant> = None;
+    let mut is_dragging = false;
 
     // Track config file modification time for periodic reloading
     let mut last_config_modified = Config::last_modified();
@@ -282,13 +285,13 @@ fn main() {
         }
 
         // Check if any overlay type is enabled
-        let (is_dimming_enabled, is_active_overlay_enabled) = {
+        let (is_dimming_enabled, is_active_overlay_enabled, is_partial_dimming_enabled) = {
             let cfg = config.lock().unwrap();
-            (cfg.is_dimming_enabled, cfg.is_active_overlay_enabled)
+            (cfg.is_dimming_enabled, cfg.is_active_overlay_enabled, cfg.is_partial_dimming_enabled)
         };
 
-        if !is_dimming_enabled && !is_active_overlay_enabled {
-            thread::sleep(Duration::from_millis(400)); // Longer sleep when both disabled
+        if !is_dimming_enabled && !is_active_overlay_enabled && !is_partial_dimming_enabled {
+            thread::sleep(Duration::from_millis(400)); // Longer sleep when all disabled
             continue;
         }
 
@@ -324,6 +327,9 @@ fn main() {
                 last_display_count = current_display_count;
                 last_window_handle = None;
                 last_display_id = None;
+                last_window_rect = None;
+                last_rect_change_time = None;
+                is_dragging = false;
                 continue;
             }
         }
@@ -356,11 +362,100 @@ fn main() {
                     }
 
                     // Update overlays for any window or display change
-                    let manager = overlay_manager.lock().unwrap();
+                    let mut manager = overlay_manager.lock().unwrap();
                     manager.update_visibility(&active_window.display_id);
+
+                    // Clear partial overlays when switching displays or windows
+                    if display_changed {
+                        manager.clear_all_partial_overlays();
+                        last_window_rect = None;
+                        last_rect_change_time = None;
+                        is_dragging = false;
+                    }
 
                     last_window_handle = Some(active_window.handle);
                     last_display_id = Some(active_window.display_id.clone());
+                }
+
+                // Handle partial dimming (check for window movement/resize)
+                if is_partial_dimming_enabled && last_display_id.is_some() {
+                    if let Ok(current_rect) = window_manager.get_window_rect(active_window.handle) {
+                        let rect_changed = match last_window_rect {
+                            None => true,
+                            Some(last_rect) => {
+                                last_rect.left != current_rect.left
+                                    || last_rect.top != current_rect.top
+                                    || last_rect.right != current_rect.right
+                                    || last_rect.bottom != current_rect.bottom
+                            }
+                        };
+
+                        if rect_changed {
+                            let now = std::time::Instant::now();
+
+                            // Detect drag: if rect changed recently (< 150ms ago), we're probably dragging
+                            let is_rapid_change = if let Some(last_change) = last_rect_change_time {
+                                now.duration_since(last_change).as_millis() < 150
+                            } else {
+                                false
+                            };
+
+                            if is_rapid_change && !is_dragging {
+                                // Start of drag detected
+                                is_dragging = true;
+                                println!("[Main] Drag detected - hiding partial overlays");
+                                let mut manager = overlay_manager.lock().unwrap();
+                                manager.clear_all_partial_overlays();
+                            } else if is_dragging {
+                                // Still dragging, keep overlays hidden
+                            } else {
+                                // Not dragging, normal update
+                                if let Ok(display_info) = window_manager.get_window_display(active_window.handle) {
+                                    let mut manager = overlay_manager.lock().unwrap();
+                                    if let Err(e) = manager.create_partial_overlays(
+                                        &active_window.display_id,
+                                        current_rect,
+                                        &display_info,
+                                    ) {
+                                        eprintln!("[Main] Failed to create partial overlays: {}", e);
+                                    }
+                                }
+                            }
+
+                            last_rect_change_time = Some(now);
+                            last_window_rect = Some(current_rect);
+                        } else if is_dragging {
+                            // Rect hasn't changed - check if drag ended (stable for 200ms)
+                            if let Some(last_change) = last_rect_change_time {
+                                let now = std::time::Instant::now();
+                                if now.duration_since(last_change).as_millis() >= 200 {
+                                    // Drag ended
+                                    is_dragging = false;
+                                    println!("[Main] Drag ended - recreating partial overlays");
+
+                                    // Recreate overlays at final position
+                                    if let Some(final_rect) = last_window_rect {
+                                        if let Ok(display_info) = window_manager.get_window_display(active_window.handle) {
+                                            let mut manager = overlay_manager.lock().unwrap();
+                                            if let Err(e) = manager.create_partial_overlays(
+                                                &active_window.display_id,
+                                                final_rect,
+                                                &display_info,
+                                            ) {
+                                                eprintln!("[Main] Failed to create partial overlays: {}", e);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if !is_partial_dimming_enabled && last_window_rect.is_some() {
+                    // Clear partial overlays if feature was disabled
+                    let mut manager = overlay_manager.lock().unwrap();
+                    manager.clear_all_partial_overlays();
+                    last_window_rect = None;
+                    is_dragging = false;
                 }
             }
             Err(_) => {
@@ -368,6 +463,14 @@ fn main() {
                 if last_window_handle.is_some() {
                     last_window_handle = None;
                     last_display_id = None;
+                    last_window_rect = None;
+                    last_rect_change_time = None;
+                    is_dragging = false;
+                    // Clear partial overlays when no active window
+                    if is_partial_dimming_enabled {
+                        let mut manager = overlay_manager.lock().unwrap();
+                        manager.clear_all_partial_overlays();
+                    }
                 }
             }
         }

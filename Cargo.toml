@@ -1,6 +1,6 @@
 [package]
 name = "spotlight-dimmer"
-version = "0.2.1"
+version = "0.3.0"
 description = "A lightweight application that dims inactive displays to highlight the active one"
 authors = ["Spotlight Dimmer Team"]
 license = "MIT"
@@ -41,5 +41,6 @@ winapi = { version = "0.3", features = [
     "handleapi",
     "wincon",
     "consoleapi",
-    "shellapi"
+    "shellapi",
+    "dwmapi"
 ] }

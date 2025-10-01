@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-10-01
+
+### Added
+- **Partial dimming mode**: New feature that dims empty areas around the focused window on the active display
+  - Intelligently detects window position and creates up to 4 overlays (top, bottom, left, right) for gaps between window edges and display edges
+  - Full-screen windows: No overlays (window covers entire display)
+  - Docked windows: Single overlay on opposite side (e.g., window docked right → overlay on left)
+  - Windowed mode: Multiple overlays for each exposed edge (e.g., centered window → 4 overlays)
+  - Uses inactive overlay color for consistent visual experience
+  - Edge detection with 5-pixel tolerance for precise alignment
+  - Automatically updates overlays when window moves, resizes, or switches between displays
+  - Smart corner handling prevents overlaps (horizontal overlays span full width, vertical overlays adjusted to prevent double-dimming)
+  - Drag detection automatically hides overlays during window dragging to prevent flickering
+  - Overlays recreate instantly when drag operation completes (200ms stability threshold)
+  - Enable with `spotlight-dimmer-config partial-enable`
+  - Can be combined with inactive display dimming and active display overlay for maximum focus
+  - Zero performance impact when disabled
+
+---
+
+### Adicionado
+- **Modo de escurecimento parcial**: Nova funcionalidade que escurece áreas vazias ao redor da janela focada no display ativo
+  - Detecta inteligentemente a posição da janela e cria até 4 sobreposições (topo, fundo, esquerda, direita) para lacunas entre as bordas da janela e do display
+  - Janelas em tela cheia: Sem sobreposições (janela cobre todo o display)
+  - Janelas ancoradas: Sobreposição única no lado oposto (ex: janela ancorada à direita → sobreposição à esquerda)
+  - Modo janela: Múltiplas sobreposições para cada borda exposta (ex: janela centralizada → 4 sobreposições)
+  - Usa cor de sobreposição inativa para experiência visual consistente
+  - Detecção de borda com tolerância de 5 pixels para alinhamento preciso
+  - Atualiza automaticamente sobreposições quando a janela move, redimensiona ou muda entre displays
+  - Gestão inteligente de cantos previne sobreposições (sobreposições horizontais cobrem largura total, verticais ajustadas para prevenir escurecimento duplo)
+  - Detecção de arraste oculta automaticamente sobreposições durante movimento de janela para prevenir tremulação
+  - Sobreposições recriam instantaneamente quando operação de arraste completa (limiar de estabilidade de 200ms)
+  - Habilite com `spotlight-dimmer-config partial-enable`
+  - Pode ser combinado com escurecimento de displays inativos e sobreposição de display ativo para máximo foco
+  - Zero impacto de performance quando desabilitado
+
 ## [0.2.1] - 2025-10-01
 
 ## [0.2.0] - 2025-09-30

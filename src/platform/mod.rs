@@ -44,4 +44,7 @@ pub trait DisplayManager {
 pub trait WindowManager {
     fn get_active_window(&self) -> Result<ActiveWindowInfo, String>;
     fn get_window_display(&self, window_handle: u64) -> Result<DisplayInfo, String>;
+
+    #[cfg(windows)]
+    fn get_window_rect(&self, window_handle: u64) -> Result<winapi::shared::windef::RECT, String>;
 }

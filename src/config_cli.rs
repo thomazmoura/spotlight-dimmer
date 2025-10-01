@@ -21,6 +21,8 @@ fn main() {
         "active-enable" => cmd_active_enable(),
         "active-disable" => cmd_active_disable(),
         "active-color" => cmd_active_color(&args[2..]),
+        "partial-enable" => cmd_partial_enable(),
+        "partial-disable" => cmd_partial_disable(),
         "reset" => cmd_reset(),
         "help" | "--help" | "-h" => print_usage(),
         _ => {
@@ -47,6 +49,10 @@ fn print_usage() {
     println!("    active-disable              Disable active display overlay");
     println!("    active-color <r> <g> <b> [a] Set active overlay color (RGB 0-255, alpha 0.0-1.0)");
     println!();
+    println!("PARTIAL DIMMING COMMANDS (dims empty areas around focused window):");
+    println!("    partial-enable              Enable partial dimming on active display");
+    println!("    partial-disable             Disable partial dimming on active display");
+    println!();
     println!("GENERAL COMMANDS:");
     println!("    status                      Show current configuration");
     println!("    reset                       Reset configuration to defaults");
@@ -61,11 +67,14 @@ fn print_usage() {
     println!("    spotlight-dimmer-config active-enable");
     println!("    spotlight-dimmer-config active-color 50 100 255 0.15");
     println!();
-    println!("    # Use both - dim inactive + highlight active");
+    println!("    # Use partial dimming to highlight focused window");
     println!("    spotlight-dimmer-config enable");
-    println!("    spotlight-dimmer-config color 0 0 0 0.8");
+    println!("    spotlight-dimmer-config partial-enable");
+    println!();
+    println!("    # Combine all three modes");
+    println!("    spotlight-dimmer-config enable");
     println!("    spotlight-dimmer-config active-enable");
-    println!("    spotlight-dimmer-config active-color 255 200 0 0.1");
+    println!("    spotlight-dimmer-config partial-enable");
     println!();
     println!("NOTE: Configuration changes are applied automatically (no restart needed)");
 }
@@ -95,6 +104,11 @@ fn cmd_status() {
     } else {
         println!("  Color:   Not configured");
     }
+    println!();
+
+    println!("PARTIAL DIMMING (dims empty areas around focused window):");
+    println!("  Status: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+    println!("  Note:   Uses inactive overlay color for partial overlays");
     println!();
 
     if let Ok(path) = Config::config_path() {
@@ -287,6 +301,45 @@ fn cmd_active_color(args: &[String]) {
     }
 }
 
+fn cmd_partial_enable() {
+    let mut config = Config::load();
+    config.is_partial_dimming_enabled = true;
+
+    match config.save() {
+        Ok(_) => {
+            println!("✓ Partial dimming enabled");
+            println!("  Empty areas around the focused window will be dimmed on the active display");
+            println!("  Uses the inactive overlay color (RGB({}, {}, {}) Alpha {:.2})",
+                config.overlay_color.r,
+                config.overlay_color.g,
+                config.overlay_color.b,
+                config.overlay_color.a
+            );
+            println!("  Changes will be applied automatically within 2 seconds");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_partial_disable() {
+    let mut config = Config::load();
+    config.is_partial_dimming_enabled = false;
+
+    match config.save() {
+        Ok(_) => {
+            println!("✓ Partial dimming disabled");
+            println!("  Changes will be applied automatically within 2 seconds");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
 fn cmd_reset() {
     let config = Config::default();
 
@@ -315,6 +368,9 @@ fn cmd_reset() {
             } else {
                 println!("    Color: Not configured");
             }
+            println!();
+            println!("  Partial Dimming:");
+            println!("    Status: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
             println!();
             println!("  Changes will be applied automatically within 2 seconds");
         }

@@ -159,6 +159,10 @@ impl WindowManager for WindowsWindowManager {
             }
         }
     }
+
+    fn get_window_rect(&self, window_handle: u64) -> Result<RECT, String> {
+        get_window_rect(window_handle)
+    }
 }
 
 fn get_process_name(process_id: u32) -> Result<String, String> {
@@ -191,16 +195,33 @@ fn get_process_name(process_id: u32) -> Result<String, String> {
     }
 }
 
-// Helper function to get window rectangle
+// Helper function to get window rectangle (excludes drop shadow)
 pub fn get_window_rect(window_handle: u64) -> Result<RECT, String> {
     unsafe {
         let hwnd = window_handle as HWND;
-        let mut rect: RECT = mem::zeroed();
 
-        if GetWindowRect(hwnd, &mut rect) != 0 {
+        // Try to get extended frame bounds (excludes drop shadow)
+        // This requires dwmapi.dll
+        use winapi::um::dwmapi::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
+
+        let mut rect: RECT = mem::zeroed();
+        let result = DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            &mut rect as *mut _ as *mut _,
+            mem::size_of::<RECT>() as u32,
+        );
+
+        if result == 0 {
+            // Success - got extended frame bounds (without shadow)
             Ok(rect)
         } else {
-            Err("Failed to get window rectangle".to_string())
+            // Fallback to GetWindowRect if DWM call fails
+            if GetWindowRect(hwnd, &mut rect) != 0 {
+                Ok(rect)
+            } else {
+                Err("Failed to get window rectangle".to_string())
+            }
         }
     }
 }
