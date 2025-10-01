@@ -219,6 +219,19 @@ impl OverlayManager {
         }
     }
 
+    /// Show all overlays (both inactive and active)
+    /// Used when unpausing to restore all overlays to visible state
+    pub fn show_all(&self) {
+        unsafe {
+            for (_, &hwnd) in &self.inactive_overlays {
+                ShowWindow(hwnd, SW_SHOW);
+            }
+            for (_, &hwnd) in &self.active_overlays {
+                ShowWindow(hwnd, SW_SHOW);
+            }
+        }
+    }
+
     /// Close all overlays (both inactive and active)
     pub fn close_all(&mut self) {
         unsafe {

@@ -1,3 +1,4 @@
+use crate::config::Config;
 use std::ffi::OsStr;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
@@ -14,12 +15,19 @@ use winapi::um::shellapi::{
 use winapi::um::winuser::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
     GetCursorPos, LoadImageW, PostQuitMessage, RegisterClassExW, SetForegroundWindow,
-    TrackPopupMenu, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_STRING, TPM_BOTTOMALIGN,
-    TPM_LEFTALIGN, WNDCLASSEXW, WM_COMMAND, WM_LBUTTONUP, WM_RBUTTONUP, WS_OVERLAPPEDWINDOW,
+    TrackPopupMenu, CS_DBLCLKS, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_STRING,
+    TPM_BOTTOMALIGN, TPM_LEFTALIGN, WNDCLASSEXW, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP,
+    WM_RBUTTONUP, WS_OVERLAPPEDWINDOW,
 };
 
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
 const CMD_EXIT: u16 = 1001;
+
+/// Struct to hold shared state pointers for window procedure
+struct TrayState {
+    exit_flag: Arc<AtomicBool>,
+    pause_flag: Arc<AtomicBool>,
+}
 
 /// Get the directory where the executable is located
 fn get_exe_directory() -> Result<PathBuf, String> {
@@ -43,13 +51,15 @@ fn get_exe_directory() -> Result<PathBuf, String> {
 /// System tray icon manager
 pub struct TrayIcon {
     hwnd: HWND,
-    hicon: winapi::shared::windef::HICON,
+    hicon_active: winapi::shared::windef::HICON,
+    hicon_paused: winapi::shared::windef::HICON,
     exit_flag: Arc<AtomicBool>,
+    pause_flag: Arc<AtomicBool>,
 }
 
 impl TrayIcon {
     /// Create a new system tray icon
-    pub fn new(icon_path: &str, tooltip: &str, exit_flag: Arc<AtomicBool>) -> Result<Self, String> {
+    pub fn new(icon_path: &str, tooltip: &str, exit_flag: Arc<AtomicBool>, pause_flag: Arc<AtomicBool>) -> Result<Self, String> {
         unsafe {
             // Register window class for hidden message window
             let class_name = to_wstring("SpotlightDimmerTrayWindow");
@@ -57,7 +67,7 @@ impl TrayIcon {
 
             let wnd_class = WNDCLASSEXW {
                 cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
-                style: 0,
+                style: CS_DBLCLKS, // Enable double-click messages
                 lpfnWndProc: Some(window_proc),
                 cbClsExtra: 0,
                 cbWndExtra: 0,
@@ -100,19 +110,24 @@ impl TrayIcon {
                 return Err(format!("Failed to create tray window: error {}", err));
             }
 
-            // Store exit flag pointer in window user data for access in window proc
+            // Store tray state (both flags) in window user data for access in window proc
+            let state = Box::new(TrayState {
+                exit_flag: exit_flag.clone(),
+                pause_flag: pause_flag.clone(),
+            });
             winapi::um::winuser::SetWindowLongPtrW(
                 hwnd,
                 winapi::um::winuser::GWLP_USERDATA,
-                Arc::into_raw(exit_flag.clone()) as isize,
+                Box::into_raw(state) as isize,
             );
 
-            // Get absolute path to icon file (relative to executable)
+            // Get absolute path to icon files (relative to executable)
             let exe_dir = get_exe_directory().map_err(|e| {
                 DestroyWindow(hwnd);
                 e
             })?;
             let icon_full_path = exe_dir.join(icon_path);
+            let icon_paused_full_path = exe_dir.join("spotlight-dimmer-icon-paused.ico");
 
             if !icon_full_path.exists() {
                 DestroyWindow(hwnd);
@@ -123,9 +138,17 @@ impl TrayIcon {
                 ));
             }
 
-            // Load icon from file using absolute path
+            if !icon_paused_full_path.exists() {
+                DestroyWindow(hwnd);
+                return Err(format!(
+                    "Paused icon file not found: spotlight-dimmer-icon-paused.ico (looked in: {})",
+                    icon_paused_full_path.display()
+                ));
+            }
+
+            // Load active icon from file using absolute path
             let icon_path_wide = to_wstring(&icon_full_path.to_string_lossy());
-            let hicon = LoadImageW(
+            let hicon_active = LoadImageW(
                 ptr::null_mut(),
                 icon_path_wide.as_ptr(),
                 IMAGE_ICON,
@@ -134,12 +157,29 @@ impl TrayIcon {
                 LR_LOADFROMFILE | LR_DEFAULTSIZE,
             ) as winapi::shared::windef::HICON;
 
-            if hicon.is_null() {
+            if hicon_active.is_null() {
                 DestroyWindow(hwnd);
-                return Err(format!("Failed to load icon from: {}", icon_full_path.display()));
+                return Err(format!("Failed to load active icon from: {}", icon_full_path.display()));
             }
 
-            // Create tray icon
+            // Load paused icon from file using absolute path
+            let icon_paused_path_wide = to_wstring(&icon_paused_full_path.to_string_lossy());
+            let hicon_paused = LoadImageW(
+                ptr::null_mut(),
+                icon_paused_path_wide.as_ptr(),
+                IMAGE_ICON,
+                0,
+                0,
+                LR_LOADFROMFILE | LR_DEFAULTSIZE,
+            ) as winapi::shared::windef::HICON;
+
+            if hicon_paused.is_null() {
+                winapi::um::winuser::DestroyIcon(hicon_active);
+                DestroyWindow(hwnd);
+                return Err(format!("Failed to load paused icon from: {}", icon_paused_full_path.display()));
+            }
+
+            // Create tray icon with active icon initially
             let tooltip_wide = to_wstring(tooltip);
             let mut nid: NOTIFYICONDATAW = mem::zeroed();
             nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
@@ -147,7 +187,7 @@ impl TrayIcon {
             nid.uID = 1;
             nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
             nid.uCallbackMessage = WM_TRAYICON;
-            nid.hIcon = hicon;
+            nid.hIcon = hicon_active;
 
             // Copy tooltip (max 128 chars)
             let tooltip_len = tooltip_wide.len().min(127);
@@ -158,7 +198,8 @@ impl TrayIcon {
             );
 
             if Shell_NotifyIconW(NIM_ADD, &mut nid) == 0 {
-                winapi::um::winuser::DestroyIcon(hicon);
+                winapi::um::winuser::DestroyIcon(hicon_active);
+                winapi::um::winuser::DestroyIcon(hicon_paused);
                 DestroyWindow(hwnd);
                 return Err("Failed to add tray icon".to_string());
             }
@@ -167,8 +208,10 @@ impl TrayIcon {
 
             Ok(Self {
                 hwnd,
-                hicon,
+                hicon_active,
+                hicon_paused,
                 exit_flag,
+                pause_flag,
             })
         }
     }
@@ -176,6 +219,70 @@ impl TrayIcon {
     /// Get the window handle for message processing
     pub fn hwnd(&self) -> HWND {
         self.hwnd
+    }
+
+    /// Update the tray icon tooltip
+    pub fn update_tooltip(&self, tooltip: &str) -> Result<(), String> {
+        unsafe {
+            let tooltip_wide = to_wstring(tooltip);
+            let mut nid: NOTIFYICONDATAW = mem::zeroed();
+            nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
+            nid.hWnd = self.hwnd;
+            nid.uID = 1;
+            nid.uFlags = NIF_TIP;
+
+            // Copy tooltip (max 128 chars)
+            let tooltip_len = tooltip_wide.len().min(127);
+            ptr::copy_nonoverlapping(
+                tooltip_wide.as_ptr(),
+                nid.szTip.as_mut_ptr(),
+                tooltip_len,
+            );
+
+            if Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) == 0 {
+                return Err("Failed to update tray icon tooltip".to_string());
+            }
+
+            Ok(())
+        }
+    }
+
+    /// Update the tray icon and tooltip based on pause state
+    pub fn update_icon(&self, is_paused: bool) -> Result<(), String> {
+        unsafe {
+            let tooltip = if is_paused {
+                "Spotlight Dimmer (PAUSED)"
+            } else {
+                "Spotlight Dimmer"
+            };
+            let hicon = if is_paused {
+                self.hicon_paused
+            } else {
+                self.hicon_active
+            };
+
+            let tooltip_wide = to_wstring(tooltip);
+            let mut nid: NOTIFYICONDATAW = mem::zeroed();
+            nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
+            nid.hWnd = self.hwnd;
+            nid.uID = 1;
+            nid.uFlags = NIF_ICON | NIF_TIP;
+            nid.hIcon = hicon;
+
+            // Copy tooltip (max 128 chars)
+            let tooltip_len = tooltip_wide.len().min(127);
+            ptr::copy_nonoverlapping(
+                tooltip_wide.as_ptr(),
+                nid.szTip.as_mut_ptr(),
+                tooltip_len,
+            );
+
+            if Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) == 0 {
+                return Err("Failed to update tray icon".to_string());
+            }
+
+            Ok(())
+        }
     }
 }
 
@@ -190,16 +297,17 @@ impl Drop for TrayIcon {
             Shell_NotifyIconW(NIM_DELETE, &mut nid);
 
             // Cleanup resources
-            winapi::um::winuser::DestroyIcon(self.hicon);
+            winapi::um::winuser::DestroyIcon(self.hicon_active);
+            winapi::um::winuser::DestroyIcon(self.hicon_paused);
             DestroyWindow(self.hwnd);
 
-            // Cleanup exit flag pointer stored in window user data
+            // Cleanup tray state pointer stored in window user data
             let ptr = winapi::um::winuser::GetWindowLongPtrW(
                 self.hwnd,
                 winapi::um::winuser::GWLP_USERDATA,
-            ) as *const AtomicBool;
+            ) as *mut TrayState;
             if !ptr.is_null() {
-                drop(Arc::from_raw(ptr));
+                drop(Box::from_raw(ptr));
             }
 
             println!("[Tray] System tray icon removed");
@@ -226,6 +334,28 @@ unsafe extern "system" fn window_proc(
                 WM_LBUTTONUP => {
                     // Optional: handle left-click (currently does nothing)
                 }
+                WM_LBUTTONDBLCLK => {
+                    // Toggle pause state on double-click
+                    let ptr = winapi::um::winuser::GetWindowLongPtrW(
+                        hwnd,
+                        winapi::um::winuser::GWLP_USERDATA,
+                    ) as *const TrayState;
+                    if !ptr.is_null() {
+                        let state = &*ptr;
+                        // Toggle pause state
+                        let was_paused = state.pause_flag.load(Ordering::SeqCst);
+                        state.pause_flag.store(!was_paused, Ordering::SeqCst);
+
+                        // Save to config
+                        let mut config = Config::load();
+                        config.is_paused = !was_paused;
+                        if let Err(e) = config.save() {
+                            eprintln!("[Tray] Failed to save pause state: {}", e);
+                        } else {
+                            println!("[Tray] Pause state toggled: {}", if !was_paused { "PAUSED" } else { "UNPAUSED" });
+                        }
+                    }
+                }
                 _ => {}
             }
             0
@@ -235,16 +365,14 @@ unsafe extern "system" fn window_proc(
             let cmd_id = (wparam & 0xFFFF) as u16;
             if cmd_id == CMD_EXIT {
                 println!("[Tray] Exit command received");
-                // Get exit flag from window user data
+                // Get tray state from window user data
                 let ptr = winapi::um::winuser::GetWindowLongPtrW(
                     hwnd,
                     winapi::um::winuser::GWLP_USERDATA,
-                ) as *const AtomicBool;
+                ) as *const TrayState;
                 if !ptr.is_null() {
-                    let exit_flag = Arc::from_raw(ptr);
-                    exit_flag.store(true, Ordering::SeqCst);
-                    // Don't drop - it's still owned by TrayIcon
-                    mem::forget(exit_flag);
+                    let state = &*ptr;
+                    state.exit_flag.store(true, Ordering::SeqCst);
                 }
             }
             0

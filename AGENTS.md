@@ -22,16 +22,45 @@ This creates two binaries in `target/release/`:
 
 ### Installation
 
+**Option 1: Using the installation script (Recommended - Windows)**
+```powershell
+.\install.ps1
+```
+
+**Option 2: Manual installation**
 ```bash
+# Install binaries
 cargo install --path . --bin spotlight-dimmer --bin spotlight-dimmer-config
+
+# Copy icon files to the installation directory (required)
+cp spotlight-dimmer-icon.ico spotlight-dimmer-icon-paused.ico ~/.cargo/bin/
 ```
 
 Binaries will be installed to `~/.cargo/bin/` (ensure it's in your PATH).
 
+**Note**: The application requires both icon files to be present in the same directory as the executable:
+- `spotlight-dimmer-icon.ico` - Active state icon
+- `spotlight-dimmer-icon-paused.ico` - Paused state icon (shown when you double-click the tray icon)
+
+**Icon Management:**
+- During development: The `build.rs` script automatically copies icons to `target/release/` or `target/debug/`
+- After `cargo install`: You must manually copy the icons to `~/.cargo/bin/` as shown above
+- Icon names are program-specific to avoid conflicts with other applications in `~/.cargo/bin/`
+
 ### Uninstallation
 
+**Option 1: Using the uninstallation script (Recommended - Windows)**
+```powershell
+.\uninstall.ps1
+```
+
+**Option 2: Manual uninstallation**
 ```bash
+# Uninstall binaries
 cargo uninstall spotlight-dimmer
+
+# Remove icon files from installation directory
+rm ~/.cargo/bin/spotlight-dimmer-icon.ico ~/.cargo/bin/spotlight-dimmer-icon-paused.ico
 ```
 
 ### Stopping the Application
