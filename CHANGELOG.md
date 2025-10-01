@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.0] - 2025-10-01
 
+## [0.3.0] - 2025-10-01
+
 ### Added
 - **Partial dimming mode**: New feature that dims empty areas around the focused window on the active display
   - Intelligently detects window position and creates up to 4 overlays (top, bottom, left, right) for gaps between window edges and display edges
