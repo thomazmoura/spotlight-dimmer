@@ -39,6 +39,8 @@ pub struct Config {
     pub is_dimming_enabled: bool,
     pub active_overlay_color: Option<OverlayColor>,
     pub is_active_overlay_enabled: bool,
+    #[serde(default)]
+    pub is_paused: bool,
 }
 
 impl Default for Config {
@@ -48,6 +50,7 @@ impl Default for Config {
             is_dimming_enabled: true,
             active_overlay_color: None,
             is_active_overlay_enabled: false,
+            is_paused: false,
         }
     }
 }

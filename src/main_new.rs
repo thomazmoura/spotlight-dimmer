@@ -64,18 +64,24 @@ fn main() {
     // Create exit flag for coordinating shutdown
     let exit_flag = Arc::new(AtomicBool::new(false));
 
+    // Load configuration
+    let config = Arc::new(Mutex::new(Config::load()));
+
+    // Create pause flag from config
+    let pause_flag = Arc::new(AtomicBool::new({
+        let cfg = config.lock().unwrap();
+        cfg.is_paused
+    }));
+
     // Create system tray icon
-    let tray_icon = match TrayIcon::new("icon.ico", "Spotlight Dimmer", exit_flag.clone()) {
+    let tray_icon = match TrayIcon::new("spotlight-dimmer-icon.ico", "Spotlight Dimmer", exit_flag.clone(), pause_flag.clone()) {
         Ok(tray) => tray,
         Err(e) => {
             eprintln!("[Main] Failed to create system tray icon: {}", e);
-            eprintln!("[Main] Make sure icon.ico exists in the same directory as the executable");
+            eprintln!("[Main] Make sure spotlight-dimmer-icon.ico and spotlight-dimmer-icon-paused.ico exist in the same directory as the executable");
             return;
         }
     };
-
-    // Load configuration
-    let config = Arc::new(Mutex::new(Config::load()));
 
     // Initialize display and window managers
     let display_manager = WindowsDisplayManager;
@@ -134,12 +140,22 @@ fn main() {
     let mut last_window_handle: Option<u64> = None;
     let mut last_display_id: Option<String> = None;
     let mut last_display_count = displays.len();
+    let mut last_paused = pause_flag.load(Ordering::SeqCst);
 
     // Track config file modification time for periodic reloading
     let mut last_config_modified = Config::last_modified();
     let mut loop_counter: u32 = 0;
 
     println!("[Main] Starting focus monitoring loop...");
+    if last_paused {
+        println!("[Main] Application started in PAUSED state");
+        let manager = overlay_manager.lock().unwrap();
+        manager.hide_all();
+        // Update tray icon and tooltip to show paused state
+        if let Err(e) = tray_icon.update_icon(true) {
+            eprintln!("[Main] Failed to update tray icon: {}", e);
+        }
+    }
 
     // Main monitoring loop
     loop {
@@ -150,6 +166,34 @@ fn main() {
         if exit_flag.load(Ordering::SeqCst) {
             println!("[Main] Exit requested, shutting down...");
             break;
+        }
+
+        // Check for pause state changes
+        let current_paused = pause_flag.load(Ordering::SeqCst);
+        if current_paused != last_paused {
+            last_paused = current_paused;
+            let manager = overlay_manager.lock().unwrap();
+            if current_paused {
+                println!("[Main] Application PAUSED - hiding all overlays");
+                manager.hide_all();
+            } else {
+                println!("[Main] Application UNPAUSED - showing overlays");
+                manager.show_all();
+                // Force update visibility based on current active display
+                if let Ok(active_window) = window_manager.get_active_window() {
+                    manager.update_visibility(&active_window.display_id);
+                }
+            }
+            // Update tray icon and tooltip to reflect pause state
+            if let Err(e) = tray_icon.update_icon(current_paused) {
+                eprintln!("[Main] Failed to update tray icon: {}", e);
+            }
+        }
+
+        // Skip focus monitoring if paused
+        if current_paused {
+            thread::sleep(Duration::from_millis(400)); // Longer sleep when paused
+            continue;
         }
 
         thread::sleep(Duration::from_millis(100));
@@ -163,6 +207,12 @@ fn main() {
                 let old_active_overlay_enabled = cfg.is_active_overlay_enabled;
                 let old_inactive_color = cfg.overlay_color.clone();
                 let old_active_color = cfg.active_overlay_color.clone();
+
+                // Update pause flag if it changed in config
+                if cfg.is_paused != new_config.is_paused {
+                    pause_flag.store(new_config.is_paused, Ordering::SeqCst);
+                    println!("[Main] Pause state updated from config: {}", if new_config.is_paused { "PAUSED" } else { "UNPAUSED" });
+                }
 
                 // Update config
                 *cfg = new_config.clone();
