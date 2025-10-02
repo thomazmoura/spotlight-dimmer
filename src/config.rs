@@ -91,7 +91,7 @@ impl Default for Config {
                 b: 0,
                 a: 0.5,
             },
-            is_dimming_enabled: false,
+            is_dimming_enabled: true,
             active_overlay_color: None,
             is_active_overlay_enabled: false,
             is_partial_dimming_enabled: true,
@@ -112,7 +112,7 @@ impl Default for Config {
                 b: 0,
                 a: 0.3,
             }),
-            is_active_overlay_enabled: false,
+            is_active_overlay_enabled: true,
             is_partial_dimming_enabled: true,
         });
 
@@ -152,9 +152,13 @@ impl Config {
                 if path.exists() {
                     match fs::read_to_string(&path) {
                         Ok(content) => {
-                            match toml::from_str(&content) {
-                                Ok(config) => {
+                            match toml::from_str::<Config>(&content) {
+                                Ok(mut config) => {
                                     println!("[Config] Loaded from {:?}", path);
+                                    // Add default profiles if profiles HashMap is empty
+                                    if config.profiles.is_empty() {
+                                        config.add_default_profiles();
+                                    }
                                     return config;
                                 }
                                 Err(e) => {
@@ -256,5 +260,41 @@ impl Config {
         self.profiles.remove(name)
             .ok_or_else(|| format!("Profile '{}' not found", name))?;
         Ok(())
+    }
+
+    /// Add default profiles if they don't exist
+    fn add_default_profiles(&mut self) {
+        // Add default light mode profile
+        self.profiles.insert("light-mode".to_string(), Profile {
+            overlay_color: OverlayColor {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 0.5,
+            },
+            is_dimming_enabled: true,
+            active_overlay_color: None,
+            is_active_overlay_enabled: false,
+            is_partial_dimming_enabled: true,
+        });
+        
+        // Add default dark mode profile
+        self.profiles.insert("dark-mode".to_string(), Profile {
+            overlay_color: OverlayColor {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 0.7,
+            },
+            is_dimming_enabled: true,
+            active_overlay_color: Some(OverlayColor {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 0.3,
+            }),
+            is_active_overlay_enabled: true,
+            is_partial_dimming_enabled: true,
+        });
     }
 }

@@ -348,6 +348,16 @@ impl OverlayManager {
         self.recreate_active_overlays(displays)
     }
 
+    /// Update inactive color without recreating overlays (used when overlays are disabled)
+    pub fn update_inactive_color_only(&mut self, color: OverlayColor) {
+        self.inactive_color = color;
+    }
+
+    /// Update active color without recreating overlays (used when overlays are disabled)
+    pub fn update_active_color_only(&mut self, color: Option<OverlayColor>) {
+        self.active_color = color;
+    }
+
     /// Get current overlay count (inactive + active)
     pub fn count(&self) -> usize {
         self.inactive_overlays.len() + self.active_overlays.len()

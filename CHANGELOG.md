@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-01-02
+
+### Fixed
+- **Profile system stability**: Fixed critical bugs preventing profile switching from working correctly
+  - Fixed config reload logic that used `else if` chains preventing multiple changes from being applied
+  - Added active window detection fallback when `last_display_id` is None (at startup or early switches)
+  - Overlays now properly update visibility after recreation, preventing them from appearing on active display
+  - Individual config changes and `set-profile` command now work identically
+  - Tray menu profile switching now works correctly without breaking overlays
+- **Default profile configurations**: Corrected default profile settings for better user experience
+  - light-mode: Now properly enables inactive overlays (was incorrectly disabled)
+  - dark-mode: Now properly enables active overlays (was incorrectly disabled)
+  - Both profiles now have sensible defaults that work out of the box
+
+### Technical Details
+- Added `update_inactive_color_only()` and `update_active_color_only()` methods to OverlayManager
+- Visibility updates now query window manager when cached display_id is unavailable
+- Config reload logic now handles multiple simultaneous changes correctly
+- Added automatic default profile loading for configs from v0.3.0
+
+---
+
+### Corrigido
+- **Estabilidade do sistema de perfis**: Corrigidos bugs críticos impedindo a troca de perfis de funcionar corretamente
+  - Corrigida lógica de recarga de configuração que usava cadeias `else if` impedindo múltiplas mudanças de serem aplicadas
+  - Adicionado fallback de detecção de janela ativa quando `last_display_id` é None (na inicialização ou trocas precoces)
+  - Sobreposições agora atualizam visibilidade corretamente após recriação, prevenindo aparecimento na tela ativa
+  - Mudanças individuais de configuração e comando `set-profile` agora funcionam identicamente
+  - Troca de perfis via menu da bandeja agora funciona corretamente sem quebrar sobreposições
+- **Configurações de perfis padrão**: Corrigidas configurações de perfis padrão para melhor experiência
+  - light-mode: Agora habilita corretamente sobreposições inativas (estava incorretamente desabilitado)
+  - dark-mode: Agora habilita corretamente sobreposições ativas (estava incorretamente desabilitado)
+  - Ambos os perfis agora têm padrões sensatos que funcionam de imediato
+
 ## [0.4.0] - 2025-10-02
 
+## [0.4.0] - 2025-10-01
 ### Added
 - **Profile management system**: Save and switch between different overlay configurations
   - Save current settings as named profiles with `save-profile <name>` command

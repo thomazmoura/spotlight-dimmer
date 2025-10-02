@@ -210,6 +210,7 @@ fn main() {
                 let old_active_overlay_enabled = cfg.is_active_overlay_enabled;
                 let old_inactive_color = cfg.overlay_color.clone();
                 let old_active_color = cfg.active_overlay_color.clone();
+                let old_partial_dimming_enabled = cfg.is_partial_dimming_enabled;
 
                 // Update pause flag if it changed in config
                 if cfg.is_paused != new_config.is_paused {
@@ -223,62 +224,100 @@ fn main() {
 
                 last_config_modified = Some(new_modified_time);
 
-                // Handle inactive overlay enable/disable toggle
-                if old_dimming_enabled != new_config.is_dimming_enabled {
+                // Determine what changed
+                let dimming_enabled_changed = old_dimming_enabled != new_config.is_dimming_enabled;
+                let inactive_color_changed = old_inactive_color.r != new_config.overlay_color.r ||
+                                             old_inactive_color.g != new_config.overlay_color.g ||
+                                             old_inactive_color.b != new_config.overlay_color.b ||
+                                             old_inactive_color.a != new_config.overlay_color.a;
+                let active_overlay_enabled_changed = old_active_overlay_enabled != new_config.is_active_overlay_enabled;
+                let active_color_changed = old_active_color != new_config.active_overlay_color;
+                let partial_dimming_changed = old_partial_dimming_enabled != new_config.is_partial_dimming_enabled;
+
+                // Handle inactive overlay changes
+                if dimming_enabled_changed || inactive_color_changed {
                     if new_config.is_dimming_enabled {
-                        println!("[Main] Inactive dimming enabled via config change");
+                        if dimming_enabled_changed && !old_dimming_enabled {
+                            println!("[Main] Inactive dimming enabled via config change");
+                        } else if inactive_color_changed {
+                            println!("[Main] Inactive overlay color changed via config");
+                        }
                         if let Ok(current_displays) = display_manager.get_displays() {
                             let mut manager = overlay_manager.lock().unwrap();
-                            if let Err(e) = manager.create_inactive_overlays(&current_displays) {
-                                eprintln!("[Main] Failed to create inactive overlays: {}", e);
+                            // Update color and recreate overlays
+                            if let Err(e) = manager.set_inactive_color(new_config.overlay_color.clone(), &current_displays) {
+                                eprintln!("[Main] Failed to update inactive overlays: {}", e);
+                            } else {
+                                // Update visibility based on current active display
+                                // If we don't have a cached display_id, get the current active window
+                                if let Some(ref display_id) = last_display_id {
+                                    manager.update_visibility(display_id);
+                                } else if let Ok(active_window) = window_manager.get_active_window() {
+                                    manager.update_visibility(&active_window.display_id);
+                                    last_display_id = Some(active_window.display_id.clone());
+                                }
                             }
                         }
                     } else {
-                        println!("[Main] Inactive dimming disabled via config change");
-                        let mut manager = overlay_manager.lock().unwrap();
-                        manager.close_inactive();
-                    }
-                }
-                // Handle inactive color change (only if dimming is enabled)
-                else if new_config.is_dimming_enabled &&
-                        (old_inactive_color.r != new_config.overlay_color.r ||
-                         old_inactive_color.g != new_config.overlay_color.g ||
-                         old_inactive_color.b != new_config.overlay_color.b ||
-                         old_inactive_color.a != new_config.overlay_color.a) {
-                    println!("[Main] Inactive overlay color changed via config");
-                    if let Ok(current_displays) = display_manager.get_displays() {
-                        let mut manager = overlay_manager.lock().unwrap();
-                        if let Err(e) = manager.set_inactive_color(new_config.overlay_color.clone(), &current_displays) {
-                            eprintln!("[Main] Failed to update inactive overlay color: {}", e);
+                        if dimming_enabled_changed {
+                            println!("[Main] Inactive dimming disabled via config change");
+                            let mut manager = overlay_manager.lock().unwrap();
+                            manager.close_inactive();
+                        }
+                        // Update color in manager even when disabled, so it's ready when enabled
+                        if inactive_color_changed {
+                            let mut manager = overlay_manager.lock().unwrap();
+                            manager.update_inactive_color_only(new_config.overlay_color.clone());
                         }
                     }
                 }
 
-                // Handle active overlay enable/disable toggle
-                if old_active_overlay_enabled != new_config.is_active_overlay_enabled {
+                // Handle active overlay changes
+                if active_overlay_enabled_changed || active_color_changed {
                     if new_config.is_active_overlay_enabled {
-                        println!("[Main] Active overlay enabled via config change");
+                        if active_overlay_enabled_changed && !old_active_overlay_enabled {
+                            println!("[Main] Active overlay enabled via config change");
+                        } else if active_color_changed {
+                            println!("[Main] Active overlay color changed via config");
+                        }
                         if let Ok(current_displays) = display_manager.get_displays() {
                             let mut manager = overlay_manager.lock().unwrap();
-                            if let Err(e) = manager.create_active_overlays(&current_displays) {
-                                eprintln!("[Main] Failed to create active overlays: {}", e);
+                            // Update color and recreate overlays
+                            if let Err(e) = manager.set_active_color(new_config.active_overlay_color.clone(), &current_displays) {
+                                eprintln!("[Main] Failed to update active overlays: {}", e);
+                            } else {
+                                // Update visibility based on current active display
+                                // If we don't have a cached display_id, get the current active window
+                                if let Some(ref display_id) = last_display_id {
+                                    manager.update_visibility(display_id);
+                                } else if let Ok(active_window) = window_manager.get_active_window() {
+                                    manager.update_visibility(&active_window.display_id);
+                                    last_display_id = Some(active_window.display_id.clone());
+                                }
                             }
                         }
                     } else {
-                        println!("[Main] Active overlay disabled via config change");
-                        let mut manager = overlay_manager.lock().unwrap();
-                        manager.close_active();
+                        if active_overlay_enabled_changed {
+                            println!("[Main] Active overlay disabled via config change");
+                            let mut manager = overlay_manager.lock().unwrap();
+                            manager.close_active();
+                        }
+                        // Update color in manager even when disabled, so it's ready when enabled
+                        if active_color_changed {
+                            let mut manager = overlay_manager.lock().unwrap();
+                            manager.update_active_color_only(new_config.active_overlay_color.clone());
+                        }
                     }
                 }
-                // Handle active color change (only if active overlay is enabled)
-                else if new_config.is_active_overlay_enabled &&
-                        old_active_color != new_config.active_overlay_color {
-                    println!("[Main] Active overlay color changed via config");
-                    if let Ok(current_displays) = display_manager.get_displays() {
+
+                // Handle partial dimming state change
+                if partial_dimming_changed {
+                    if !new_config.is_partial_dimming_enabled {
+                        println!("[Main] Partial dimming disabled via config change");
                         let mut manager = overlay_manager.lock().unwrap();
-                        if let Err(e) = manager.set_active_color(new_config.active_overlay_color.clone(), &current_displays) {
-                            eprintln!("[Main] Failed to update active overlay color: {}", e);
-                        }
+                        manager.clear_all_partial_overlays();
+                        last_window_rect = None;
+                        is_dragging = false;
                     }
                 }
             }
