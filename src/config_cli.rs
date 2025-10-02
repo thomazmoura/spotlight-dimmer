@@ -24,6 +24,10 @@ fn main() {
         "partial-enable" => cmd_partial_enable(),
         "partial-disable" => cmd_partial_disable(),
         "reset" => cmd_reset(),
+        "list-profiles" => cmd_list_profiles(),
+        "set-profile" => cmd_set_profile(&args[2..]),
+        "save-profile" => cmd_save_profile(&args[2..]),
+        "delete-profile" => cmd_delete_profile(&args[2..]),
         "help" | "--help" | "-h" => print_usage(),
         _ => {
             eprintln!("Unknown command: {}", args[1]);
@@ -58,6 +62,12 @@ fn print_usage() {
     println!("    reset                       Reset configuration to defaults");
     println!("    help                        Show this help message");
     println!();
+    println!("PROFILE COMMANDS:");
+    println!("    list-profiles               List all saved profiles");
+    println!("    set-profile <name>          Load and apply a saved profile");
+    println!("    save-profile <name>         Save current settings as a profile");
+    println!("    delete-profile <name>       Delete a saved profile");
+    println!();
     println!("EXAMPLES:");
     println!("    # Dim inactive displays only (traditional behavior)");
     println!("    spotlight-dimmer-config enable");
@@ -75,6 +85,10 @@ fn print_usage() {
     println!("    spotlight-dimmer-config enable");
     println!("    spotlight-dimmer-config active-enable");
     println!("    spotlight-dimmer-config partial-enable");
+    println!();
+    println!("    # Use profiles for quick switching");
+    println!("    spotlight-dimmer-config set-profile light-mode");
+    println!("    spotlight-dimmer-config set-profile dark-mode");
     println!();
     println!("NOTE: Configuration changes are applied automatically (no restart needed)");
 }
@@ -376,6 +390,146 @@ fn cmd_reset() {
         }
         Err(e) => {
             eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_list_profiles() {
+    let config = Config::load();
+    let profiles = config.list_profiles();
+
+    if profiles.is_empty() {
+        println!("No profiles saved.");
+        return;
+    }
+
+    println!("Saved Profiles:");
+    println!();
+    for name in profiles {
+        if let Some(profile) = config.get_profile(&name) {
+            println!("  {}:", name);
+            println!("    Inactive Overlay: {}", if profile.is_dimming_enabled { "Enabled" } else { "Disabled" });
+            println!("    Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
+                profile.overlay_color.r,
+                profile.overlay_color.g,
+                profile.overlay_color.b,
+                profile.overlay_color.a
+            );
+            println!("    Active Overlay: {}", if profile.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
+            if let Some(active_color) = &profile.active_overlay_color {
+                println!("    Active Color: RGB({}, {}, {}) Alpha {:.2}",
+                    active_color.r,
+                    active_color.g,
+                    active_color.b,
+                    active_color.a
+                );
+            }
+            println!("    Partial Dimming: {}", if profile.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+            println!();
+        }
+    }
+}
+
+fn cmd_set_profile(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("Error: set-profile command requires a profile name");
+        eprintln!("Usage: spotlight-dimmer-config set-profile <name>");
+        eprintln!("       Use 'list-profiles' to see available profiles");
+        std::process::exit(1);
+    }
+
+    let profile_name = &args[0];
+    let mut config = Config::load();
+
+    match config.load_profile(profile_name) {
+        Ok(_) => {
+            match config.save() {
+                Ok(_) => {
+                    println!("✓ Profile '{}' applied successfully", profile_name);
+                    println!();
+                    println!("  Inactive Overlay: {}", if config.is_dimming_enabled { "Enabled" } else { "Disabled" });
+                    println!("  Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
+                        config.overlay_color.r,
+                        config.overlay_color.g,
+                        config.overlay_color.b,
+                        config.overlay_color.a
+                    );
+                    println!("  Active Overlay: {}", if config.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
+                    if let Some(active_color) = &config.active_overlay_color {
+                        println!("  Active Color: RGB({}, {}, {}) Alpha {:.2}",
+                            active_color.r,
+                            active_color.g,
+                            active_color.b,
+                            active_color.a
+                        );
+                    }
+                    println!("  Partial Dimming: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+                    println!();
+                    println!("  Changes will be applied automatically within 2 seconds");
+                }
+                Err(e) => {
+                    eprintln!("✗ Failed to save configuration: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("✗ {}", e);
+            eprintln!("  Use 'list-profiles' to see available profiles");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_save_profile(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("Error: save-profile command requires a profile name");
+        eprintln!("Usage: spotlight-dimmer-config save-profile <name>");
+        std::process::exit(1);
+    }
+
+    let profile_name = args[0].clone();
+    let mut config = Config::load();
+
+    config.save_profile(profile_name.clone());
+
+    match config.save() {
+        Ok(_) => {
+            println!("✓ Current settings saved as profile '{}'", profile_name);
+            println!("  Use 'set-profile {}' to restore these settings", profile_name);
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save profile: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_delete_profile(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("Error: delete-profile command requires a profile name");
+        eprintln!("Usage: spotlight-dimmer-config delete-profile <name>");
+        std::process::exit(1);
+    }
+
+    let profile_name = &args[0];
+    let mut config = Config::load();
+
+    match config.delete_profile(profile_name) {
+        Ok(_) => {
+            match config.save() {
+                Ok(_) => {
+                    println!("✓ Profile '{}' deleted successfully", profile_name);
+                }
+                Err(e) => {
+                    eprintln!("✗ Failed to save configuration: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("✗ {}", e);
             std::process::exit(1);
         }
     }

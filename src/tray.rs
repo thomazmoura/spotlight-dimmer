@@ -22,6 +22,7 @@ use winapi::um::winuser::{
 
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
 const CMD_EXIT: u16 = 1001;
+const CMD_PROFILE_BASE: u16 = 2000; // Base ID for profile menu items
 
 /// Struct to hold shared state pointers for window procedure
 struct TrayState {
@@ -374,6 +375,29 @@ unsafe extern "system" fn window_proc(
                     let state = &*ptr;
                     state.exit_flag.store(true, Ordering::SeqCst);
                 }
+            } else if cmd_id >= CMD_PROFILE_BASE && cmd_id < CMD_PROFILE_BASE + 100 {
+                // Profile menu item clicked
+                let profile_index = (cmd_id - CMD_PROFILE_BASE) as usize;
+                let mut config = Config::load();
+                let profiles = config.list_profiles();
+                
+                if profile_index < profiles.len() {
+                    let profile_name = &profiles[profile_index];
+                    println!("[Tray] Loading profile: {}", profile_name);
+                    
+                    match config.load_profile(profile_name) {
+                        Ok(_) => {
+                            if let Err(e) = config.save() {
+                                eprintln!("[Tray] Failed to save profile: {}", e);
+                            } else {
+                                println!("[Tray] Profile '{}' loaded successfully", profile_name);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[Tray] Failed to load profile: {}", e);
+                        }
+                    }
+                }
             }
             0
         }
@@ -390,6 +414,31 @@ unsafe fn show_context_menu(hwnd: HWND) {
     let hmenu = CreatePopupMenu();
     if hmenu.is_null() {
         return;
+    }
+
+    // Load config to get profiles
+    let config = Config::load();
+    let profiles = config.list_profiles();
+
+    // Add profile menu items if any exist
+    if !profiles.is_empty() {
+        for (index, profile_name) in profiles.iter().enumerate() {
+            let menu_text = to_wstring(&format!("Profile: {}", profile_name));
+            AppendMenuW(
+                hmenu,
+                MF_STRING,
+                (CMD_PROFILE_BASE + index as u16) as usize,
+                menu_text.as_ptr(),
+            );
+        }
+
+        // Add separator
+        AppendMenuW(
+            hmenu,
+            winapi::um::winuser::MF_SEPARATOR,
+            0,
+            ptr::null(),
+        );
     }
 
     // Add "Exit" menu item

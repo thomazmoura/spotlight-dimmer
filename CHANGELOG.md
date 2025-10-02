@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Profile management system**: Save and switch between different overlay configurations
+  - Save current settings as named profiles with `save-profile <name>` command
+  - Load saved profiles instantly with `set-profile <name>` command
+  - List all available profiles with `list-profiles` command
+  - Delete unwanted profiles with `delete-profile <name>` command
+  - System tray menu integration: Right-click tray icon to see and switch profiles
+  - Two default profiles included: "light-mode" and "dark-mode"
+  - Each profile stores: overlay color, dimming state, active overlay settings, and partial dimming preferences
+  - Perfect for switching between different work modes, lighting conditions, or personal preferences
+  - Zero performance impact: Profile storage uses lightweight TOML serialization in config file
+
+---
+
+### Adicionado
+- **Sistema de gerenciamento de perfis**: Salve e alterne entre diferentes configurações de sobreposição
+  - Salve configurações atuais como perfis nomeados com comando `save-profile <nome>`
+  - Carregue perfis salvos instantaneamente com comando `set-profile <nome>`
+  - Liste todos os perfis disponíveis com comando `list-profiles`
+  - Exclua perfis indesejados com comando `delete-profile <nome>`
+  - Integração com menu da bandeja do sistema: Clique com botão direito no ícone da bandeja para ver e alternar perfis
+  - Dois perfis padrão incluídos: "light-mode" e "dark-mode"
+  - Cada perfil armazena: cor de sobreposição, estado de escurecimento, configurações de sobreposição ativa e preferências de escurecimento parcial
+  - Perfeito para alternar entre diferentes modos de trabalho, condições de iluminação ou preferências pessoais
+  - Zero impacto de performance: Armazenamento de perfis usa serialização TOML leve no arquivo de configuração
+
 ## [0.3.0] - 2025-10-01
 
 ## [0.3.0] - 2025-10-01
