@@ -76,7 +76,7 @@ jobs:
         run: |
           $version = "${{ needs.changelog.outputs.version }}"
           $zipName = "spotlight-dimmer-v${version}-windows-x86_64.zip"
-          Compress-Archive -Path target/release/spotlight-dimmer.exe,target/release/spotlight-dimmer-config.exe -DestinationPath $zipName
+          Compress-Archive -Path target/release/spotlight-dimmer.exe,target/release/spotlight-dimmer-config.exe,spotlight-dimmer-icon.ico,spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
           echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
         shell: pwsh
 
@@ -93,9 +93,13 @@ jobs:
             ## Installation
 
             ### Direct Download (Recommended)
-            Download the ZIP file below and extract the binaries:
+            Download the ZIP file below and extract all files:
             - `spotlight-dimmer.exe` - Main application (~561 KB)
             - `spotlight-dimmer-config.exe` - Configuration tool (~627 KB)
+            - `spotlight-dimmer-icon.ico` - System tray icon (required)
+            - `spotlight-dimmer-icon-paused.ico` - Paused state icon (required)
+
+            **Important**: Keep the icon files in the same directory as the executables for the system tray to work correctly.
 
             ### Via Cargo
             ```bash

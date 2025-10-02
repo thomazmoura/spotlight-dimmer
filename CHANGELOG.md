@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.1] - 2025-10-02
+## [0.4.2] - 2025-01-02
 
-## [0.4.1] - 2025-01-02
+### Fixed
+- **Release packaging**: Include icon files in GitHub release ZIP archives
+  - Added `spotlight-dimmer-icon.ico` and `spotlight-dimmer-icon-paused.ico` to release bundle
+  - Updated release notes to mention icon files are required
+  - Icons must be in the same directory as executables for system tray to work
+
+---
+
+### Corrigido
+- **Empacotamento de lançamento**: Incluir arquivos de ícone nos arquivos ZIP de lançamento do GitHub
+  - Adicionados `spotlight-dimmer-icon.ico` e `spotlight-dimmer-icon-paused.ico` ao pacote de lançamento
+  - Notas de lançamento atualizadas para mencionar que arquivos de ícone são necessários
+  - Ícones devem estar no mesmo diretório que os executáveis para a bandeja do sistema funcionar
+
+## [0.4.1] - 2025-10-02
 
 ### Fixed
 - **Profile system stability**: Fixed critical bugs preventing profile switching from working correctly
