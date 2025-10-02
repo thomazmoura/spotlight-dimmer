@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-10-02
+
 ### Added
 - **Profile management system**: Save and switch between different overlay configurations
   - Save current settings as named profiles with `save-profile <name>` command
