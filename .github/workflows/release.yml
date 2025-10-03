@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: short
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      release-notes: ${{ steps.changelog.outputs.release-notes }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+          else
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          # Extract unreleased section from CHANGELOG.md using external script
+          python3 .github/scripts/extract_changelog.py
+
+  build-and-release:
+    needs: changelog
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+            target: 'x86_64-pc-windows-msvc'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Build binaries
+        run: |
+          cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+
+      - name: Create ZIP archive
+        if: matrix.platform == 'windows-latest'
+        run: |
+          $version = "${{ needs.changelog.outputs.version }}"
+          $zipName = "spotlight-dimmer-v${version}-windows-x86_64.zip"
+          Compress-Archive -Path target/release/spotlight-dimmer.exe,target/release/spotlight-dimmer-config.exe,spotlight-dimmer-icon.ico,spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
+          echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.changelog.outputs.version && format('v{0}', needs.changelog.outputs.version) || github.ref_name }}
+          name: 'Spotlight Dimmer v${{ needs.changelog.outputs.version || github.ref_name }}'
+          body: |
+            ${{ needs.changelog.outputs.release-notes }}
+
+            ## Installation
+
+            ### Direct Download (Recommended)
+            Download the ZIP file below and extract all files:
+            - `spotlight-dimmer.exe` - Main application (~561 KB)
+            - `spotlight-dimmer-config.exe` - Configuration tool (~627 KB)
+            - `spotlight-dimmer-icon.ico` - System tray icon (required)
+            - `spotlight-dimmer-icon-paused.ico` - Paused state icon (required)
+
+            **Important**: Keep the icon files in the same directory as the executables for the system tray to work correctly.
+
+            ### Via Cargo
+            ```bash
+            cargo install --git https://github.com/thomazmoura/spotlight-dimmer --branch main spotlight-dimmer
+            ```
+
+            ## What's Spotlight Dimmer?
+
+            Spotlight Dimmer dims inactive displays to help you focus on the active one. Perfect for multi-monitor setups!
+
+            - 🎯 **Ultra-lightweight**: Only ~7.6 MB RAM usage
+            - 🔄 **Real-time Monitoring**: Instantly detects window focus changes (100ms polling)
+            - 👻 **Click-through Overlays**: Dimming overlays don't interfere with your workflow
+            - ⚡ **Native Windows API**: No browser engine overhead, instant startup
+            - ⚙️ **Auto-reload Config**: Changes detected within 2 seconds, no restart needed
+
+            ---
+
+            🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
+          draft: false
+          prerelease: false
+          files: ${{ env.ASSET_PATH }}
+
+  update-changelog:
+    needs: [changelog, build-and-release]
+    runs-on: ubuntu-latest
+    if: success()
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Update changelog
+        run: |
+          # Update CHANGELOG.md to move unreleased content to new version using external script
+          python3 .github/scripts/update_changelog.py "${{ needs.changelog.outputs.version }}"
+
+      - name: Commit changelog update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update CHANGELOG.md for release v${{ needs.changelog.outputs.version }}"
+            git push
+          fi

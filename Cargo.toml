@@ -1,0 +1,46 @@
+[package]
+name = "spotlight-dimmer"
+version = "0.4.3"
+description = "A lightweight application that dims inactive displays to highlight the active one"
+authors = ["Spotlight Dimmer Team"]
+license = "MIT"
+repository = "https://github.com/thomazmoura/spotlight-dimmer"
+edition = "2021"
+rust-version = "1.77.2"
+keywords = ["desktop", "monitor", "display", "windows", "overlay"]
+categories = ["gui", "multimedia", "os::windows-apis"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "spotlight-dimmer"
+path = "src/main_new.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+[[bin]]
+name = "spotlight-dimmer-config"
+path = "src/config_cli.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+
+# Windows-specific dependencies
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = [
+    "winuser",
+    "windef",
+    "wingdi",
+    "processthreadsapi",
+    "psapi",
+    "libloaderapi",
+    "errhandlingapi",
+    "handleapi",
+    "wincon",
+    "consoleapi",
+    "shellapi",
+    "dwmapi"
+] }
