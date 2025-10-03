@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2025-10-03
+
 ### Changed
 - **Active overlay behavior with partial dimming**: Active overlay now intelligently resizes based on window state when partial dimming is enabled
   - Windowed mode: Active overlay resizes to match the exact size and position of the focused window (touching the edges of inactive overlays)
