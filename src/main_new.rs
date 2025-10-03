@@ -445,6 +445,15 @@ fn main() {
                                 println!("[Main] Drag detected - hiding partial overlays");
                                 let mut manager = overlay_manager.lock().unwrap();
                                 manager.clear_all_partial_overlays();
+                                
+                                // Restore active overlay to full screen during drag
+                                if is_active_overlay_enabled {
+                                    if let Ok(display_info) = window_manager.get_window_display(active_window.handle) {
+                                        if let Err(e) = manager.restore_active_overlay_full_size(&active_window.display_id, &display_info) {
+                                            eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
+                                        }
+                                    }
+                                }
                             } else if is_dragging {
                                 // Still dragging, keep overlays hidden
                             } else {
@@ -457,6 +466,22 @@ fn main() {
                                         &display_info,
                                     ) {
                                         eprintln!("[Main] Failed to create partial overlays: {}", e);
+                                    }
+                                    
+                                    // Resize active overlay to match window if enabled and not maximized
+                                    if is_active_overlay_enabled {
+                                        if let Ok(is_maximized) = window_manager.is_window_maximized(active_window.handle) {
+                                            if !is_maximized {
+                                                if let Err(e) = manager.resize_active_overlay(&active_window.display_id, current_rect) {
+                                                    eprintln!("[Main] Failed to resize active overlay: {}", e);
+                                                }
+                                            } else {
+                                                // Window is maximized, restore active overlay to full display size
+                                                if let Err(e) = manager.restore_active_overlay_full_size(&active_window.display_id, &display_info) {
+                                                    eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -483,6 +508,22 @@ fn main() {
                                             ) {
                                                 eprintln!("[Main] Failed to create partial overlays: {}", e);
                                             }
+                                            
+                                            // Resize active overlay to match final window position if enabled and not maximized
+                                            if is_active_overlay_enabled {
+                                                if let Ok(is_maximized) = window_manager.is_window_maximized(active_window.handle) {
+                                                    if !is_maximized {
+                                                        if let Err(e) = manager.resize_active_overlay(&active_window.display_id, final_rect) {
+                                                            eprintln!("[Main] Failed to resize active overlay: {}", e);
+                                                        }
+                                                    } else {
+                                                        // Window is maximized, restore active overlay to full display size
+                                                        if let Err(e) = manager.restore_active_overlay_full_size(&active_window.display_id, &display_info) {
+                                                            eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -495,6 +536,15 @@ fn main() {
                     manager.clear_all_partial_overlays();
                     last_window_rect = None;
                     is_dragging = false;
+                    
+                    // Restore active overlay to full size when partial dimming is disabled
+                    if is_active_overlay_enabled {
+                        if let Ok(display_info) = window_manager.get_window_display(active_window.handle) {
+                            if let Err(e) = manager.restore_active_overlay_full_size(&active_window.display_id, &display_info) {
+                                eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
+                            }
+                        }
+                    }
                 }
             }
             Err(_) => {

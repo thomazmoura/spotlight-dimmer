@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.4.2] - 2025-10-02
+### Changed
+- **Active overlay behavior with partial dimming**: Active overlay now intelligently resizes based on window state when partial dimming is enabled
+  - Windowed mode: Active overlay resizes to match the exact size and position of the focused window (touching the edges of inactive overlays)
+  - Maximized/Fullscreen mode: Active overlay covers the entire display as before
+  - During drag operations: Active overlay temporarily returns to full screen for smooth performance
+  - After drag ends: Active overlay automatically resizes to match final window position
+  - Eliminates border darkening issue where both active and inactive overlays overlapped at window edges
+  - Window state detection uses `IsZoomed()` API and monitor bounds checking with 10-pixel tolerance
+  - Feature automatically activates when both partial dimming and active overlays are enabled
 
-## [0.4.2] - 2025-01-02
+---
+
+### Alterado
+- **Comportamento de sobreposição ativa com escurecimento parcial**: Sobreposição ativa agora redimensiona inteligentemente baseado no estado da janela quando escurecimento parcial está habilitado
+  - Modo janela: Sobreposição ativa redimensiona para corresponder exatamente ao tamanho e posição da janela focada (tocando as bordas das sobreposições inativas)
+  - Modo maximizado/tela cheia: Sobreposição ativa cobre toda a tela como antes
+  - Durante operações de arrasto: Sobreposição ativa retorna temporariamente para tela cheia para performance suave
+  - Após o arrasto terminar: Sobreposição ativa redimensiona automaticamente para corresponder à posição final da janela
+  - Elimina problema de escurecimento de borda onde sobreposições ativas e inativas se sobrepunham nas bordas da janela
+  - Detecção de estado da janela usa API `IsZoomed()` e verificação de limites do monitor com tolerância de 10 pixels
+  - Funcionalidade ativa automaticamente quando escurecimento parcial e sobreposições ativas estão habilitadas
+
+## [0.4.2] - 2025-10-02
 
 ### Fixed
 - **Release packaging**: Include icon files in GitHub release ZIP archives

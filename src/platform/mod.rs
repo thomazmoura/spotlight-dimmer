@@ -47,4 +47,7 @@ pub trait WindowManager {
 
     #[cfg(windows)]
     fn get_window_rect(&self, window_handle: u64) -> Result<winapi::shared::windef::RECT, String>;
+
+    #[cfg(windows)]
+    fn is_window_maximized(&self, window_handle: u64) -> Result<bool, String>;
 }

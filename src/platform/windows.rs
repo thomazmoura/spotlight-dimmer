@@ -163,6 +163,10 @@ impl WindowManager for WindowsWindowManager {
     fn get_window_rect(&self, window_handle: u64) -> Result<RECT, String> {
         get_window_rect(window_handle)
     }
+
+    fn is_window_maximized(&self, window_handle: u64) -> Result<bool, String> {
+        is_window_maximized(window_handle)
+    }
 }
 
 fn get_process_name(process_id: u32) -> Result<String, String> {
@@ -222,6 +226,39 @@ pub fn get_window_rect(window_handle: u64) -> Result<RECT, String> {
             } else {
                 Err("Failed to get window rectangle".to_string())
             }
+        }
+    }
+}
+
+// Helper function to check if a window is maximized or fullscreen
+pub fn is_window_maximized(window_handle: u64) -> Result<bool, String> {
+    unsafe {
+        use winapi::um::winuser::IsZoomed;
+        
+        let hwnd = window_handle as HWND;
+        let is_zoomed = IsZoomed(hwnd) != 0;
+        
+        // Also check if window fills its monitor (fullscreen check)
+        let window_rect = get_window_rect(window_handle)?;
+        let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        
+        let mut monitor_info: MONITORINFO = mem::zeroed();
+        monitor_info.cbSize = mem::size_of::<MONITORINFO>() as u32;
+        
+        if GetMonitorInfoW(hmonitor, &mut monitor_info) != 0 {
+            let monitor_rect = monitor_info.rcMonitor;
+            
+            // Check if window covers entire monitor (with some tolerance for taskbar/borders)
+            let fills_monitor = 
+                (window_rect.left - monitor_rect.left).abs() <= 10 &&
+                (window_rect.top - monitor_rect.top).abs() <= 10 &&
+                (window_rect.right - monitor_rect.right).abs() <= 10 &&
+                (window_rect.bottom - monitor_rect.bottom).abs() <= 10;
+            
+            Ok(is_zoomed || fills_monitor)
+        } else {
+            // If we can't get monitor info, just use IsZoomed
+            Ok(is_zoomed)
         }
     }
 }

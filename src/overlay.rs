@@ -314,6 +314,69 @@ impl OverlayManager {
         println!("[Overlay] Closed active overlays");
     }
 
+    /// Resize and reposition an active overlay to match a window rectangle
+    /// Used for windowed mode when partial dimming is enabled
+    pub fn resize_active_overlay(&self, display_id: &str, window_rect: RECT) -> Result<(), String> {
+        if let Some(&hwnd) = self.active_overlays.get(display_id) {
+            unsafe {
+                use winapi::um::winuser::{SetWindowPos, SWP_NOZORDER, SWP_NOACTIVATE};
+                
+                let width = window_rect.right - window_rect.left;
+                let height = window_rect.bottom - window_rect.top;
+                
+                if SetWindowPos(
+                    hwnd,
+                    ptr::null_mut(),
+                    window_rect.left,
+                    window_rect.top,
+                    width,
+                    height,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
+                ) == 0 {
+                    return Err("Failed to resize active overlay".to_string());
+                }
+                
+                println!(
+                    "[Overlay] Resized active overlay for display {} to match window at ({}, {}) size {}x{}",
+                    display_id, window_rect.left, window_rect.top, width, height
+                );
+            }
+            Ok(())
+        } else {
+            Err(format!("No active overlay found for display {}", display_id))
+        }
+    }
+
+    /// Restore active overlay to full display size
+    /// Used when switching from windowed to fullscreen mode
+    pub fn restore_active_overlay_full_size(&self, display_id: &str, display: &DisplayInfo) -> Result<(), String> {
+        if let Some(&hwnd) = self.active_overlays.get(display_id) {
+            unsafe {
+                use winapi::um::winuser::{SetWindowPos, SWP_NOZORDER, SWP_NOACTIVATE};
+                
+                if SetWindowPos(
+                    hwnd,
+                    ptr::null_mut(),
+                    display.x,
+                    display.y,
+                    display.width,
+                    display.height,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
+                ) == 0 {
+                    return Err("Failed to restore active overlay to full size".to_string());
+                }
+                
+                println!(
+                    "[Overlay] Restored active overlay for display {} to full size at ({}, {}) size {}x{}",
+                    display_id, display.x, display.y, display.width, display.height
+                );
+            }
+            Ok(())
+        } else {
+            Err(format!("No active overlay found for display {}", display_id))
+        }
+    }
+
     /// Recreate inactive overlays with new displays
     pub fn recreate_inactive_overlays(&mut self, displays: &[DisplayInfo]) -> Result<(), String> {
         self.close_inactive();
