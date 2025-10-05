@@ -20,43 +20,29 @@
         "vadimcn.vscode-lldb",
         "serayuzgur.crates",
         "tamasfe.even-better-toml",
-        "ms-vscode.vscode-json",
-        "bradlc.vscode-tailwindcss",
-        "esbenp.prettier-vscode",
-        "ms-vscode.vscode-typescript-next"
+        "ms-vscode.vscode-json"
       ],
       "settings": {
         "rust-analyzer.cargo.features": "all",
         "rust-analyzer.checkOnSave.command": "clippy",
+        "rust-analyzer.cargo.target": null,
         "terminal.integrated.defaultProfile.linux": "zsh",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
-          "source.fixAll": true
+          "source.fixAll": "explicit"
+        },
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer",
+          "editor.formatOnSave": true
         }
       }
-    }
-  },
-  "forwardPorts": [
-    1420,
-    1430
-  ],
-  "portsAttributes": {
-    "1420": {
-      "label": "Tauri Dev Server",
-      "onAutoForward": "notify"
-    },
-    "1430": {
-      "label": "Frontend Dev Server",
-      "onAutoForward": "notify"
     }
   },
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind"
   ],
   "containerEnv": {
-    "DISPLAY": ":0",
-    "RUST_BACKTRACE": "1",
-    "TAURI_DEV_WATCHER": "true"
+    "RUST_BACKTRACE": "1"
   },
   "remoteUser": "vscode"
 }

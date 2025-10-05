@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Dev container configuration**: Updated development container setup to match current pure Rust architecture
+  - Removed obsolete Tauri CLI installation that was causing build failures with edition2024 Rust features
+  - Removed Node.js and npm installation (no longer needed after Tauri removal)
+  - Updated Rust version from 1.77.2 to 1.83.0 for latest language features and edition2024 support
+  - Removed all Tauri-specific dependencies (webkit2gtk, GTK, AppIndicator libraries)
+  - Added rustfmt, clippy, and rust-analyzer components for better development experience
+  - Updated port forwarding configuration (removed Tauri/frontend dev server ports 1420/1430)
+  - Removed TypeScript/Prettier/ESLint extensions and replaced with Rust-focused extensions
+  - Updated post-create script to build pure Rust binaries instead of Tauri application
+  - Added convenient shell aliases: build, build-debug, test, lint, fmt
+  - Configuration now matches the lightweight pure Windows API implementation
+
+---
+
+### Corrigido
+- **Configuração do container de desenvolvimento**: Atualizada configuração do container de desenvolvimento para corresponder à arquitetura Rust pura atual
+  - Removida instalação obsoleta do Tauri CLI que estava causando falhas de build com recursos edition2024 do Rust
+  - Removida instalação de Node.js e npm (não mais necessária após remoção do Tauri)
+  - Atualizada versão do Rust de 1.77.2 para 1.83.0 para recursos mais recentes da linguagem e suporte a edition2024
+  - Removidas todas as dependências específicas do Tauri (webkit2gtk, GTK, bibliotecas AppIndicator)
+  - Adicionados componentes rustfmt, clippy e rust-analyzer para melhor experiência de desenvolvimento
+  - Atualizada configuração de encaminhamento de portas (removidas portas 1420/1430 do servidor de desenvolvimento Tauri/frontend)
+  - Removidas extensões TypeScript/Prettier/ESLint e substituídas por extensões focadas em Rust
+  - Atualizado script post-create para construir binários Rust puros ao invés de aplicação Tauri
+  - Adicionados aliases convenientes de shell: build, build-debug, test, lint, fmt
+  - Configuração agora corresponde à implementação leve com Windows API pura
+
 ## [0.4.3] - 2025-10-03
 
 ### Changed

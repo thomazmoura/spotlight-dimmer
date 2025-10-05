@@ -15,29 +15,20 @@ elif [ -f ~/.bashrc ]; then
     source ~/.bashrc
 fi
 
-# Verify Node.js is available
-if [ -f ~/.nvm/nvm.sh ]; then
-    source ~/.nvm/nvm.sh
-    nvm use default
-fi
-
 echo "📦 Installing project dependencies..."
 
 # Install Rust dependencies and build project to populate cache
 echo "Building Rust project (this may take a few minutes)..."
-cd src-tauri
 cargo fetch
 cargo check --all-features
-cd ..
 
 # Verify all tools are working
 echo "🔍 Verifying development tools..."
 
 echo "Rust version: $(rustc --version)"
 echo "Cargo version: $(cargo --version)"
-echo "Node.js version: $(node --version)"
-echo "npm version: $(npm --version)"
-echo "Tauri CLI version: $(cargo tauri --version)"
+echo "Clippy version: $(cargo clippy --version)"
+echo "Rustfmt version: $(cargo fmt --version)"
 
 # Check if Claude Code is available
 if command -v claude-code &> /dev/null; then
@@ -54,15 +45,19 @@ else
     fi
 fi
 
-# Create a convenient development alias
-echo "alias tauri-dev='cargo tauri dev'" >> ~/.bashrc
-echo "alias tauri-build='cargo tauri build'" >> ~/.bashrc
-echo "alias serve-frontend='python3 -m http.server 1420 --directory dist'" >> ~/.bashrc
+# Create convenient development aliases
+echo "alias build='cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
+echo "alias build-debug='cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
+echo "alias test='cargo test'" >> ~/.bashrc
+echo "alias lint='cargo clippy -- -D warnings'" >> ~/.bashrc
+echo "alias fmt='cargo fmt'" >> ~/.bashrc
 
 if [ -f ~/.zshrc ]; then
-    echo "alias tauri-dev='cargo tauri dev'" >> ~/.zshrc
-    echo "alias tauri-build='cargo tauri build'" >> ~/.zshrc
-    echo "alias serve-frontend='python3 -m http.server 1420 --directory dist'" >> ~/.zshrc
+    echo "alias build='cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
+    echo "alias build-debug='cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
+    echo "alias test='cargo test'" >> ~/.zshrc
+    echo "alias lint='cargo clippy -- -D warnings'" >> ~/.zshrc
+    echo "alias fmt='cargo fmt'" >> ~/.zshrc
 fi
 
 # Set up git configuration for Codespaces if not already set
@@ -76,10 +71,16 @@ fi
 echo "✅ Development environment setup complete!"
 echo ""
 echo "🛠️  Available commands:"
-echo "  cargo tauri dev          - Start development server with hot reload"
-echo "  cargo tauri build        - Build production version"
-echo "  serve-frontend           - Serve frontend files locally"
+echo "  build                    - Build release binaries (spotlight-dimmer + spotlight-dimmer-config)"
+echo "  build-debug              - Build debug binaries"
+echo "  test                     - Run all tests"
+echo "  lint                     - Run clippy linter"
+echo "  fmt                      - Format code with rustfmt"
+echo "  cargo install --path .   - Install binaries to ~/.cargo/bin/"
 echo "  claude-code              - Launch Claude Code CLI"
 echo ""
+echo "📝 Note: This is a pure Rust project using Windows API."
+echo "   For Windows-specific features, you may need to test on Windows."
+echo ""
 echo "🚀 You can now start developing Spotlight Dimmer!"
-echo "   Run 'cargo tauri dev' to start the development server."
+echo "   Run 'build' to compile the release binaries."
