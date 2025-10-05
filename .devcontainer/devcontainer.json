@@ -6,6 +6,9 @@
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
       "configureZshAsDefaultShell": true,
@@ -43,6 +46,15 @@
   ],
   "containerEnv": {
     "RUST_BACKTRACE": "1"
+  },
+  "forwardPorts": [
+    22
+  ],
+  "portsAttributes": {
+    "22": {
+      "label": "SSH",
+      "onAutoForward": "notify"
+    }
   },
   "remoteUser": "vscode"
 }
