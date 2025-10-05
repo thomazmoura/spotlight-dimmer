@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2025-10-05
+
 ### Fixed
 - **Dev container configuration**: Updated development container setup to match current pure Rust architecture
   - Removed obsolete Tauri CLI installation that was causing build failures with edition2024 Rust features
