@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dev container configuration**: Updated development container setup to match current pure Rust architecture
   - Removed obsolete Tauri CLI installation that was causing build failures with edition2024 Rust features
   - Removed Node.js and npm installation (no longer needed after Tauri removal)
+  - Removed PowerShell package (not available in Ubuntu 22.04 default repos, not needed for Rust-only development)
   - Updated Rust version from 1.77.2 to 1.83.0 for latest language features and edition2024 support
   - Removed all Tauri-specific dependencies (webkit2gtk, GTK, AppIndicator libraries)
   - Added rustfmt, clippy, and rust-analyzer components for better development experience
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuração do container de desenvolvimento**: Atualizada configuração do container de desenvolvimento para corresponder à arquitetura Rust pura atual
   - Removida instalação obsoleta do Tauri CLI que estava causando falhas de build com recursos edition2024 do Rust
   - Removida instalação de Node.js e npm (não mais necessária após remoção do Tauri)
+  - Removido pacote PowerShell (não disponível nos repos padrão do Ubuntu 22.04, não necessário para desenvolvimento somente Rust)
   - Atualizada versão do Rust de 1.77.2 para 1.83.0 para recursos mais recentes da linguagem e suporte a edition2024
   - Removidas todas as dependências específicas do Tauri (webkit2gtk, GTK, bibliotecas AppIndicator)
   - Adicionados componentes rustfmt, clippy e rust-analyzer para melhor experiência de desenvolvimento
