@@ -25,24 +25,22 @@ cargo check --all-features
 # Verify all tools are working
 echo "🔍 Verifying development tools..."
 
+echo "Node.js version: $(node --version)"
+echo "npm version: $(npm --version)"
 echo "Rust version: $(rustc --version)"
 echo "Cargo version: $(cargo --version)"
 echo "Clippy version: $(cargo clippy --version)"
 echo "Rustfmt version: $(cargo fmt --version)"
 
-# Check if Claude Code is available
-if command -v claude-code &> /dev/null; then
-    echo "Claude Code version: $(claude-code --version)"
+# Check if Claude Code is available (binary name is 'claude', not 'claude-code')
+if command -v claude &> /dev/null; then
+    echo "✅ Claude Code version: $(claude --version)"
 else
-    echo "⚠️  Claude Code not found in PATH. Installing..."
-    # Attempt to install Claude Code again
-    curl -fsSL https://claude.ai/claude-code/install.sh | sh
-    export PATH="$HOME/.local/bin:$PATH"
-    if command -v claude-code &> /dev/null; then
-        echo "✅ Claude Code successfully installed: $(claude-code --version)"
-    else
-        echo "❌ Claude Code installation failed. Please install manually."
-    fi
+    echo "⚠️  Claude Code not found in PATH."
+    echo "This should have been installed during container build."
+    echo "Try rebuilding the container or manually install with:"
+    echo "    sudo npm install -g @anthropic-ai/claude-code"
+    echo "Note: The binary is called 'claude', not 'claude-code'"
 fi
 
 # Create convenient development aliases

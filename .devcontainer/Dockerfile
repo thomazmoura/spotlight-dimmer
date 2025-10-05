@@ -14,11 +14,27 @@ RUN apt-get update && apt-get install -y \
     git \
     pkg-config \
     libssl-dev \
+    # Node.js dependencies (required for Claude Code)
+    ca-certificates \
+    gnupg \
     # Development utilities
     jq \
     unzip \
     zip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x (LTS) - required for Claude Code
+RUN mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI globally as root
+# Package: @anthropic-ai/claude-code
+# Binary name: claude (NOT claude-code!)
+RUN npm install -g @anthropic-ai/claude-code
 
 # Switch to vscode user
 USER vscode
@@ -31,17 +47,13 @@ ENV PATH="/home/vscode/.cargo/bin:${PATH}"
 # Install additional Rust components useful for development
 RUN rustup component add rustfmt clippy rust-analyzer
 
-# Install Claude Code CLI
-RUN curl -fsSL https://claude.ai/claude-code/install.sh | sh
-ENV PATH="/home/vscode/.local/bin:${PATH}"
-
 # Create workspace directory
 WORKDIR /workspaces/spotlight-dimmer
 
 # Set up shell configuration
-RUN echo 'export PATH="/home/vscode/.cargo/bin:/home/vscode/.local/bin:${PATH}"' >> /home/vscode/.bashrc
-RUN echo 'export PATH="/home/vscode/.cargo/bin:/home/vscode/.local/bin:${PATH}"' >> /home/vscode/.zshrc
+RUN echo 'export PATH="/home/vscode/.cargo/bin:${PATH}"' >> /home/vscode/.bashrc
+RUN echo 'export PATH="/home/vscode/.cargo/bin:${PATH}"' >> /home/vscode/.zshrc
 
 # Verify installations (will show in build logs)
 RUN rustc --version && cargo --version && cargo clippy --version && cargo fmt --version
-RUN which claude-code || echo "Claude Code installation will be verified in post-create script"
+RUN claude --version || echo "Claude Code will be verified in post-create script"
