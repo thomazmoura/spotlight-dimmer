@@ -1,3 +1,4 @@
+#![cfg(windows)]
 // This entire module is Windows-only
 // Note: cfg(windows) is applied at the module level in lib.rs
 
