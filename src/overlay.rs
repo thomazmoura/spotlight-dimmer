@@ -1,26 +1,17 @@
-#[cfg(windows)]
+// This entire module is Windows-only
+#![cfg(windows)]
+
 use crate::config::OverlayColor;
-#[cfg(windows)]
 use crate::platform::DisplayInfo;
-#[cfg(windows)]
 use std::collections::HashMap;
-#[cfg(windows)]
 use std::ffi::OsStr;
-#[cfg(windows)]
 use std::mem;
-#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
-#[cfg(windows)]
 use std::ptr;
-#[cfg(windows)]
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
-#[cfg(windows)]
 pub use winapi::shared::windef::{HBRUSH, HWND, RECT};
-#[cfg(windows)]
 use winapi::um::libloaderapi::GetModuleHandleW;
-#[cfg(windows)]
 use winapi::um::wingdi::{CreateSolidBrush, RGB};
-#[cfg(windows)]
 use winapi::um::winuser::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, PostQuitMessage, RegisterClassExW,
     SetLayeredWindowAttributes, ShowWindow, LWA_ALPHA, SW_HIDE, SW_SHOW, WNDCLASSEXW,
@@ -28,15 +19,11 @@ use winapi::um::winuser::{
     WS_POPUP,
 };
 
-#[cfg(windows)]
 const INACTIVE_CLASS_NAME: &str = "SpotlightDimmerInactiveOverlay";
-#[cfg(windows)]
 const ACTIVE_CLASS_NAME: &str = "SpotlightDimmerActiveOverlay";
-#[cfg(windows)]
 const PARTIAL_CLASS_NAME: &str = "SpotlightDimmerPartialOverlay";
 
 /// Manager for overlay windows
-#[cfg(windows)]
 pub struct OverlayManager {
     inactive_overlays: HashMap<String, HWND>,
     active_overlays: HashMap<String, HWND>,
@@ -45,7 +32,6 @@ pub struct OverlayManager {
     active_color: Option<OverlayColor>,
 }
 
-#[cfg(windows)]
 impl OverlayManager {
     pub fn new(inactive_color: OverlayColor, active_color: Option<OverlayColor>) -> Result<Self, String> {
         // Register window classes for inactive, active, and partial overlays
@@ -662,7 +648,6 @@ impl OverlayManager {
     }
 }
 
-#[cfg(windows)]
 impl Drop for OverlayManager {
     fn drop(&mut self) {
         self.close_all();
@@ -670,7 +655,6 @@ impl Drop for OverlayManager {
 }
 
 /// Window procedure for overlay windows
-#[cfg(windows)]
 unsafe extern "system" fn window_proc(
     hwnd: HWND,
     msg: UINT,
@@ -691,7 +675,6 @@ unsafe extern "system" fn window_proc(
 }
 
 /// Convert Rust string to null-terminated wide string
-#[cfg(windows)]
 fn to_wstring(s: &str) -> Vec<u16> {
     OsStr::new(s)
         .encode_wide()

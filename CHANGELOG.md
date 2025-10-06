@@ -16,7 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Cargo.toml metadata**: Added `readme` and `homepage` fields for better crates.io presentation
-- **Platform-specific code organization**: Windows-specific code now properly guarded with conditional compilation attributes
+- **Platform-specific code organization**: Refactored to use module-level `#![cfg(windows)]` instead of item-level guards for cleaner code
+
+### Improved
+- **Code readability**: Replaced hundreds of individual `#[cfg(windows)]` attributes with clean module-level guards in `overlay.rs` and `tray.rs`
 
 ---
 
@@ -27,7 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Alterado
 - **Metadados do Cargo.toml**: Adicionados campos `readme` e `homepage` para melhor apresentação no crates.io
-- **Organização de código específico de plataforma**: Código específico do Windows agora devidamente protegido com atributos de compilação condicional
+- **Organização de código específico de plataforma**: Refatorado para usar `#![cfg(windows)]` no nível do módulo ao invés de guardas no nível do item para código mais limpo
+
+### Melhorado
+- **Legibilidade do código**: Substituídas centenas de atributos `#[cfg(windows)]` individuais por guardas limpas no nível do módulo em `overlay.rs` e `tray.rs`
 
 ## [0.4.4] - 2025-10-05
 
