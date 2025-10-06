@@ -1,17 +1,30 @@
+#[cfg(windows)]
 use crate::config::Config;
+#[cfg(windows)]
 use std::ffi::OsStr;
+#[cfg(windows)]
 use std::mem;
+#[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
+#[cfg(windows)]
 use std::path::PathBuf;
+#[cfg(windows)]
 use std::ptr;
+#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(windows)]
 use std::sync::Arc;
+#[cfg(windows)]
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
+#[cfg(windows)]
 use winapi::shared::windef::{HWND, POINT};
+#[cfg(windows)]
 use winapi::um::libloaderapi::{GetModuleFileNameW, GetModuleHandleW};
+#[cfg(windows)]
 use winapi::um::shellapi::{
     Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
 };
+#[cfg(windows)]
 use winapi::um::winuser::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
     GetCursorPos, LoadImageW, PostQuitMessage, RegisterClassExW, SetForegroundWindow,
@@ -20,17 +33,22 @@ use winapi::um::winuser::{
     WM_RBUTTONUP, WS_OVERLAPPEDWINDOW,
 };
 
+#[cfg(windows)]
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
+#[cfg(windows)]
 const CMD_EXIT: u16 = 1001;
+#[cfg(windows)]
 const CMD_PROFILE_BASE: u16 = 2000; // Base ID for profile menu items
 
 /// Struct to hold shared state pointers for window procedure
+#[cfg(windows)]
 struct TrayState {
     exit_flag: Arc<AtomicBool>,
     pause_flag: Arc<AtomicBool>,
 }
 
 /// Get the directory where the executable is located
+#[cfg(windows)]
 fn get_exe_directory() -> Result<PathBuf, String> {
     unsafe {
         let mut buffer: Vec<u16> = vec![0; 512];
@@ -50,6 +68,7 @@ fn get_exe_directory() -> Result<PathBuf, String> {
 }
 
 /// System tray icon manager
+#[cfg(windows)]
 pub struct TrayIcon {
     hwnd: HWND,
     hicon_active: winapi::shared::windef::HICON,
@@ -58,6 +77,7 @@ pub struct TrayIcon {
     pause_flag: Arc<AtomicBool>,
 }
 
+#[cfg(windows)]
 impl TrayIcon {
     /// Create a new system tray icon
     pub fn new(icon_path: &str, tooltip: &str, exit_flag: Arc<AtomicBool>, pause_flag: Arc<AtomicBool>) -> Result<Self, String> {
@@ -287,6 +307,7 @@ impl TrayIcon {
     }
 }
 
+#[cfg(windows)]
 impl Drop for TrayIcon {
     fn drop(&mut self) {
         unsafe {
@@ -317,6 +338,7 @@ impl Drop for TrayIcon {
 }
 
 /// Window procedure for tray icon message window
+#[cfg(windows)]
 unsafe extern "system" fn window_proc(
     hwnd: HWND,
     msg: UINT,
@@ -410,6 +432,7 @@ unsafe extern "system" fn window_proc(
 }
 
 /// Show context menu at cursor position
+#[cfg(windows)]
 unsafe fn show_context_menu(hwnd: HWND) {
     let hmenu = CreatePopupMenu();
     if hmenu.is_null() {
@@ -468,6 +491,7 @@ unsafe fn show_context_menu(hwnd: HWND) {
 }
 
 /// Convert Rust string to null-terminated wide string
+#[cfg(windows)]
 fn to_wstring(s: &str) -> Vec<u16> {
     OsStr::new(s)
         .encode_wide()

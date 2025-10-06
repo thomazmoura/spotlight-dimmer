@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.5] - 2025-10-05
 
+### Added
+- **crates.io publication**: Published spotlight-dimmer to crates.io for easy installation via `cargo install spotlight-dimmer`
+- **MIT LICENSE file**: Added standard MIT license file to the repository
+- **Cross-platform compilation support**: Added `#[cfg(windows)]` guards to enable compilation on non-Windows platforms (binaries won't run, but package verification works)
+
+### Changed
+- **Cargo.toml metadata**: Added `readme` and `homepage` fields for better crates.io presentation
+- **Platform-specific code organization**: Windows-specific code now properly guarded with conditional compilation attributes
+
+---
+
+### Adicionado
+- **Publicação no crates.io**: Publicado spotlight-dimmer no crates.io para instalação fácil via `cargo install spotlight-dimmer`
+- **Arquivo LICENSE MIT**: Adicionado arquivo de licença MIT padrão ao repositório
+- **Suporte a compilação multiplataforma**: Adicionadas guardas `#[cfg(windows)]` para habilitar compilação em plataformas não-Windows (binários não executam, mas verificação do pacote funciona)
+
+### Alterado
+- **Metadados do Cargo.toml**: Adicionados campos `readme` e `homepage` para melhor apresentação no crates.io
+- **Organização de código específico de plataforma**: Código específico do Windows agora devidamente protegido com atributos de compilação condicional
+
 ## [0.4.4] - 2025-10-05
 
 ### Fixed

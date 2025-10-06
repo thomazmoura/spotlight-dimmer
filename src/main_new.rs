@@ -4,12 +4,15 @@ mod platform;
 mod tray;
 
 use config::Config;
+#[cfg(windows)]
 use overlay::OverlayManager;
+#[cfg(windows)]
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+#[cfg(windows)]
 use tray::TrayIcon;
 
 #[cfg(windows)]
@@ -55,6 +58,7 @@ fn process_windows_messages() {
     // No-op on non-Windows platforms
 }
 
+#[cfg(windows)]
 fn main() {
     // Hide console if not launched from terminal
     hide_console_if_not_launched_from_terminal();
@@ -570,4 +574,11 @@ fn main() {
     drop(overlay_manager);
     drop(tray_icon);
     println!("[Main] Spotlight Dimmer exited successfully");
+}
+
+#[cfg(not(windows))]
+fn main() {
+    eprintln!("Error: Spotlight Dimmer is only supported on Windows.");
+    eprintln!("This application requires Windows API to function.");
+    std::process::exit(1);
 }
