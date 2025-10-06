@@ -36,6 +36,9 @@ RUN mkdir -p /etc/apt/keyrings && \
 # Binary name: claude (NOT claude-code!)
 RUN npm install -g @anthropic-ai/claude-code
 
+# Install OpenAI Codex CLI
+RUN npm install -g @openai/codex
+
 # Switch to vscode user
 USER vscode
 WORKDIR /home/vscode
