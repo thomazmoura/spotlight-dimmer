@@ -15,8 +15,7 @@ use winapi::um::wingdi::{CreateSolidBrush, RGB};
 use winapi::um::winuser::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, PostQuitMessage, RegisterClassExW,
     SetLayeredWindowAttributes, ShowWindow, LWA_ALPHA, SW_HIDE, SW_SHOW, WNDCLASSEXW,
-    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
-    WS_POPUP,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 const INACTIVE_CLASS_NAME: &str = "SpotlightDimmerInactiveOverlay";
@@ -33,7 +32,10 @@ pub struct OverlayManager {
 }
 
 impl OverlayManager {
-    pub fn new(inactive_color: OverlayColor, active_color: Option<OverlayColor>) -> Result<Self, String> {
+    pub fn new(
+        inactive_color: OverlayColor,
+        active_color: Option<OverlayColor>,
+    ) -> Result<Self, String> {
         // Register window classes for inactive, active, and partial overlays
         unsafe {
             let hinstance = GetModuleHandleW(ptr::null());
@@ -60,7 +62,10 @@ impl OverlayManager {
                 // Class already registered is OK
                 if err != 1410 {
                     // ERROR_CLASS_ALREADY_EXISTS
-                    return Err(format!("Failed to register inactive window class: error {}", err));
+                    return Err(format!(
+                        "Failed to register inactive window class: error {}",
+                        err
+                    ));
                 }
             }
 
@@ -86,7 +91,10 @@ impl OverlayManager {
                 // Class already registered is OK
                 if err != 1410 {
                     // ERROR_CLASS_ALREADY_EXISTS
-                    return Err(format!("Failed to register active window class: error {}", err));
+                    return Err(format!(
+                        "Failed to register active window class: error {}",
+                        err
+                    ));
                 }
             }
 
@@ -112,7 +120,10 @@ impl OverlayManager {
                 // Class already registered is OK
                 if err != 1410 {
                     // ERROR_CLASS_ALREADY_EXISTS
-                    return Err(format!("Failed to register partial window class: error {}", err));
+                    return Err(format!(
+                        "Failed to register partial window class: error {}",
+                        err
+                    ));
                 }
             }
         }
@@ -159,9 +170,11 @@ impl OverlayManager {
 
         unsafe {
             let class_name = to_wstring(class_name_str);
-            let window_name = to_wstring(&format!("{} Overlay {}",
+            let window_name = to_wstring(&format!(
+                "{} Overlay {}",
                 if is_inactive { "Inactive" } else { "Active" },
-                display.id));
+                display.id
+            ));
             let hinstance = GetModuleHandleW(ptr::null());
 
             // Create a brush with the overlay color
@@ -169,7 +182,11 @@ impl OverlayManager {
             let brush = CreateSolidBrush(colorref);
 
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                WS_EX_LAYERED
+                    | WS_EX_TRANSPARENT
+                    | WS_EX_TOPMOST
+                    | WS_EX_TOOLWINDOW
+                    | WS_EX_NOACTIVATE,
                 class_name.as_ptr(),
                 window_name.as_ptr(),
                 WS_POPUP,
@@ -322,11 +339,11 @@ impl OverlayManager {
     pub fn resize_active_overlay(&self, display_id: &str, window_rect: RECT) -> Result<(), String> {
         if let Some(&hwnd) = self.active_overlays.get(display_id) {
             unsafe {
-                use winapi::um::winuser::{SetWindowPos, SWP_NOZORDER, SWP_NOACTIVATE};
-                
+                use winapi::um::winuser::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+
                 let width = window_rect.right - window_rect.left;
                 let height = window_rect.bottom - window_rect.top;
-                
+
                 if SetWindowPos(
                     hwnd,
                     ptr::null_mut(),
@@ -335,10 +352,11 @@ impl OverlayManager {
                     width,
                     height,
                     SWP_NOZORDER | SWP_NOACTIVATE,
-                ) == 0 {
+                ) == 0
+                {
                     return Err("Failed to resize active overlay".to_string());
                 }
-                
+
                 println!(
                     "[Overlay] Resized active overlay for display {} to match window at ({}, {}) size {}x{}",
                     display_id, window_rect.left, window_rect.top, width, height
@@ -346,17 +364,24 @@ impl OverlayManager {
             }
             Ok(())
         } else {
-            Err(format!("No active overlay found for display {}", display_id))
+            Err(format!(
+                "No active overlay found for display {}",
+                display_id
+            ))
         }
     }
 
     /// Restore active overlay to full display size
     /// Used when switching from windowed to fullscreen mode
-    pub fn restore_active_overlay_full_size(&self, display_id: &str, display: &DisplayInfo) -> Result<(), String> {
+    pub fn restore_active_overlay_full_size(
+        &self,
+        display_id: &str,
+        display: &DisplayInfo,
+    ) -> Result<(), String> {
         if let Some(&hwnd) = self.active_overlays.get(display_id) {
             unsafe {
-                use winapi::um::winuser::{SetWindowPos, SWP_NOZORDER, SWP_NOACTIVATE};
-                
+                use winapi::um::winuser::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+
                 if SetWindowPos(
                     hwnd,
                     ptr::null_mut(),
@@ -365,10 +390,11 @@ impl OverlayManager {
                     display.width,
                     display.height,
                     SWP_NOZORDER | SWP_NOACTIVATE,
-                ) == 0 {
+                ) == 0
+                {
                     return Err("Failed to restore active overlay to full size".to_string());
                 }
-                
+
                 println!(
                     "[Overlay] Restored active overlay for display {} to full size at ({}, {}) size {}x{}",
                     display_id, display.x, display.y, display.width, display.height
@@ -376,7 +402,10 @@ impl OverlayManager {
             }
             Ok(())
         } else {
-            Err(format!("No active overlay found for display {}", display_id))
+            Err(format!(
+                "No active overlay found for display {}",
+                display_id
+            ))
         }
     }
 
@@ -401,14 +430,22 @@ impl OverlayManager {
     }
 
     /// Update inactive overlay color
-    pub fn set_inactive_color(&mut self, color: OverlayColor, displays: &[DisplayInfo]) -> Result<(), String> {
+    pub fn set_inactive_color(
+        &mut self,
+        color: OverlayColor,
+        displays: &[DisplayInfo],
+    ) -> Result<(), String> {
         self.inactive_color = color;
         // Recreate inactive overlays with new color
         self.recreate_inactive_overlays(displays)
     }
 
     /// Update active overlay color
-    pub fn set_active_color(&mut self, color: Option<OverlayColor>, displays: &[DisplayInfo]) -> Result<(), String> {
+    pub fn set_active_color(
+        &mut self,
+        color: Option<OverlayColor>,
+        displays: &[DisplayInfo],
+    ) -> Result<(), String> {
         self.active_color = color;
         // Recreate active overlays with new color
         self.recreate_active_overlays(displays)
@@ -558,7 +595,8 @@ impl OverlayManager {
                 new_overlays.len(),
                 display_id
             );
-            self.partial_overlays.insert(display_id.to_string(), new_overlays);
+            self.partial_overlays
+                .insert(display_id.to_string(), new_overlays);
         }
 
         Ok(())
@@ -579,11 +617,19 @@ impl OverlayManager {
             let window_name = to_wstring(&format!("Partial Overlay {} {}", display_id, side));
             let hinstance = GetModuleHandleW(ptr::null());
 
-            let colorref = RGB(self.inactive_color.r, self.inactive_color.g, self.inactive_color.b);
+            let colorref = RGB(
+                self.inactive_color.r,
+                self.inactive_color.g,
+                self.inactive_color.b,
+            );
             let brush = CreateSolidBrush(colorref);
 
             let hwnd = CreateWindowExW(
-                WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                WS_EX_LAYERED
+                    | WS_EX_TRANSPARENT
+                    | WS_EX_TOPMOST
+                    | WS_EX_TOOLWINDOW
+                    | WS_EX_NOACTIVATE,
                 class_name.as_ptr(),
                 window_name.as_ptr(),
                 WS_POPUP,
@@ -599,7 +645,10 @@ impl OverlayManager {
 
             if hwnd.is_null() {
                 let err = winapi::um::errhandlingapi::GetLastError();
-                return Err(format!("Failed to create partial overlay window: error {}", err));
+                return Err(format!(
+                    "Failed to create partial overlay window: error {}",
+                    err
+                ));
             }
 
             use winapi::um::winuser::{SetClassLongPtrW, GCLP_HBRBACKGROUND};
@@ -630,7 +679,10 @@ impl OverlayManager {
                     DestroyWindow(hwnd);
                 }
             }
-            println!("[Overlay] Cleared partial overlays for display {}", display_id);
+            println!(
+                "[Overlay] Cleared partial overlays for display {}",
+                display_id
+            );
         }
     }
 

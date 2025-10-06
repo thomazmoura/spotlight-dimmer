@@ -46,12 +46,16 @@ fn print_usage() {
     println!("INACTIVE OVERLAY COMMANDS (dims non-active displays):");
     println!("    enable                      Enable inactive display dimming");
     println!("    disable                     Disable inactive display dimming");
-    println!("    color <r> <g> <b> [a]       Set inactive overlay color (RGB 0-255, alpha 0.0-1.0)");
+    println!(
+        "    color <r> <g> <b> [a]       Set inactive overlay color (RGB 0-255, alpha 0.0-1.0)"
+    );
     println!();
     println!("ACTIVE OVERLAY COMMANDS (highlights active display):");
     println!("    active-enable               Enable active display overlay");
     println!("    active-disable              Disable active display overlay");
-    println!("    active-color <r> <g> <b> [a] Set active overlay color (RGB 0-255, alpha 0.0-1.0)");
+    println!(
+        "    active-color <r> <g> <b> [a] Set active overlay color (RGB 0-255, alpha 0.0-1.0)"
+    );
     println!();
     println!("PARTIAL DIMMING COMMANDS (dims empty areas around focused window):");
     println!("    partial-enable              Enable partial dimming on active display");
@@ -99,29 +103,58 @@ fn cmd_status() {
     println!("Current Configuration:");
     println!();
     println!("INACTIVE OVERLAY (dims non-active displays):");
-    println!("  Status: {}", if config.is_dimming_enabled { "Enabled" } else { "Disabled" });
+    println!(
+        "  Status: {}",
+        if config.is_dimming_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
     println!("  Color:");
     println!("    Red:     {}", config.overlay_color.r);
     println!("    Green:   {}", config.overlay_color.g);
     println!("    Blue:    {}", config.overlay_color.b);
-    println!("    Alpha:   {:.2} ({}% opacity)", config.overlay_color.a, (config.overlay_color.a * 100.0) as u8);
+    println!(
+        "    Alpha:   {:.2} ({}% opacity)",
+        config.overlay_color.a,
+        (config.overlay_color.a * 100.0) as u8
+    );
     println!();
 
     println!("ACTIVE OVERLAY (highlights active display):");
-    println!("  Status: {}", if config.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
+    println!(
+        "  Status: {}",
+        if config.is_active_overlay_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
     if let Some(active_color) = &config.active_overlay_color {
         println!("  Color:");
         println!("    Red:     {}", active_color.r);
         println!("    Green:   {}", active_color.g);
         println!("    Blue:    {}", active_color.b);
-        println!("    Alpha:   {:.2} ({}% opacity)", active_color.a, (active_color.a * 100.0) as u8);
+        println!(
+            "    Alpha:   {:.2} ({}% opacity)",
+            active_color.a,
+            (active_color.a * 100.0) as u8
+        );
     } else {
         println!("  Color:   Not configured");
     }
     println!();
 
     println!("PARTIAL DIMMING (dims empty areas around focused window):");
-    println!("  Status: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+    println!(
+        "  Status: {}",
+        if config.is_partial_dimming_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
     println!("  Note:   Uses inactive overlay color for partial overlays");
     println!();
 
@@ -322,8 +355,11 @@ fn cmd_partial_enable() {
     match config.save() {
         Ok(_) => {
             println!("✓ Partial dimming enabled");
-            println!("  Empty areas around the focused window will be dimmed on the active display");
-            println!("  Uses the inactive overlay color (RGB({}, {}, {}) Alpha {:.2})",
+            println!(
+                "  Empty areas around the focused window will be dimmed on the active display"
+            );
+            println!(
+                "  Uses the inactive overlay color (RGB({}, {}, {}) Alpha {:.2})",
                 config.overlay_color.r,
                 config.overlay_color.g,
                 config.overlay_color.b,
@@ -362,8 +398,16 @@ fn cmd_reset() {
             println!("✓ Configuration reset to defaults:");
             println!();
             println!("  Inactive Overlay:");
-            println!("    Status: {}", if config.is_dimming_enabled { "Enabled" } else { "Disabled" });
-            println!("    Color: RGB({}, {}, {}) Alpha {:.2}",
+            println!(
+                "    Status: {}",
+                if config.is_dimming_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
+            println!(
+                "    Color: RGB({}, {}, {}) Alpha {:.2}",
                 config.overlay_color.r,
                 config.overlay_color.g,
                 config.overlay_color.b,
@@ -371,20 +415,32 @@ fn cmd_reset() {
             );
             println!();
             println!("  Active Overlay:");
-            println!("    Status: {}", if config.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
+            println!(
+                "    Status: {}",
+                if config.is_active_overlay_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
             if let Some(active_color) = &config.active_overlay_color {
-                println!("    Color: RGB({}, {}, {}) Alpha {:.2}",
-                    active_color.r,
-                    active_color.g,
-                    active_color.b,
-                    active_color.a
+                println!(
+                    "    Color: RGB({}, {}, {}) Alpha {:.2}",
+                    active_color.r, active_color.g, active_color.b, active_color.a
                 );
             } else {
                 println!("    Color: Not configured");
             }
             println!();
             println!("  Partial Dimming:");
-            println!("    Status: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+            println!(
+                "    Status: {}",
+                if config.is_partial_dimming_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
             println!();
             println!("  Changes will be applied automatically within 2 seconds");
         }
@@ -409,23 +465,43 @@ fn cmd_list_profiles() {
     for name in profiles {
         if let Some(profile) = config.get_profile(&name) {
             println!("  {}:", name);
-            println!("    Inactive Overlay: {}", if profile.is_dimming_enabled { "Enabled" } else { "Disabled" });
-            println!("    Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
+            println!(
+                "    Inactive Overlay: {}",
+                if profile.is_dimming_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
+            println!(
+                "    Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
                 profile.overlay_color.r,
                 profile.overlay_color.g,
                 profile.overlay_color.b,
                 profile.overlay_color.a
             );
-            println!("    Active Overlay: {}", if profile.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
+            println!(
+                "    Active Overlay: {}",
+                if profile.is_active_overlay_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
             if let Some(active_color) = &profile.active_overlay_color {
-                println!("    Active Color: RGB({}, {}, {}) Alpha {:.2}",
-                    active_color.r,
-                    active_color.g,
-                    active_color.b,
-                    active_color.a
+                println!(
+                    "    Active Color: RGB({}, {}, {}) Alpha {:.2}",
+                    active_color.r, active_color.g, active_color.b, active_color.a
                 );
             }
-            println!("    Partial Dimming: {}", if profile.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
+            println!(
+                "    Partial Dimming: {}",
+                if profile.is_partial_dimming_enabled {
+                    "Enabled"
+                } else {
+                    "Disabled"
+                }
+            );
             println!();
         }
     }
@@ -443,37 +519,55 @@ fn cmd_set_profile(args: &[String]) {
     let mut config = Config::load();
 
     match config.load_profile(profile_name) {
-        Ok(_) => {
-            match config.save() {
-                Ok(_) => {
-                    println!("✓ Profile '{}' applied successfully", profile_name);
-                    println!();
-                    println!("  Inactive Overlay: {}", if config.is_dimming_enabled { "Enabled" } else { "Disabled" });
-                    println!("  Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
-                        config.overlay_color.r,
-                        config.overlay_color.g,
-                        config.overlay_color.b,
-                        config.overlay_color.a
-                    );
-                    println!("  Active Overlay: {}", if config.is_active_overlay_enabled { "Enabled" } else { "Disabled" });
-                    if let Some(active_color) = &config.active_overlay_color {
-                        println!("  Active Color: RGB({}, {}, {}) Alpha {:.2}",
-                            active_color.r,
-                            active_color.g,
-                            active_color.b,
-                            active_color.a
-                        );
+        Ok(_) => match config.save() {
+            Ok(_) => {
+                println!("✓ Profile '{}' applied successfully", profile_name);
+                println!();
+                println!(
+                    "  Inactive Overlay: {}",
+                    if config.is_dimming_enabled {
+                        "Enabled"
+                    } else {
+                        "Disabled"
                     }
-                    println!("  Partial Dimming: {}", if config.is_partial_dimming_enabled { "Enabled" } else { "Disabled" });
-                    println!();
-                    println!("  Changes will be applied automatically within 2 seconds");
+                );
+                println!(
+                    "  Inactive Color: RGB({}, {}, {}) Alpha {:.2}",
+                    config.overlay_color.r,
+                    config.overlay_color.g,
+                    config.overlay_color.b,
+                    config.overlay_color.a
+                );
+                println!(
+                    "  Active Overlay: {}",
+                    if config.is_active_overlay_enabled {
+                        "Enabled"
+                    } else {
+                        "Disabled"
+                    }
+                );
+                if let Some(active_color) = &config.active_overlay_color {
+                    println!(
+                        "  Active Color: RGB({}, {}, {}) Alpha {:.2}",
+                        active_color.r, active_color.g, active_color.b, active_color.a
+                    );
                 }
-                Err(e) => {
-                    eprintln!("✗ Failed to save configuration: {}", e);
-                    std::process::exit(1);
-                }
+                println!(
+                    "  Partial Dimming: {}",
+                    if config.is_partial_dimming_enabled {
+                        "Enabled"
+                    } else {
+                        "Disabled"
+                    }
+                );
+                println!();
+                println!("  Changes will be applied automatically within 2 seconds");
             }
-        }
+            Err(e) => {
+                eprintln!("✗ Failed to save configuration: {}", e);
+                std::process::exit(1);
+            }
+        },
         Err(e) => {
             eprintln!("✗ {}", e);
             eprintln!("  Use 'list-profiles' to see available profiles");
@@ -497,7 +591,10 @@ fn cmd_save_profile(args: &[String]) {
     match config.save() {
         Ok(_) => {
             println!("✓ Current settings saved as profile '{}'", profile_name);
-            println!("  Use 'set-profile {}' to restore these settings", profile_name);
+            println!(
+                "  Use 'set-profile {}' to restore these settings",
+                profile_name
+            );
         }
         Err(e) => {
             eprintln!("✗ Failed to save profile: {}", e);
@@ -517,17 +614,15 @@ fn cmd_delete_profile(args: &[String]) {
     let mut config = Config::load();
 
     match config.delete_profile(profile_name) {
-        Ok(_) => {
-            match config.save() {
-                Ok(_) => {
-                    println!("✓ Profile '{}' deleted successfully", profile_name);
-                }
-                Err(e) => {
-                    eprintln!("✗ Failed to save configuration: {}", e);
-                    std::process::exit(1);
-                }
+        Ok(_) => match config.save() {
+            Ok(_) => {
+                println!("✓ Profile '{}' deleted successfully", profile_name);
             }
-        }
+            Err(e) => {
+                eprintln!("✗ Failed to save configuration: {}", e);
+                std::process::exit(1);
+            }
+        },
         Err(e) => {
             eprintln!("✗ {}", e);
             std::process::exit(1);

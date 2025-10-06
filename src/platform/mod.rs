@@ -165,7 +165,8 @@ mod tests {
         assert!(json.contains("\"process_name\":\"test.exe\""));
 
         // Test deserialization
-        let deserialized: ActiveWindowInfo = serde_json::from_str(&json).expect("Failed to deserialize");
+        let deserialized: ActiveWindowInfo =
+            serde_json::from_str(&json).expect("Failed to deserialize");
         assert_eq!(deserialized.handle, window.handle);
         assert_eq!(deserialized.process_name, window.process_name);
     }

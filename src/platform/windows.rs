@@ -7,8 +7,8 @@ use winapi::shared::windef::{HDC, HMONITOR, HWND, LPRECT, RECT};
 use winapi::um::processthreadsapi::GetCurrentThreadId;
 use winapi::um::psapi::{GetModuleBaseNameW, GetProcessImageFileNameW};
 use winapi::um::winuser::{
-    EnumDisplayMonitors, GetForegroundWindow, GetMonitorInfoW, GetWindowRect,
-    GetWindowTextW, GetWindowThreadProcessId, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    EnumDisplayMonitors, GetForegroundWindow, GetMonitorInfoW, GetWindowRect, GetWindowTextW,
+    GetWindowThreadProcessId, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
 
 pub struct WindowsDisplayManager;
@@ -109,7 +109,8 @@ impl WindowManager for WindowsWindowManager {
 
             // Get window title
             let mut title_buffer = [0u16; 512];
-            let title_len = GetWindowTextW(hwnd, title_buffer.as_mut_ptr(), title_buffer.len() as i32);
+            let title_len =
+                GetWindowTextW(hwnd, title_buffer.as_mut_ptr(), title_buffer.len() as i32);
             let window_title = if title_len > 0 {
                 String::from_utf16_lossy(&title_buffer[..title_len as usize])
             } else {
@@ -120,8 +121,8 @@ impl WindowManager for WindowsWindowManager {
             let mut process_id = 0u32;
             GetWindowThreadProcessId(hwnd, &mut process_id);
 
-            let process_name = get_process_name(process_id)
-                .unwrap_or_else(|_| "Unknown Process".to_string());
+            let process_name =
+                get_process_name(process_id).unwrap_or_else(|_| "Unknown Process".to_string());
 
             // Get display information
             let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -234,27 +235,26 @@ pub fn get_window_rect(window_handle: u64) -> Result<RECT, String> {
 pub fn is_window_maximized(window_handle: u64) -> Result<bool, String> {
     unsafe {
         use winapi::um::winuser::IsZoomed;
-        
+
         let hwnd = window_handle as HWND;
         let is_zoomed = IsZoomed(hwnd) != 0;
-        
+
         // Also check if window fills its monitor (fullscreen check)
         let window_rect = get_window_rect(window_handle)?;
         let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        
+
         let mut monitor_info: MONITORINFO = mem::zeroed();
         monitor_info.cbSize = mem::size_of::<MONITORINFO>() as u32;
-        
+
         if GetMonitorInfoW(hmonitor, &mut monitor_info) != 0 {
             let monitor_rect = monitor_info.rcMonitor;
-            
+
             // Check if window covers entire monitor (with some tolerance for taskbar/borders)
-            let fills_monitor = 
-                (window_rect.left - monitor_rect.left).abs() <= 10 &&
-                (window_rect.top - monitor_rect.top).abs() <= 10 &&
-                (window_rect.right - monitor_rect.right).abs() <= 10 &&
-                (window_rect.bottom - monitor_rect.bottom).abs() <= 10;
-            
+            let fills_monitor = (window_rect.left - monitor_rect.left).abs() <= 10
+                && (window_rect.top - monitor_rect.top).abs() <= 10
+                && (window_rect.right - monitor_rect.right).abs() <= 10
+                && (window_rect.bottom - monitor_rect.bottom).abs() <= 10;
+
             Ok(is_zoomed || fills_monitor)
         } else {
             // If we can't get monitor info, just use IsZoomed

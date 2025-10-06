@@ -23,7 +23,10 @@ fn copy_icon_files() {
         .to_path_buf();
 
     // Copy icon files to the output directory
-    let icons = ["spotlight-dimmer-icon.ico", "spotlight-dimmer-icon-paused.ico"];
+    let icons = [
+        "spotlight-dimmer-icon.ico",
+        "spotlight-dimmer-icon-paused.ico",
+    ];
 
     for icon in &icons {
         let src = Path::new(&manifest_dir).join(icon);
@@ -56,7 +59,10 @@ mod tests {
 
     #[test]
     fn test_icon_file_names() {
-        let icons = ["spotlight-dimmer-icon.ico", "spotlight-dimmer-icon-paused.ico"];
+        let icons = [
+            "spotlight-dimmer-icon.ico",
+            "spotlight-dimmer-icon-paused.ico",
+        ];
         assert_eq!(icons.len(), 2);
         assert!(icons[0].ends_with(".ico"));
         assert!(icons[1].ends_with(".ico"));

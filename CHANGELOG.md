@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **CI/CD pipeline failures**: Fixed all code quality issues causing build failures in GitHub Actions
+  - Applied `cargo fmt` to all source files to comply with Rust standard formatting rules
+  - Resolved formatting issues in `build.rs`, `src/config.rs`, `src/config_cli.rs`, `src/main_new.rs`, `src/overlay.rs`, `src/platform/mod.rs`, `src/platform/windows.rs`, and `src/tray.rs`
+  - Fixed clippy warnings about `field_reassign_with_default` in test code by using struct initialization syntax
+  - All CI checks now pass: formatting (`cargo fmt --check`), linting (`cargo clippy`), and tests (`cargo test`)
+
+---
+
+### Corrigido
+- **Falhas no pipeline CI/CD**: Corrigidos todos os problemas de qualidade de código causando falhas de build no GitHub Actions
+  - Aplicado `cargo fmt` a todos os arquivos fonte para conformidade com regras de formatação padrão do Rust
+  - Resolvidos problemas de formatação em `build.rs`, `src/config.rs`, `src/config_cli.rs`, `src/main_new.rs`, `src/overlay.rs`, `src/platform/mod.rs`, `src/platform/windows.rs` e `src/tray.rs`
+  - Corrigidos avisos do clippy sobre `field_reassign_with_default` no código de teste usando sintaxe de inicialização de struct
+  - Todas as verificações CI agora passam: formatação (`cargo fmt --check`), linting (`cargo clippy`) e testes (`cargo test`)
+
 ## [0.4.5] - 2025-10-05
 
 ### Added

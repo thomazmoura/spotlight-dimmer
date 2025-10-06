@@ -82,39 +82,45 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         let mut profiles = HashMap::new();
-        
+
         // Add default light mode profile
-        profiles.insert("light-mode".to_string(), Profile {
-            overlay_color: OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.5,
+        profiles.insert(
+            "light-mode".to_string(),
+            Profile {
+                overlay_color: OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.5,
+                },
+                is_dimming_enabled: true,
+                active_overlay_color: None,
+                is_active_overlay_enabled: false,
+                is_partial_dimming_enabled: true,
             },
-            is_dimming_enabled: true,
-            active_overlay_color: None,
-            is_active_overlay_enabled: false,
-            is_partial_dimming_enabled: true,
-        });
-        
+        );
+
         // Add default dark mode profile
-        profiles.insert("dark-mode".to_string(), Profile {
-            overlay_color: OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.7,
+        profiles.insert(
+            "dark-mode".to_string(),
+            Profile {
+                overlay_color: OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.7,
+                },
+                is_dimming_enabled: true,
+                active_overlay_color: Some(OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.3,
+                }),
+                is_active_overlay_enabled: true,
+                is_partial_dimming_enabled: true,
             },
-            is_dimming_enabled: true,
-            active_overlay_color: Some(OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.3,
-            }),
-            is_active_overlay_enabled: true,
-            is_partial_dimming_enabled: true,
-        });
+        );
 
         Self {
             overlay_color: OverlayColor::default(),
@@ -189,8 +195,7 @@ impl Config {
         let content = toml::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-        fs::write(&path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))?;
+        fs::write(&path, content).map_err(|e| format!("Failed to write config file: {}", e))?;
 
         println!("[Config] Saved to {:?}", path);
         Ok(())
@@ -247,17 +252,20 @@ impl Config {
 
     /// Load a profile by name and apply it to current config
     pub fn load_profile(&mut self, name: &str) -> Result<(), String> {
-        let profile = self.profiles.get(name)
+        let profile = self
+            .profiles
+            .get(name)
             .ok_or_else(|| format!("Profile '{}' not found", name))?
             .clone();
-        
+
         profile.apply_to_config(self);
         Ok(())
     }
 
     /// Delete a profile by name
     pub fn delete_profile(&mut self, name: &str) -> Result<(), String> {
-        self.profiles.remove(name)
+        self.profiles
+            .remove(name)
             .ok_or_else(|| format!("Profile '{}' not found", name))?;
         Ok(())
     }
@@ -265,37 +273,43 @@ impl Config {
     /// Add default profiles if they don't exist
     fn add_default_profiles(&mut self) {
         // Add default light mode profile
-        self.profiles.insert("light-mode".to_string(), Profile {
-            overlay_color: OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.5,
+        self.profiles.insert(
+            "light-mode".to_string(),
+            Profile {
+                overlay_color: OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.5,
+                },
+                is_dimming_enabled: true,
+                active_overlay_color: None,
+                is_active_overlay_enabled: false,
+                is_partial_dimming_enabled: true,
             },
-            is_dimming_enabled: true,
-            active_overlay_color: None,
-            is_active_overlay_enabled: false,
-            is_partial_dimming_enabled: true,
-        });
-        
+        );
+
         // Add default dark mode profile
-        self.profiles.insert("dark-mode".to_string(), Profile {
-            overlay_color: OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.7,
+        self.profiles.insert(
+            "dark-mode".to_string(),
+            Profile {
+                overlay_color: OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.7,
+                },
+                is_dimming_enabled: true,
+                active_overlay_color: Some(OverlayColor {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0.3,
+                }),
+                is_active_overlay_enabled: true,
+                is_partial_dimming_enabled: true,
             },
-            is_dimming_enabled: true,
-            active_overlay_color: Some(OverlayColor {
-                r: 0,
-                g: 0,
-                b: 0,
-                a: 0.3,
-            }),
-            is_active_overlay_enabled: true,
-            is_partial_dimming_enabled: true,
-        });
+        );
     }
 }
 
@@ -314,7 +328,8 @@ mod tests {
     fn create_test_config(dir: &TempDir, content: &str) -> PathBuf {
         let config_path = dir.path().join("config.toml");
         let mut file = fs::File::create(&config_path).expect("Failed to create test config");
-        file.write_all(content.as_bytes()).expect("Failed to write test config");
+        file.write_all(content.as_bytes())
+            .expect("Failed to write test config");
         config_path
     }
 
@@ -330,50 +345,115 @@ mod tests {
     #[test]
     fn test_overlay_color_to_colorref() {
         // Test black color
-        let black = OverlayColor { r: 0, g: 0, b: 0, a: 0.5 };
+        let black = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.5,
+        };
         assert_eq!(black.to_colorref(), 0x00000000);
 
         // Test white color
-        let white = OverlayColor { r: 255, g: 255, b: 255, a: 1.0 };
+        let white = OverlayColor {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 1.0,
+        };
         assert_eq!(white.to_colorref(), 0x00FFFFFF);
 
         // Test red color (Windows COLORREF is BGR format: 0x00bbggrr)
-        let red = OverlayColor { r: 255, g: 0, b: 0, a: 0.5 };
+        let red = OverlayColor {
+            r: 255,
+            g: 0,
+            b: 0,
+            a: 0.5,
+        };
         assert_eq!(red.to_colorref(), 0x000000FF);
 
         // Test green color
-        let green = OverlayColor { r: 0, g: 255, b: 0, a: 0.5 };
+        let green = OverlayColor {
+            r: 0,
+            g: 255,
+            b: 0,
+            a: 0.5,
+        };
         assert_eq!(green.to_colorref(), 0x0000FF00);
 
         // Test blue color
-        let blue = OverlayColor { r: 0, g: 0, b: 255, a: 0.5 };
+        let blue = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 255,
+            a: 0.5,
+        };
         assert_eq!(blue.to_colorref(), 0x00FF0000);
 
         // Test mixed color
-        let purple = OverlayColor { r: 128, g: 0, b: 128, a: 0.7 };
+        let purple = OverlayColor {
+            r: 128,
+            g: 0,
+            b: 128,
+            a: 0.7,
+        };
         assert_eq!(purple.to_colorref(), 0x00800080);
     }
 
     #[test]
     fn test_overlay_color_to_alpha_byte() {
-        let transparent = OverlayColor { r: 0, g: 0, b: 0, a: 0.0 };
+        let transparent = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.0,
+        };
         assert_eq!(transparent.to_alpha_byte(), 0);
 
-        let half = OverlayColor { r: 0, g: 0, b: 0, a: 0.5 };
+        let half = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.5,
+        };
         assert_eq!(half.to_alpha_byte(), 127);
 
-        let opaque = OverlayColor { r: 0, g: 0, b: 0, a: 1.0 };
+        let opaque = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 1.0,
+        };
         assert_eq!(opaque.to_alpha_byte(), 255);
 
-        let quarter = OverlayColor { r: 0, g: 0, b: 0, a: 0.25 };
+        let quarter = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.25,
+        };
         assert_eq!(quarter.to_alpha_byte(), 63);
     }
 
     #[test]
     fn test_overlay_color_equality() {
-        let color1 = OverlayColor { r: 100, g: 150, b: 200, a: 0.8 };
-        let color2 = OverlayColor { r: 100, g: 150, b: 200, a: 0.8 };
-        let color3 = OverlayColor { r: 100, g: 150, b: 201, a: 0.8 };
+        let color1 = OverlayColor {
+            r: 100,
+            g: 150,
+            b: 200,
+            a: 0.8,
+        };
+        let color2 = OverlayColor {
+            r: 100,
+            g: 150,
+            b: 200,
+            a: 0.8,
+        };
+        let color3 = OverlayColor {
+            r: 100,
+            g: 150,
+            b: 201,
+            a: 0.8,
+        };
 
         assert_eq!(color1, color2);
         assert_ne!(color1, color3);
@@ -455,10 +535,17 @@ mod tests {
 
     #[test]
     fn test_profile_from_config() {
-        let mut config = Config::default();
-        config.overlay_color = OverlayColor { r: 10, g: 20, b: 30, a: 0.6 };
-        config.is_dimming_enabled = false;
-        config.is_partial_dimming_enabled = true;
+        let config = Config {
+            overlay_color: OverlayColor {
+                r: 10,
+                g: 20,
+                b: 30,
+                a: 0.6,
+            },
+            is_dimming_enabled: false,
+            is_partial_dimming_enabled: true,
+            ..Default::default()
+        };
 
         let profile = Profile::from_config(&config);
 
@@ -475,9 +562,19 @@ mod tests {
         let mut config = Config::default();
 
         let profile = Profile {
-            overlay_color: OverlayColor { r: 100, g: 100, b: 100, a: 0.9 },
+            overlay_color: OverlayColor {
+                r: 100,
+                g: 100,
+                b: 100,
+                a: 0.9,
+            },
             is_dimming_enabled: false,
-            active_overlay_color: Some(OverlayColor { r: 50, g: 50, b: 50, a: 0.2 }),
+            active_overlay_color: Some(OverlayColor {
+                r: 50,
+                g: 50,
+                b: 50,
+                a: 0.2,
+            }),
             is_active_overlay_enabled: true,
             is_partial_dimming_enabled: true,
         };
@@ -521,9 +618,16 @@ mod tests {
 
     #[test]
     fn test_config_save_profile() {
-        let mut config = Config::default();
-        config.overlay_color = OverlayColor { r: 200, g: 100, b: 50, a: 0.8 };
-        config.is_dimming_enabled = false;
+        let mut config = Config {
+            overlay_color: OverlayColor {
+                r: 200,
+                g: 100,
+                b: 50,
+                a: 0.8,
+            },
+            is_dimming_enabled: false,
+            ..Default::default()
+        };
 
         config.save_profile("custom".to_string());
 
@@ -581,7 +685,12 @@ mod tests {
     #[test]
     fn test_profile_serialization() {
         let profile = Profile {
-            overlay_color: OverlayColor { r: 1, g: 2, b: 3, a: 0.4 },
+            overlay_color: OverlayColor {
+                r: 1,
+                g: 2,
+                b: 3,
+                a: 0.4,
+            },
             is_dimming_enabled: true,
             active_overlay_color: None,
             is_active_overlay_enabled: false,
@@ -616,7 +725,12 @@ mod tests {
 
     #[test]
     fn test_overlay_color_clone() {
-        let color1 = OverlayColor { r: 10, g: 20, b: 30, a: 0.4 };
+        let color1 = OverlayColor {
+            r: 10,
+            g: 20,
+            b: 30,
+            a: 0.4,
+        };
         let color2 = color1.clone();
 
         assert_eq!(color1, color2);
@@ -639,7 +753,12 @@ mod tests {
         let profile = Profile {
             overlay_color: OverlayColor::default(),
             is_dimming_enabled: true,
-            active_overlay_color: Some(OverlayColor { r: 255, g: 0, b: 0, a: 0.3 }),
+            active_overlay_color: Some(OverlayColor {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 0.3,
+            }),
             is_active_overlay_enabled: true,
             is_partial_dimming_enabled: false,
         };
@@ -651,12 +770,22 @@ mod tests {
     #[test]
     fn test_overlay_color_boundary_values() {
         // Test minimum values
-        let min_color = OverlayColor { r: 0, g: 0, b: 0, a: 0.0 };
+        let min_color = OverlayColor {
+            r: 0,
+            g: 0,
+            b: 0,
+            a: 0.0,
+        };
         assert_eq!(min_color.to_alpha_byte(), 0);
         assert_eq!(min_color.to_colorref(), 0x00000000);
 
         // Test maximum values
-        let max_color = OverlayColor { r: 255, g: 255, b: 255, a: 1.0 };
+        let max_color = OverlayColor {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 1.0,
+        };
         assert_eq!(max_color.to_alpha_byte(), 255);
         assert_eq!(max_color.to_colorref(), 0x00FFFFFF);
     }

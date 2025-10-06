@@ -19,8 +19,8 @@ use winapi::um::winuser::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
     GetCursorPos, LoadImageW, PostQuitMessage, RegisterClassExW, SetForegroundWindow,
     TrackPopupMenu, CS_DBLCLKS, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_STRING,
-    TPM_BOTTOMALIGN, TPM_LEFTALIGN, WNDCLASSEXW, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP,
-    WM_RBUTTONUP, WS_OVERLAPPEDWINDOW,
+    TPM_BOTTOMALIGN, TPM_LEFTALIGN, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_RBUTTONUP,
+    WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
 
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
@@ -46,7 +46,8 @@ fn get_exe_directory() -> Result<PathBuf, String> {
         buffer.truncate(len as usize);
         let exe_path = PathBuf::from(String::from_utf16_lossy(&buffer));
 
-        exe_path.parent()
+        exe_path
+            .parent()
             .map(|p| p.to_path_buf())
             .ok_or_else(|| "Failed to get executable directory".to_string())
     }
@@ -63,7 +64,12 @@ pub struct TrayIcon {
 
 impl TrayIcon {
     /// Create a new system tray icon
-    pub fn new(icon_path: &str, tooltip: &str, exit_flag: Arc<AtomicBool>, pause_flag: Arc<AtomicBool>) -> Result<Self, String> {
+    pub fn new(
+        icon_path: &str,
+        tooltip: &str,
+        exit_flag: Arc<AtomicBool>,
+        pause_flag: Arc<AtomicBool>,
+    ) -> Result<Self, String> {
         unsafe {
             // Register window class for hidden message window
             let class_name = to_wstring("SpotlightDimmerTrayWindow");
@@ -88,7 +94,10 @@ impl TrayIcon {
                 let err = winapi::um::errhandlingapi::GetLastError();
                 // Class already registered is OK
                 if err != 1410 {
-                    return Err(format!("Failed to register tray window class: error {}", err));
+                    return Err(format!(
+                        "Failed to register tray window class: error {}",
+                        err
+                    ));
                 }
             }
 
@@ -163,7 +172,10 @@ impl TrayIcon {
 
             if hicon_active.is_null() {
                 DestroyWindow(hwnd);
-                return Err(format!("Failed to load active icon from: {}", icon_full_path.display()));
+                return Err(format!(
+                    "Failed to load active icon from: {}",
+                    icon_full_path.display()
+                ));
             }
 
             // Load paused icon from file using absolute path
@@ -180,7 +192,10 @@ impl TrayIcon {
             if hicon_paused.is_null() {
                 winapi::um::winuser::DestroyIcon(hicon_active);
                 DestroyWindow(hwnd);
-                return Err(format!("Failed to load paused icon from: {}", icon_paused_full_path.display()));
+                return Err(format!(
+                    "Failed to load paused icon from: {}",
+                    icon_paused_full_path.display()
+                ));
             }
 
             // Create tray icon with active icon initially
@@ -195,11 +210,7 @@ impl TrayIcon {
 
             // Copy tooltip (max 128 chars)
             let tooltip_len = tooltip_wide.len().min(127);
-            ptr::copy_nonoverlapping(
-                tooltip_wide.as_ptr(),
-                nid.szTip.as_mut_ptr(),
-                tooltip_len,
-            );
+            ptr::copy_nonoverlapping(tooltip_wide.as_ptr(), nid.szTip.as_mut_ptr(), tooltip_len);
 
             if Shell_NotifyIconW(NIM_ADD, &mut nid) == 0 {
                 winapi::um::winuser::DestroyIcon(hicon_active);
@@ -237,11 +248,7 @@ impl TrayIcon {
 
             // Copy tooltip (max 128 chars)
             let tooltip_len = tooltip_wide.len().min(127);
-            ptr::copy_nonoverlapping(
-                tooltip_wide.as_ptr(),
-                nid.szTip.as_mut_ptr(),
-                tooltip_len,
-            );
+            ptr::copy_nonoverlapping(tooltip_wide.as_ptr(), nid.szTip.as_mut_ptr(), tooltip_len);
 
             if Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) == 0 {
                 return Err("Failed to update tray icon tooltip".to_string());
@@ -275,11 +282,7 @@ impl TrayIcon {
 
             // Copy tooltip (max 128 chars)
             let tooltip_len = tooltip_wide.len().min(127);
-            ptr::copy_nonoverlapping(
-                tooltip_wide.as_ptr(),
-                nid.szTip.as_mut_ptr(),
-                tooltip_len,
-            );
+            ptr::copy_nonoverlapping(tooltip_wide.as_ptr(), nid.szTip.as_mut_ptr(), tooltip_len);
 
             if Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) == 0 {
                 return Err("Failed to update tray icon".to_string());
@@ -356,7 +359,10 @@ unsafe extern "system" fn window_proc(
                         if let Err(e) = config.save() {
                             eprintln!("[Tray] Failed to save pause state: {}", e);
                         } else {
-                            println!("[Tray] Pause state toggled: {}", if !was_paused { "PAUSED" } else { "UNPAUSED" });
+                            println!(
+                                "[Tray] Pause state toggled: {}",
+                                if !was_paused { "PAUSED" } else { "UNPAUSED" }
+                            );
                         }
                     }
                 }
@@ -383,11 +389,11 @@ unsafe extern "system" fn window_proc(
                 let profile_index = (cmd_id - CMD_PROFILE_BASE) as usize;
                 let mut config = Config::load();
                 let profiles = config.list_profiles();
-                
+
                 if profile_index < profiles.len() {
                     let profile_name = &profiles[profile_index];
                     println!("[Tray] Loading profile: {}", profile_name);
-                    
+
                     match config.load_profile(profile_name) {
                         Ok(_) => {
                             if let Err(e) = config.save() {
@@ -436,12 +442,7 @@ unsafe fn show_context_menu(hwnd: HWND) {
         }
 
         // Add separator
-        AppendMenuW(
-            hmenu,
-            winapi::um::winuser::MF_SEPARATOR,
-            0,
-            ptr::null(),
-        );
+        AppendMenuW(hmenu, winapi::um::winuser::MF_SEPARATOR, 0, ptr::null());
     }
 
     // Add "Exit" menu item
