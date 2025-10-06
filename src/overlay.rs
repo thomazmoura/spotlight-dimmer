@@ -1,5 +1,5 @@
 // This entire module is Windows-only
-#![cfg(windows)]
+// Note: cfg(windows) is applied at the module level in lib.rs
 
 use crate::config::OverlayColor;
 use crate::platform::DisplayInfo;
@@ -259,13 +259,13 @@ impl OverlayManager {
     /// Used during drag operations to prevent ghost window creation
     pub fn hide_all(&self) {
         unsafe {
-            for (_, &hwnd) in &self.inactive_overlays {
+            for &hwnd in self.inactive_overlays.values() {
                 ShowWindow(hwnd, SW_HIDE);
             }
-            for (_, &hwnd) in &self.active_overlays {
+            for &hwnd in self.active_overlays.values() {
                 ShowWindow(hwnd, SW_HIDE);
             }
-            for (_, hwnds) in &self.partial_overlays {
+            for hwnds in self.partial_overlays.values() {
                 for &hwnd in hwnds {
                     ShowWindow(hwnd, SW_HIDE);
                 }
@@ -277,13 +277,13 @@ impl OverlayManager {
     /// Used when unpausing to restore all overlays to visible state
     pub fn show_all(&self) {
         unsafe {
-            for (_, &hwnd) in &self.inactive_overlays {
+            for &hwnd in self.inactive_overlays.values() {
                 ShowWindow(hwnd, SW_SHOW);
             }
-            for (_, &hwnd) in &self.active_overlays {
+            for &hwnd in self.active_overlays.values() {
                 ShowWindow(hwnd, SW_SHOW);
             }
-            for (_, hwnds) in &self.partial_overlays {
+            for hwnds in self.partial_overlays.values() {
                 for &hwnd in hwnds {
                     ShowWindow(hwnd, SW_SHOW);
                 }
@@ -294,13 +294,13 @@ impl OverlayManager {
     /// Close all overlays (inactive, active, and partial)
     pub fn close_all(&mut self) {
         unsafe {
-            for (_, &hwnd) in &self.inactive_overlays {
+            for &hwnd in self.inactive_overlays.values() {
                 DestroyWindow(hwnd);
             }
-            for (_, &hwnd) in &self.active_overlays {
+            for &hwnd in self.active_overlays.values() {
                 DestroyWindow(hwnd);
             }
-            for (_, hwnds) in &self.partial_overlays {
+            for hwnds in self.partial_overlays.values() {
                 for &hwnd in hwnds {
                     DestroyWindow(hwnd);
                 }

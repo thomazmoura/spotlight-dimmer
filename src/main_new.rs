@@ -3,6 +3,12 @@ mod overlay;
 mod platform;
 mod tray;
 
+use config::Config;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
+
 #[cfg(windows)]
 use overlay::OverlayManager;
 #[cfg(windows)]

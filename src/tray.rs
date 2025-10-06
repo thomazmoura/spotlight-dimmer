@@ -1,5 +1,5 @@
 // This entire module is Windows-only
-#![cfg(windows)]
+// Note: cfg(windows) is applied at the module level in lib.rs
 
 use crate::config::Config;
 use std::ffi::OsStr;
@@ -58,7 +58,10 @@ pub struct TrayIcon {
     hwnd: HWND,
     hicon_active: winapi::shared::windef::HICON,
     hicon_paused: winapi::shared::windef::HICON,
+    // These flags are accessed by the window procedure via GetWindowLongPtrW
+    #[allow(dead_code)]
     exit_flag: Arc<AtomicBool>,
+    #[allow(dead_code)]
     pause_flag: Arc<AtomicBool>,
 }
 

@@ -1,11 +1,8 @@
 use super::{ActiveWindowInfo, DisplayInfo, DisplayManager, WindowManager};
-use std::ffi::OsString;
 use std::mem;
-use std::os::windows::ffi::OsStringExt;
 use std::ptr;
 use winapi::shared::windef::{HDC, HMONITOR, HWND, LPRECT, RECT};
-use winapi::um::processthreadsapi::GetCurrentThreadId;
-use winapi::um::psapi::{GetModuleBaseNameW, GetProcessImageFileNameW};
+use winapi::um::psapi::GetModuleBaseNameW;
 use winapi::um::winuser::{
     EnumDisplayMonitors, GetForegroundWindow, GetMonitorInfoW, GetWindowRect, GetWindowTextW,
     GetWindowThreadProcessId, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
