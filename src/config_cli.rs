@@ -233,7 +233,7 @@ fn cmd_color(args: &[String]) {
             std::process::exit(1);
         });
 
-        if value < 0.0 || value > 1.0 {
+        if !(0.0..=1.0).contains(&value) {
             eprintln!("Error: alpha value must be between 0.0 and 1.0");
             std::process::exit(1);
         }
@@ -288,7 +288,7 @@ fn cmd_active_color(args: &[String]) {
             std::process::exit(1);
         });
 
-        if value < 0.0 || value > 1.0 {
+        if !(0.0..=1.0).contains(&value) {
             eprintln!("Error: alpha value must be between 0.0 and 1.0");
             std::process::exit(1);
         }

@@ -19,7 +19,8 @@
       "Bash(./spotlight-dimmer-config.exe enable)",
       "Bash(./spotlight-dimmer-config.exe color 255 0 0 0.6)",
       "WebFetch(domain:users.rust-lang.org)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(./target/debug/spotlight-dimmer)"
     ],
     "deny": [],
     "ask": []

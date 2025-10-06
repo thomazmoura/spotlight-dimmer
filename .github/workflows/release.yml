@@ -63,9 +63,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test --lib --verbose
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -W clippy::all -A dead_code
 
       - name: Build binaries
         run: |

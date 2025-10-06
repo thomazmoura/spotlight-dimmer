@@ -3,15 +3,10 @@ mod overlay;
 mod platform;
 mod tray;
 
-use config::Config;
 #[cfg(windows)]
 use overlay::OverlayManager;
 #[cfg(windows)]
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
 #[cfg(windows)]
 use tray::TrayIcon;
 
