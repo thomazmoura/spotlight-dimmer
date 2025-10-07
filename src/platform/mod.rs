@@ -35,12 +35,14 @@ pub struct ActiveWindowInfo {
 }
 
 // Platform abstraction traits
+#[allow(dead_code)]
 pub trait DisplayManager {
     fn get_displays(&self) -> Result<Vec<DisplayInfo>, String>;
     fn get_primary_display(&self) -> Result<DisplayInfo, String>;
     fn get_display_count(&self) -> Result<usize, String>;
 }
 
+#[allow(dead_code)]
 pub trait WindowManager {
     fn get_active_window(&self) -> Result<ActiveWindowInfo, String>;
     fn get_window_display(&self, window_handle: u64) -> Result<DisplayInfo, String>;

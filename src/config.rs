@@ -24,11 +24,13 @@ impl Default for OverlayColor {
 }
 
 impl OverlayColor {
+    #[allow(dead_code)]
     pub fn to_colorref(&self) -> u32 {
         // Windows COLORREF is 0x00bbggrr
         ((self.b as u32) << 16) | ((self.g as u32) << 8) | (self.r as u32)
     }
 
+    #[allow(dead_code)]
     pub fn to_alpha_byte(&self) -> u8 {
         (self.a * 255.0) as u8
     }
@@ -45,6 +47,7 @@ pub struct Profile {
 
 impl Profile {
     /// Create a profile from current config settings
+    #[allow(dead_code)]
     pub fn from_config(config: &Config) -> Self {
         Self {
             overlay_color: config.overlay_color.clone(),
@@ -56,6 +59,7 @@ impl Profile {
     }
 
     /// Apply this profile to a config
+    #[allow(dead_code)]
     pub fn apply_to_config(&self, config: &mut Config) {
         config.overlay_color = self.overlay_color.clone();
         config.is_dimming_enabled = self.is_dimming_enabled;
@@ -136,6 +140,7 @@ impl Default for Config {
 
 impl Config {
     /// Get the path to the config file in the user's AppData directory
+    #[allow(dead_code)]
     pub fn config_path() -> Result<PathBuf, String> {
         let appdata = std::env::var("APPDATA")
             .map_err(|_| "Failed to get APPDATA environment variable".to_string())?;
@@ -152,6 +157,7 @@ impl Config {
     }
 
     /// Load configuration from disk, or create default if not found
+    #[allow(dead_code)]
     pub fn load() -> Self {
         match Self::config_path() {
             Ok(path) => {
@@ -189,6 +195,7 @@ impl Config {
     }
 
     /// Save configuration to disk
+    #[allow(dead_code)]
     pub fn save(&self) -> Result<(), String> {
         let path = Self::config_path()?;
 
@@ -202,6 +209,7 @@ impl Config {
     }
 
     /// Get the last modification time of the config file
+    #[allow(dead_code)]
     pub fn last_modified() -> Option<SystemTime> {
         if let Ok(path) = Self::config_path() {
             if let Ok(metadata) = fs::metadata(&path) {
@@ -215,6 +223,7 @@ impl Config {
 
     /// Reload configuration if the file has been modified since last check
     /// Returns Some((new_config, new_modified_time)) if changed, None if unchanged or error
+    #[allow(dead_code)]
     pub fn reload_if_changed(last_modified: Option<SystemTime>) -> Option<(Self, SystemTime)> {
         // Check current modification time
         let current_modified = Self::last_modified()?;
@@ -233,6 +242,7 @@ impl Config {
     }
 
     /// Get a list of all profile names
+    #[allow(dead_code)]
     pub fn list_profiles(&self) -> Vec<String> {
         let mut names: Vec<String> = self.profiles.keys().cloned().collect();
         names.sort();
@@ -240,17 +250,20 @@ impl Config {
     }
 
     /// Get a profile by name
+    #[allow(dead_code)]
     pub fn get_profile(&self, name: &str) -> Option<&Profile> {
         self.profiles.get(name)
     }
 
     /// Save current config as a profile
+    #[allow(dead_code)]
     pub fn save_profile(&mut self, name: String) {
         let profile = Profile::from_config(self);
         self.profiles.insert(name, profile);
     }
 
     /// Load a profile by name and apply it to current config
+    #[allow(dead_code)]
     pub fn load_profile(&mut self, name: &str) -> Result<(), String> {
         let profile = self
             .profiles
@@ -263,6 +276,7 @@ impl Config {
     }
 
     /// Delete a profile by name
+    #[allow(dead_code)]
     pub fn delete_profile(&mut self, name: &str) -> Result<(), String> {
         self.profiles
             .remove(name)
@@ -320,11 +334,13 @@ mod tests {
     use tempfile::TempDir;
 
     /// Helper function to create a temporary config directory for testing
+    #[allow(dead_code)]
     fn setup_test_config_dir() -> TempDir {
         TempDir::new().expect("Failed to create temp dir")
     }
 
     /// Helper function to create a custom config path for testing
+    #[allow(dead_code)]
     fn create_test_config(dir: &TempDir, content: &str) -> PathBuf {
         let config_path = dir.path().join("config.toml");
         let mut file = fs::File::create(&config_path).expect("Failed to create test config");

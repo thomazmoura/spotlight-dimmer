@@ -29,6 +29,7 @@ fn hide_console_if_not_launched_from_terminal() {
 }
 
 #[cfg(not(windows))]
+#[allow(dead_code)]
 fn hide_console_if_not_launched_from_terminal() {
     // No-op on non-Windows platforms
 }
@@ -49,6 +50,7 @@ fn process_windows_messages() {
 }
 
 #[cfg(not(windows))]
+#[allow(dead_code)]
 fn process_windows_messages() {
     // No-op on non-Windows platforms
 }
