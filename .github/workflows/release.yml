@@ -46,15 +46,7 @@ jobs:
     needs: changelog
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'windows-latest'
-            args: ''
-            target: 'x86_64-pc-windows-msvc'
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,30 +54,33 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-gnu
           components: rustfmt, clippy
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --lib --verbose
+        run: cargo test --lib --verbose --target x86_64-pc-windows-gnu
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -W clippy::all -A dead_code
+        run: cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
 
       - name: Build binaries
         run: |
-          cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+          cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
 
       - name: Create ZIP archive
-        if: matrix.platform == 'windows-latest'
         run: |
-          $version = "${{ needs.changelog.outputs.version }}"
-          $zipName = "spotlight-dimmer-v${version}-windows-x86_64.zip"
-          Compress-Archive -Path target/release/spotlight-dimmer.exe,target/release/spotlight-dimmer-config.exe,spotlight-dimmer-icon.ico,spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
-          echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
-        shell: pwsh
+          version="${{ needs.changelog.outputs.version }}"
+          zipName="spotlight-dimmer-v${version}-windows-x86_64.zip"
+          zip $zipName target/x86_64-pc-windows-gnu/release/spotlight-dimmer.exe target/x86_64-pc-windows-gnu/release/spotlight-dimmer-config.exe spotlight-dimmer-icon.ico spotlight-dimmer-icon-paused.ico
+          echo "ASSET_PATH=$zipName" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -155,7 +150,7 @@ jobs:
   publish-npm:
     needs: [changelog, build-and-release]
     if: always()
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
@@ -171,35 +166,40 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Build binaries for npm
         run: |
-          cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+          cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
 
       - name: Prepare npm package
-        shell: pwsh
         run: |
           # Copy executables to bin directory
-          Copy-Item target/release/spotlight-dimmer.exe bin/
-          Copy-Item target/release/spotlight-dimmer-config.exe bin/
+          cp target/x86_64-pc-windows-gnu/release/spotlight-dimmer.exe bin/
+          cp target/x86_64-pc-windows-gnu/release/spotlight-dimmer-config.exe bin/
 
           # Copy icon files to bin directory
-          Copy-Item spotlight-dimmer-icon.ico bin/
-          Copy-Item spotlight-dimmer-icon-paused.ico bin/
+          cp spotlight-dimmer-icon.ico bin/
+          cp spotlight-dimmer-icon-paused.ico bin/
 
-          Write-Host "Package contents ready for npm publish"
+          echo "Package contents ready for npm publish"
 
       - name: Publish to npm
         continue-on-error: true
-        shell: pwsh
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if ([string]::IsNullOrEmpty($env:NODE_AUTH_TOKEN)) {
-            Write-Host "⚠️  NPM_TOKEN secret not set - skipping npm publish" -ForegroundColor Yellow
-            Write-Host "ℹ️  Add NPM_TOKEN secret to enable automated npm publishing" -ForegroundColor Cyan
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "⚠️  NPM_TOKEN secret not set - skipping npm publish"
+            echo "ℹ️  Add NPM_TOKEN secret to enable automated npm publishing"
             exit 0
-          }
+          fi
           npm publish --provenance --access public
 
   update-changelog:

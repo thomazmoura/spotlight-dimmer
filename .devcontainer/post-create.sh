@@ -17,6 +17,10 @@ fi
 
 echo "📦 Installing project dependencies..."
 
+# Install Windows cross-compilation target
+echo "Installing Windows cross-compilation target..."
+rustup target add x86_64-pc-windows-gnu
+
 # Install Rust dependencies and build project to populate cache
 echo "Building Rust project (this may take a few minutes)..."
 cargo fetch
@@ -31,6 +35,8 @@ echo "Rust version: $(rustc --version)"
 echo "Cargo version: $(cargo --version)"
 echo "Clippy version: $(cargo clippy --version)"
 echo "Rustfmt version: $(cargo fmt --version)"
+echo "Windows target: $(rustup target list --installed | grep windows)"
+echo "MinGW cross-compiler: $(x86_64-w64-mingw32-gcc --version | head -1)"
 
 # Check if Claude Code is available (binary name is 'claude', not 'claude-code')
 if command -v claude &> /dev/null; then
@@ -43,18 +49,18 @@ else
     echo "Note: The binary is called 'claude', not 'claude-code'"
 fi
 
-# Create convenient development aliases
-echo "alias build='cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
-echo "alias build-debug='cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
-echo "alias test='cargo test'" >> ~/.bashrc
-echo "alias lint='cargo clippy -- -D warnings'" >> ~/.bashrc
+# Create convenient development aliases (using Windows cross-compilation target)
+echo "alias build='cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
+echo "alias build-debug='cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
+echo "alias test='cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.bashrc
+echo "alias lint='cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code'" >> ~/.bashrc
 echo "alias fmt='cargo fmt'" >> ~/.bashrc
 
 if [ -f ~/.zshrc ]; then
-    echo "alias build='cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
-    echo "alias build-debug='cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
-    echo "alias test='cargo test'" >> ~/.zshrc
-    echo "alias lint='cargo clippy -- -D warnings'" >> ~/.zshrc
+    echo "alias build='cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
+    echo "alias build-debug='cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
+    echo "alias test='cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.zshrc
+    echo "alias lint='cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code'" >> ~/.zshrc
     echo "alias fmt='cargo fmt'" >> ~/.zshrc
 fi
 
@@ -77,8 +83,9 @@ echo "  fmt                      - Format code with rustfmt"
 echo "  cargo install --path .   - Install binaries to ~/.cargo/bin/"
 echo "  claude-code              - Launch Claude Code CLI"
 echo ""
-echo "📝 Note: This is a pure Rust project using Windows API."
-echo "   For Windows-specific features, you may need to test on Windows."
+echo "📝 Note: This dev container uses cross-compilation to build Windows binaries from Linux."
+echo "   All aliases and /check command automatically target Windows (x86_64-pc-windows-gnu)."
+echo "   Built binaries will be in: target/x86_64-pc-windows-gnu/release/"
 echo ""
 echo "🚀 You can now start developing Spotlight Dimmer!"
-echo "   Run 'build' to compile the release binaries."
+echo "   Run 'build' to cross-compile Windows binaries."

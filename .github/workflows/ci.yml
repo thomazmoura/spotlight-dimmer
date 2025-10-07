@@ -18,11 +18,7 @@ env:
 jobs:
   test:
     name: Test Suite
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -32,6 +28,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -39,7 +41,7 @@ jobs:
           cache-on-failure: true
 
       - name: Run tests
-        run: cargo test --lib --verbose
+        run: cargo test --lib --verbose --target x86_64-pc-windows-gnu
 
       - name: Run doc tests
         run: cargo test --doc --verbose
@@ -47,7 +49,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -57,12 +59,18 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -W clippy::all -A dead_code
+        run: cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
 
   fmt:
     name: Formatting
@@ -82,11 +90,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
-        target: [x86_64-pc-windows-msvc]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -95,19 +99,22 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
 
       - name: Build binaries
-        run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+        run: cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
 
       - name: Check binary sizes
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
         run: |
-          $mainSize = (Get-Item target/release/spotlight-dimmer.exe).Length
-          $configSize = (Get-Item target/release/spotlight-dimmer-config.exe).Length
-          Write-Output "spotlight-dimmer.exe: $([math]::Round($mainSize/1KB, 2)) KB"
-          Write-Output "spotlight-dimmer-config.exe: $([math]::Round($configSize/1KB, 2)) KB"
+          mainSize=$(stat -c%s target/x86_64-pc-windows-gnu/release/spotlight-dimmer.exe)
+          configSize=$(stat -c%s target/x86_64-pc-windows-gnu/release/spotlight-dimmer-config.exe)
+          echo "spotlight-dimmer.exe: $(echo "scale=2; $mainSize/1024" | bc) KB"
+          echo "spotlight-dimmer-config.exe: $(echo "scale=2; $configSize/1024" | bc) KB"

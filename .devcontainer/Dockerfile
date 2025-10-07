@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     git \
     pkg-config \
     libssl-dev \
+    # Cross-compilation tools for Windows
+    mingw-w64 \
     # Node.js dependencies (required for Claude Code)
     ca-certificates \
     gnupg \

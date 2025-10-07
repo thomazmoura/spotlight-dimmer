@@ -20,6 +20,8 @@ This repository includes a complete dev container configuration that provides a 
 
 ### System Dependencies
 - Build tools (GCC, make, etc.)
+- **MinGW-w64** - Cross-compiler for building Windows binaries from Linux
+- **Windows target** - x86_64-pc-windows-gnu Rust target
 - OpenSSL development libraries
 - Essential utilities (curl, wget, jq, zip/unzip)
 
@@ -41,7 +43,8 @@ This repository includes a complete dev container configuration that provides a 
 ### 2. Wait for Setup
 The initial setup takes 2-4 minutes and includes:
 - Container build with all dependencies
-- Rust toolchain installation
+- Rust toolchain installation (including Windows cross-compilation target)
+- MinGW-w64 cross-compiler installation
 - Node.js and Claude Code setup
 - Project dependency caching
 
@@ -49,23 +52,23 @@ The initial setup takes 2-4 minutes and includes:
 Once the container is ready, you can:
 
 ```bash
-# Build release binaries
-cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+# Build Windows binaries using cross-compilation (recommended)
+cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
 
-# Build debug binaries (faster compilation)
-cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config
+# Or use the convenient alias
+build
 
-# Run tests
-cargo test
+# Run tests (with Windows target)
+cargo test --lib --target x86_64-pc-windows-gnu
 
 # Format code
 cargo fmt
 
-# Run linter
-cargo clippy -- -D warnings
+# Run linter (with Windows target)
+cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
 
-# Install binaries to ~/.cargo/bin/
-cargo install --path . --bin spotlight-dimmer --bin spotlight-dimmer-config
+# Or use the convenient alias
+lint
 
 # Start Claude Code
 claude
@@ -73,11 +76,11 @@ claude
 
 ## Available Aliases
 
-The environment includes convenient aliases for common tasks:
-- `build` → `cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config`
-- `build-debug` → `cargo build --bin spotlight-dimmer --bin spotlight-dimmer-config`
-- `test` → `cargo test`
-- `lint` → `cargo clippy -- -D warnings`
+The environment includes convenient aliases for common tasks (all use Windows cross-compilation target):
+- `build` → `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config`
+- `build-debug` → `cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config`
+- `test` → `cargo test --lib --target x86_64-pc-windows-gnu`
+- `lint` → `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code`
 - `fmt` → `cargo fmt`
 
 ## Architecture Overview
@@ -126,21 +129,29 @@ claude --version
 echo $PATH
 ```
 
-## Limitations
+## Cross-Compilation Support
 
-### Platform-Specific Code
-Since Spotlight Dimmer is a Windows application:
-- ✅ **Can compile** the Rust binaries in the dev container
-- ✅ **Can run** tests and linters
-- ✅ **Can use** Claude Code CLI
-- ✅ **Can develop** and review code
-- ❌ **Cannot run** the GUI application (Windows-only)
+### What You Can Do in the Dev Container
+Since this dev container includes MinGW-w64 cross-compilation support:
+- ✅ **Build Windows binaries** from Linux (`.exe` files)
+- ✅ **Validate ALL code** including `#[cfg(windows)]` sections
+- ✅ **Run tests** against Windows target
+- ✅ **Run linters** on Windows-specific code
+- ✅ **Use Claude Code CLI** for AI assistance
+- ✅ **Full CI/CD parity** - exactly matches GitHub Actions
+- ❌ **Cannot run** the GUI application (requires actual Windows)
 
-### Workarounds for Testing
-1. **Code Quality**: Use `cargo test`, `cargo clippy` for validation
-2. **Build Verification**: Ensure binaries compile successfully
-3. **Windows Testing**: Download built binaries and test on Windows
-4. **Cross-Platform Work**: The codebase has traits designed for future Linux support
+### How Cross-Compilation Works
+1. **Target**: `x86_64-pc-windows-gnu` (MinGW-based)
+2. **Toolchain**: MinGW-w64 cross-compiler
+3. **Output**: Windows `.exe` files in `target/x86_64-pc-windows-gnu/release/`
+4. **Testing**: Built binaries can be transferred to Windows for execution
+
+### Verification Workflow
+1. **Local Validation**: Use `/check` or `lint` alias to validate Windows code
+2. **Build Binaries**: Use `build` alias to create Windows `.exe` files
+3. **CI Verification**: Push to GitHub - CI uses same cross-compilation process
+4. **Windows Testing**: Transfer built binaries to Windows for final testing
 
 ## Troubleshooting
 
