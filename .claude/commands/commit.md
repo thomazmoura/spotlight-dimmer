@@ -24,10 +24,11 @@ The agent will:
    - If current is release (e.g., `0.1.10`): increment patch and add `-beta.1` (→ `0.1.11-beta.1`)
    - If current is beta (e.g., `0.1.10-beta.1`): increment beta number (→ `0.1.10-beta.2`)
 3. Update version in `package.json`, `Cargo.toml`, and `Cargo.lock` (using `cargo update -p spotlight-dimmer --precise X.Y.Z-beta.N`)
-4. **Run pre-commit validation in order**:
-   - `cargo test` - Run all tests
-   - `cargo clippy --all-targets --all-features -- -D warnings` - Check for code issues
-   - `cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config` - Build release binaries
+4. **Run pre-commit validation in order** (matching `/check` exactly):
+   - `cargo test --lib --verbose --target x86_64-pc-windows-gnu` - Run library tests with Windows target
+   - `cargo test --doc --verbose` - Run doc tests
+   - `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code` - Check for code issues with Windows target
+   - `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config` - Build Windows binaries
 5. **If any validation step fails**:
    - **STOP immediately** and cancel the commit
    - Revert version changes in `package.json`, `Cargo.toml`, and `Cargo.lock`

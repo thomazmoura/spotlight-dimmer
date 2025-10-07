@@ -1,4 +1,3 @@
-#![cfg(windows)]
 // This entire module is Windows-only
 // Note: cfg(windows) is applied at the module level in lib.rs
 
@@ -139,9 +138,8 @@ impl TrayIcon {
             );
 
             // Get absolute path to icon files (relative to executable)
-            let exe_dir = get_exe_directory().map_err(|e| {
+            let exe_dir = get_exe_directory().inspect_err(|_| {
                 DestroyWindow(hwnd);
-                e
             })?;
             let icon_full_path = exe_dir.join(icon_path);
             let icon_paused_full_path = exe_dir.join("spotlight-dimmer-icon-paused.ico");
@@ -388,7 +386,7 @@ unsafe extern "system" fn window_proc(
                     let state = &*ptr;
                     state.exit_flag.store(true, Ordering::SeqCst);
                 }
-            } else if cmd_id >= CMD_PROFILE_BASE && cmd_id < CMD_PROFILE_BASE + 100 {
+            } else if (CMD_PROFILE_BASE..CMD_PROFILE_BASE + 100).contains(&cmd_id) {
                 // Profile menu item clicked
                 let profile_index = (cmd_id - CMD_PROFILE_BASE) as usize;
                 let mut config = Config::load();

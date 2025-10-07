@@ -191,7 +191,7 @@ dependencies = [
 
 [[package]]
 name = "spotlight-dimmer"
-version = "0.4.9-beta.4"
+version = "0.4.9-beta.5"
 dependencies = [
  "serde",
  "serde_json",

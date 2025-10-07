@@ -8,7 +8,11 @@ use config::Config;
 #[cfg(windows)]
 use std::sync::{Arc, Mutex};
 #[cfg(windows)]
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(windows)]
+use std::thread;
+#[cfg(windows)]
+use std::time::Duration;
 
 #[cfg(windows)]
 use overlay::OverlayManager;
@@ -350,14 +354,12 @@ fn main() {
                 }
 
                 // Handle partial dimming state change
-                if partial_dimming_changed {
-                    if !new_config.is_partial_dimming_enabled {
-                        println!("[Main] Partial dimming disabled via config change");
-                        let mut manager = overlay_manager.lock().unwrap();
-                        manager.clear_all_partial_overlays();
-                        last_window_rect = None;
-                        is_dragging = false;
-                    }
+                if partial_dimming_changed && !new_config.is_partial_dimming_enabled {
+                    println!("[Main] Partial dimming disabled via config change");
+                    let mut manager = overlay_manager.lock().unwrap();
+                    manager.clear_all_partial_overlays();
+                    last_window_rect = None;
+                    is_dragging = false;
                 }
             }
         }

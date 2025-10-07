@@ -1,4 +1,3 @@
-#![cfg(windows)]
 // This entire module is Windows-only
 // Note: cfg(windows) is applied at the module level in lib.rs
 
@@ -316,7 +315,7 @@ impl OverlayManager {
     /// Close only inactive overlays
     pub fn close_inactive(&mut self) {
         unsafe {
-            for (_, &hwnd) in &self.inactive_overlays {
+            for &hwnd in self.inactive_overlays.values() {
                 DestroyWindow(hwnd);
             }
         }
@@ -327,7 +326,7 @@ impl OverlayManager {
     /// Close only active overlays
     pub fn close_active(&mut self) {
         unsafe {
-            for (_, &hwnd) in &self.active_overlays {
+            for &hwnd in self.active_overlays.values() {
                 DestroyWindow(hwnd);
             }
         }
@@ -690,7 +689,7 @@ impl OverlayManager {
     /// Clear all partial overlays
     pub fn clear_all_partial_overlays(&mut self) {
         unsafe {
-            for (_, hwnds) in &self.partial_overlays {
+            for hwnds in self.partial_overlays.values() {
                 for &hwnd in hwnds {
                     DestroyWindow(hwnd);
                 }
