@@ -20,7 +20,11 @@
       "Bash(./spotlight-dimmer-config.exe color 255 0 0 0.6)",
       "WebFetch(domain:users.rust-lang.org)",
       "Bash(cat:*)",
-      "Bash(./target/debug/spotlight-dimmer)"
+      "Bash(./target/debug/spotlight-dimmer)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": [],
     "ask": []

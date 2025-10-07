@@ -4,6 +4,13 @@ mod platform;
 mod tray;
 
 #[cfg(windows)]
+use config::Config;
+#[cfg(windows)]
+use std::sync::{Arc, Mutex};
+#[cfg(windows)]
+use std::sync::atomic::AtomicBool;
+
+#[cfg(windows)]
 use overlay::OverlayManager;
 #[cfg(windows)]
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
