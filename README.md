@@ -23,7 +23,28 @@ It's intended to help people who use multiple monitores to focus and assist in q
 
 ## Installation
 
-### From Source
+### Option 1: Install via npm (Recommended)
+
+The easiest way to install Spotlight Dimmer is through npm:
+
+```bash
+npm install -g spotlight-dimmer
+```
+
+**Requirements:**
+- Node.js 14 or higher
+- Windows x64
+
+The package includes pre-built binaries - no compilation needed! After installation, the commands `spotlight-dimmer` and `spotlight-dimmer-config` will be available globally.
+
+**Uninstall:**
+```bash
+npm uninstall -g spotlight-dimmer
+```
+
+### Option 2: Build from Source
+
+If you prefer to build and install manually using Cargo:
 
 ```bash
 cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
@@ -32,6 +53,11 @@ cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 Binaries will be in `target\release\`:
 - `spotlight-dimmer.exe` - Main application
 - `spotlight-dimmer-config.exe` - Configuration tool
+
+You can also use the PowerShell installation script:
+```powershell
+.\install.ps1
+```
 
 ### Usage
 

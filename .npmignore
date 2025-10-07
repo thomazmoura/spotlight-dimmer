@@ -1,0 +1,55 @@
+# Build artifacts
+/target/
+*.exe
+*.pdb
+
+# Development files
+.vscode/
+.devcontainer/
+.git/
+.github/
+
+# Rust build cache
+**/*.rs.bk
+Cargo.lock
+
+# Documentation (except README)
+/docs/
+LEIAME.md
+CLAUDE.md
+AGENTS.md
+
+# Scripts that are for cargo, not npm
+install.ps1
+uninstall.ps1
+
+# Test files
+/tests/
+**/*.test.js
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Keep these files
+!bin/*.exe
+!bin/*.ico
+!bin/*.cmd

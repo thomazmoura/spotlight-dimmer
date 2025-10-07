@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Automated multi-platform publishing**: Fully automated release workflow publishes to both crates.io and npm with a single git tag
+  - Push git tag (e.g., `v0.4.8`) triggers automated publishing to crates.io, npm, and GitHub Releases
+  - **crates.io automation**: `cargo publish` runs automatically on GitHub Actions for Rust users
+  - **npm automation**: Pre-built binaries packaged and published to npm for Node.js users
+  - Single source of truth: version managed in `package.json` and `Cargo.toml`, published everywhere automatically
+  - Requires `CARGO_TOKEN` and `NPM_TOKEN` GitHub secrets (one-time setup)
+- **npm package support with pre-built binaries**: Spotlight Dimmer can now be installed via npm with zero compilation required
+  - Global installation via `npm install -g spotlight-dimmer` provides instant access to both binaries
+  - Pre-built Windows executables included in package - no Rust toolchain required for users
+  - Automated publishing via GitHub Actions: binaries built on CI and bundled into npm package
+  - Command wrappers enable seamless execution: `spotlight-dimmer` and `spotlight-dimmer-config` work from any directory
+  - Platform verification ensures package only installs on Windows x64 (with helpful error messages for other platforms)
+  - Clean uninstallation via `npm uninstall -g spotlight-dimmer` automatically stops running instances
+  - Icon files automatically bundled for proper system tray functionality
+  - Package published to npm registry for worldwide distribution and easy discovery
+  - Three distribution channels (npm, crates.io, GitHub Releases) all updated automatically
+
 ### Fixed
 - **CI/CD pipeline failures**: Fixed all code quality issues causing build failures in GitHub Actions
   - Applied `cargo fmt` to all source files to comply with Rust standard formatting rules
@@ -15,6 +33,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All CI checks now pass: formatting (`cargo fmt --check`), linting (`cargo clippy`), and tests (`cargo test`)
 
 ---
+
+### Adicionado
+- **Publicação automatizada multiplataforma**: Workflow de release totalmente automatizado publica para crates.io e npm com uma única tag git
+  - Push de tag git (ex: `v0.4.8`) dispara publicação automatizada para crates.io, npm e GitHub Releases
+  - **Automação crates.io**: `cargo publish` executado automaticamente no GitHub Actions para usuários Rust
+  - **Automação npm**: Binários pré-compilados empacotados e publicados no npm para usuários Node.js
+  - Fonte única de verdade: versão gerenciada em `package.json` e `Cargo.toml`, publicada em todo lugar automaticamente
+  - Requer secrets GitHub `CARGO_TOKEN` e `NPM_TOKEN` (configuração única)
+- **Suporte a pacote npm com binários pré-compilados**: Spotlight Dimmer agora pode ser instalado via npm sem necessidade de compilação
+  - Instalação global via `npm install -g spotlight-dimmer` fornece acesso instantâneo a ambos os binários
+  - Executáveis Windows pré-compilados incluídos no pacote - sem necessidade de ferramentas Rust para usuários
+  - Publicação automatizada via GitHub Actions: binários compilados no CI e empacotados no pacote npm
+  - Wrappers de comando permitem execução perfeita: `spotlight-dimmer` e `spotlight-dimmer-config` funcionam de qualquer diretório
+  - Verificação de plataforma garante que o pacote só instale no Windows x64 (com mensagens de erro úteis para outras plataformas)
+  - Desinstalação limpa via `npm uninstall -g spotlight-dimmer` para automaticamente instâncias em execução
+  - Arquivos de ícone automaticamente empacotados para funcionalidade adequada da bandeja do sistema
+  - Pacote publicado no registro npm para distribuição mundial e descoberta fácil
+  - Três canais de distribuição (npm, crates.io, GitHub Releases) todos atualizados automaticamente
 
 ### Corrigido
 - **Falhas no pipeline CI/CD**: Corrigidos todos os problemas de qualidade de código causando falhas de build no GitHub Actions

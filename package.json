@@ -1,16 +1,50 @@
 {
   "name": "spotlight-dimmer",
-  "version": "0.4.7",
-  "description": "A cross-platform application that dims inactive displays to highlight the active one",
-  "scripts": {
-    "build": "echo 'Frontend build completed - using existing dist/ files'",
-    "dev": "echo 'Development mode - using existing dist/ files'"
+  "version": "0.4.8",
+  "description": "A lightweight Windows application that dims inactive displays to highlight the active one. Built with pure Rust and Windows API for maximum performance.",
+  "main": "index.js",
+  "bin": {
+    "spotlight-dimmer": "./bin/spotlight-dimmer.cmd",
+    "spotlight-dimmer-config": "./bin/spotlight-dimmer-config.cmd"
   },
-  "keywords": ["desktop", "monitor", "display", "dimming", "focus", "productivity"],
+  "scripts": {
+    "install": "node scripts/install.js",
+    "preuninstall": "node scripts/uninstall.js"
+  },
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "keywords": [
+    "windows",
+    "desktop",
+    "monitor",
+    "display",
+    "dimming",
+    "focus",
+    "productivity",
+    "multi-monitor",
+    "rust",
+    "native"
+  ],
   "author": "Spotlight Dimmer Team",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/thomazmoura/spotlight-dimmer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/thomazmoura/spotlight-dimmer/issues"
+  },
+  "homepage": "https://github.com/thomazmoura/spotlight-dimmer#readme",
+  "files": [
+    "bin/*.exe",
+    "bin/*.ico",
+    "bin/*.cmd",
+    "scripts/",
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

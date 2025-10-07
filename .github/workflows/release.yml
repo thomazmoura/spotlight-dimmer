@@ -130,6 +130,62 @@ jobs:
           prerelease: false
           files: ${{ env.ASSET_PATH }}
 
+  publish-cargo:
+    needs: [changelog, build-and-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
+        run: cargo publish --allow-dirty
+
+  publish-npm:
+    needs: [changelog, build-and-release, publish-cargo]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build binaries for npm
+        run: |
+          cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+
+      - name: Prepare npm package
+        shell: pwsh
+        run: |
+          # Copy executables to bin directory
+          Copy-Item target/release/spotlight-dimmer.exe bin/
+          Copy-Item target/release/spotlight-dimmer-config.exe bin/
+
+          # Copy icon files to bin directory
+          Copy-Item spotlight-dimmer-icon.ico bin/
+          Copy-Item spotlight-dimmer-icon-paused.ico bin/
+
+          Write-Host "Package contents ready for npm publish"
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
   update-changelog:
     needs: [changelog, build-and-release]
     runs-on: ubuntu-latest
