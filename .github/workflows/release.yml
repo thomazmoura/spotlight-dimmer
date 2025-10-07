@@ -141,12 +141,20 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Publish to crates.io
+        continue-on-error: true
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-        run: cargo publish --allow-dirty
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "⚠️  CARGO_TOKEN secret not set - skipping crates.io publish"
+            echo "ℹ️  Add CARGO_TOKEN secret to enable automated crates.io publishing"
+            exit 0
+          fi
+          cargo publish --allow-dirty
 
   publish-npm:
-    needs: [changelog, build-and-release, publish-cargo]
+    needs: [changelog, build-and-release]
+    if: always()
     runs-on: windows-latest
     permissions:
       contents: read
@@ -182,9 +190,17 @@ jobs:
           Write-Host "Package contents ready for npm publish"
 
       - name: Publish to npm
+        continue-on-error: true
+        shell: pwsh
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: |
+          if ([string]::IsNullOrEmpty($env:NODE_AUTH_TOKEN)) {
+            Write-Host "⚠️  NPM_TOKEN secret not set - skipping npm publish" -ForegroundColor Yellow
+            Write-Host "ℹ️  Add NPM_TOKEN secret to enable automated npm publishing" -ForegroundColor Cyan
+            exit 0
+          }
+          npm publish --provenance --access public
 
   update-changelog:
     needs: [changelog, build-and-release]
