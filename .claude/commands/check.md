@@ -1,6 +1,6 @@
 # Check Command
 
-**Description**: Run validation checks (tests, clippy, build) matching the CI pipeline exactly using cross-compilation for Windows, and automatically fix any errors
+**Description**: Run validation checks (tests, clippy, build) matching the CI pipeline exactly using cross-compilation for Windows with Wine, and automatically fix any errors
 
 **Usage**: `/check`
 
@@ -9,10 +9,13 @@
 1. **Sets up cross-compilation toolchain**:
    - Ensures `x86_64-pc-windows-gnu` target is installed
    - Installs MinGW cross-compiler if needed (`mingw-w64`)
-   - Enables building Windows binaries from Linux
+   - Verifies Wine is available for running Windows tests
+   - Enables building and testing Windows binaries from Linux
 
 2. **Runs validation pipeline (matching CI exactly)**:
-   - `cargo test --lib --verbose --target x86_64-pc-windows-gnu` - Run library tests (matching CI test job)
+   - `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine64 cargo test --lib --verbose --target x86_64-pc-windows-gnu` - Run library tests via Wine (matching CI test job)
+     - **Note**: Tests are compiled for Windows and executed via Wine64
+     - Wine allows actual test execution on Linux, not just compilation
    - `cargo test --doc --verbose` - Run doc tests (matching CI test job)
    - `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code` - Check for code issues (matching CI clippy job)
    - `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config` - Build Windows binaries (matching CI build job)
@@ -33,9 +36,10 @@ The agent will:
    - If not installed: Run `rustup target add x86_64-pc-windows-gnu`
    - Check if MinGW cross-compiler is available
    - If not available: Install `mingw-w64` package
+   - Verify Wine is installed (required for running tests)
 
 2. **Run validation pipeline in order (matching CI exactly)**:
-   - First: `cargo test --lib --verbose --target x86_64-pc-windows-gnu` (library tests with Windows target)
+   - First: `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine64 cargo test --lib --verbose --target x86_64-pc-windows-gnu` (library tests via Wine)
    - Second: `cargo test --doc --verbose` (doc tests, allowed to fail)
    - Third: `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code` (clippy with Windows target and CI flags)
    - Fourth: `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config` (Windows binaries)
@@ -55,13 +59,14 @@ The agent will:
 ## Important Notes:
 
 - **Matches CI exactly**: Uses the same commands, flags, and target as GitHub Actions CI pipeline
-- **Cross-compilation**: Builds Windows binaries on Linux using MinGW toolchain
-- **Full validation**: Validates ALL code including `#[cfg(windows)]` sections
+- **Cross-compilation with Wine**: Builds Windows binaries on Linux using MinGW toolchain and runs them via Wine64
+- **Full validation**: Validates AND executes ALL code including `#[cfg(windows)]` sections
 - **Auto-fix enabled**: This command automatically fixes validation errors
 - **Full re-validation**: After any fix, all checks run again from the start
 - **Non-destructive**: Only fixes code quality issues, doesn't change functionality
 - **Use before commit**: Run this before `/commit` to ensure a smooth commit process
 - **Requires toolchain setup**: First run will install `x86_64-pc-windows-gnu` target and MinGW
+- **Wine integration**: Tests actually execute via Wine64, providing real test results instead of just compilation validation
 
 ## Example Workflow:
 

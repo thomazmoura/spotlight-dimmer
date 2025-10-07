@@ -30,18 +30,21 @@ jobs:
           components: rustfmt, clippy
           targets: x86_64-pc-windows-gnu
 
-      - name: Install MinGW
+      - name: Install MinGW and Wine
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y mingw-w64
+          sudo apt-get install -y mingw-w64 wine64 wine32
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
-      - name: Run tests
+      - name: Run tests with Wine
         run: cargo test --lib --verbose --target x86_64-pc-windows-gnu
+        env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER: wine64
 
       - name: Run doc tests
         run: cargo test --doc --verbose

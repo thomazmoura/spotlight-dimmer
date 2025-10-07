@@ -37,6 +37,11 @@ echo "Clippy version: $(cargo clippy --version)"
 echo "Rustfmt version: $(cargo fmt --version)"
 echo "Windows target: $(rustup target list --installed | grep windows)"
 echo "MinGW cross-compiler: $(x86_64-w64-mingw32-gcc --version | head -1)"
+echo "Wine version: $(wine64 --version)"
+
+# Initialize Wine prefix (suppress first-run dialog)
+echo "🍷 Initializing Wine environment..."
+WINEDEBUG=-all wine64 wineboot --init 2>/dev/null || true
 
 # Check if Claude Code is available (binary name is 'claude', not 'claude-code')
 if command -v claude &> /dev/null; then
@@ -49,17 +54,17 @@ else
     echo "Note: The binary is called 'claude', not 'claude-code'"
 fi
 
-# Create convenient development aliases (using Windows cross-compilation target)
+# Create convenient development aliases (using Windows cross-compilation target with Wine)
 echo "alias build='cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
 echo "alias build-debug='cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.bashrc
-echo "alias test='cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.bashrc
+echo "alias test='CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine64 cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.bashrc
 echo "alias lint='cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code'" >> ~/.bashrc
 echo "alias fmt='cargo fmt'" >> ~/.bashrc
 
 if [ -f ~/.zshrc ]; then
     echo "alias build='cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
     echo "alias build-debug='cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config'" >> ~/.zshrc
-    echo "alias test='cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.zshrc
+    echo "alias test='CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine64 cargo test --lib --target x86_64-pc-windows-gnu'" >> ~/.zshrc
     echo "alias lint='cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code'" >> ~/.zshrc
     echo "alias fmt='cargo fmt'" >> ~/.zshrc
 fi
@@ -87,5 +92,9 @@ echo "📝 Note: This dev container uses cross-compilation to build Windows bina
 echo "   All aliases and /check command automatically target Windows (x86_64-pc-windows-gnu)."
 echo "   Built binaries will be in: target/x86_64-pc-windows-gnu/release/"
 echo ""
+echo "🍷 Wine Integration: Tests are executed via Wine64 to run Windows binaries on Linux."
+echo "   This allows you to run the full test suite locally, matching CI exactly."
+echo ""
 echo "🚀 You can now start developing Spotlight Dimmer!"
 echo "   Run 'build' to cross-compile Windows binaries."
+echo "   Run 'test' to execute Windows tests using Wine."

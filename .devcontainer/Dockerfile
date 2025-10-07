@@ -5,6 +5,9 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 ENV RUST_VERSION=1.83.0
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Enable 32-bit architecture for Wine
+RUN dpkg --add-architecture i386
+
 # Install system dependencies for pure Rust development
 RUN apt-get update && apt-get install -y \
     # Core build tools
@@ -16,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     # Cross-compilation tools for Windows
     mingw-w64 \
+    # Wine for running Windows binaries (enables running tests locally)
+    wine64 \
+    wine32 \
     # Node.js dependencies (required for Claude Code)
     ca-certificates \
     gnupg \

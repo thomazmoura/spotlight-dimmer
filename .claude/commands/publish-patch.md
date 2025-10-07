@@ -26,7 +26,7 @@ The agent will:
    - Pattern: `X.Y.Z` → `X.Y.(Z+1)`
 3. Update version in `package.json`, `Cargo.toml`, and `Cargo.lock` (using `cargo update -p spotlight-dimmer --precise X.Y.Z`)
 4. **Run pre-commit validation in order** (matching `/check` exactly):
-   - `cargo test --lib --verbose --target x86_64-pc-windows-gnu` - Run library tests with Windows target
+   - `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=wine64 cargo test --lib --verbose --target x86_64-pc-windows-gnu` - Run library tests via Wine
    - `cargo test --doc --verbose` - Run doc tests
    - `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code` - Check for code issues with Windows target
    - `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config` - Build Windows binaries
