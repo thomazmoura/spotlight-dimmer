@@ -10,13 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.1] - 2025-10-08
 
 ### Changed
-- **Release workflow optimization**: Updated release pipeline to match CI approach with Windows-native builds
-  - Release builds now run on windows-latest runners (removed ubuntu-latest cross-compilation)
-  - Removed clippy and fmt checks from release workflow (handled by pre-commit hooks)
-  - Simplified build process without MinGW/Wine complexity
-  - Uses native PowerShell commands for ZIP archive creation
-  - Both GitHub Releases and npm publishing now use Windows runners
-  - Faster and more reliable release builds on native Windows environment
+- **Release workflow fail-fast publishing**: Publishing to crates.io and npm now fails loudly instead of silently skipping
+  - Removed `continue-on-error: true` from both publish-cargo and publish-npm jobs
+  - Removed silent token checks that would skip publishing with warnings
+  - Release will now fail immediately if CARGO_TOKEN or NPM_TOKEN secrets are missing
+  - Ensures publishing issues are caught and fixed rather than silently ignored
+  - No more mystery "why didn't this publish?" situations
 
 ### Added
 - **Automatic git hooks with cargo-husky**: Zero-configuration pre-commit hooks that install themselves automatically
@@ -61,13 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Alterado
-- **Otimização do workflow de release**: Pipeline de release atualizado para corresponder à abordagem do CI com builds nativos do Windows
-  - Builds de release agora executam em runners windows-latest (removida compilação cruzada ubuntu-latest)
-  - Removidas verificações clippy e fmt do workflow de release (tratadas por hooks pre-commit)
-  - Processo de build simplificado sem complexidade MinGW/Wine
-  - Usa comandos PowerShell nativos para criação de arquivo ZIP
-  - Tanto GitHub Releases quanto publicação npm agora usam runners Windows
-  - Builds de release mais rápidos e confiáveis em ambiente Windows nativo
+- **Publicação fail-fast no workflow de release**: Publicação para crates.io e npm agora falha imediatamente ao invés de pular silenciosamente
+  - Removido `continue-on-error: true` dos jobs publish-cargo e publish-npm
+  - Removidas verificações silenciosas de token que pulariam publicação com avisos
+  - Release agora falhará imediatamente se secrets CARGO_TOKEN ou NPM_TOKEN estiverem ausentes
+  - Garante que problemas de publicação sejam detectados e corrigidos ao invés de silenciosamente ignorados
+  - Sem mais situações misteriosas de "por que isso não foi publicado?"
 
 ### Adicionado
 - **Hooks git automáticos com cargo-husky**: Hooks pre-commit de configuração zero que se instalam automaticamente
