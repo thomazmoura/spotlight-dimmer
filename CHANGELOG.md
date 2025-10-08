@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2025-10-08
+
 ### Changed
 - **Release workflow artifact sharing**: Binaries now built once and reused across all publishing targets
   - Build happens once in build-and-release job on windows-latest
