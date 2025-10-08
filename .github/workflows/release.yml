@@ -63,6 +63,15 @@ jobs:
       - name: Build binaries
         run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: |
+            target/release/spotlight-dimmer.exe
+            target/release/spotlight-dimmer-config.exe
+          retention-days: 1
+
       - name: Create ZIP archive
         shell: pwsh
         run: |
@@ -146,11 +155,11 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build binaries for npm
-        run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
+      - name: Download pre-built binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries
+          path: target/release/
 
       - name: Prepare npm package
         shell: pwsh

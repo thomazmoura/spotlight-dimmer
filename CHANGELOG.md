@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Release workflow artifact sharing**: Binaries now built once and reused across all publishing targets
+  - Build happens once in build-and-release job on windows-latest
+  - Binaries uploaded as GitHub Actions artifacts with 1-day retention
+  - publish-npm job downloads pre-built binaries instead of rebuilding
+  - Guarantees identical binaries in GitHub Releases and npm package
+  - Saves ~1-2 minutes of CI time per release by eliminating duplicate builds
+  - Removed redundant Rust toolchain installation from publish-npm job
+
+---
+
+### Alterado
+- **Compartilhamento de artefatos no workflow de release**: Binários agora construídos uma vez e reutilizados em todos os alvos de publicação
+  - Build acontece uma vez no job build-and-release em windows-latest
+  - Binários enviados como artefatos GitHub Actions com retenção de 1 dia
+  - Job publish-npm baixa binários pré-construídos ao invés de reconstruir
+  - Garante binários idênticos em GitHub Releases e pacote npm
+  - Economiza ~1-2 minutos de tempo de CI por release ao eliminar builds duplicados
+  - Removida instalação redundante de toolchain Rust do job publish-npm
+
 ## [0.5.2] - 2025-10-08
 
 ## [0.5.1] - 2025-10-08
