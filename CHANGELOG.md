@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2025-10-08
+
 ### Fixed
 - **Cargo publish compilation failure**: Fixed publish-cargo job failing on Linux by switching to windows-latest runner
   - cargo publish must compile Windows-specific code during verification step
