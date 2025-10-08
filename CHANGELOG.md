@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-10-08
+
 ### Changed
 - **Release workflow optimization**: Updated release pipeline to match CI approach with Windows-native builds
   - Release builds now run on windows-latest runners (removed ubuntu-latest cross-compilation)
