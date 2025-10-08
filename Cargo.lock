@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2261d10cca569e4643e526d8dc2e62e433cc8aba21ab764233731f8d369bf394"
 
 [[package]]
+name = "cargo-husky"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b02b629252fe8ef6460461409564e2c21d0c8e77e0944f3d189ff06c4e932ad"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -191,8 +197,9 @@ dependencies = [
 
 [[package]]
 name = "spotlight-dimmer"
-version = "0.4.9-beta.5"
+version = "0.4.9-beta.6"
 dependencies = [
+ "cargo-husky",
  "serde",
  "serde_json",
  "tempfile",

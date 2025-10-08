@@ -69,6 +69,35 @@ rm ~/.cargo/bin/spotlight-dimmer-icon.ico ~/.cargo/bin/spotlight-dimmer-icon-pau
 Get-Process spotlight-dimmer | Stop-Process
 ```
 
+### Setting Up Development Environment
+
+**Automatic Git Hooks Setup**
+
+Git hooks are automatically installed when you run any of these commands:
+```bash
+cargo test
+cargo build
+cargo check
+```
+
+**How it works:**
+- `cargo-husky` is configured as a dev dependency
+- Hooks are stored in `.cargo-husky/hooks/` (version-controlled)
+- First time you run `cargo test` or `cargo build`, hooks are automatically installed to `.git/hooks/`
+- **No manual setup required!**
+
+**What the pre-commit hook does:**
+- Runs `cargo fmt --check` to verify code formatting
+- Runs `cargo clippy` to catch common mistakes and improve code quality
+- Prevents commits with formatting or linting issues
+- Provides immediate feedback before code reaches CI
+
+**Benefits:**
+- Zero manual setup - just clone and build
+- All developers automatically get the same hooks
+- Hooks are version-controlled in `.cargo-husky/hooks/`
+- Updates to hooks propagate automatically on next build
+
 ## Architecture Overview
 
 **Pure Windows API Implementation** - No web framework, no browser engine, just native code.

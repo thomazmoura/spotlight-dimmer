@@ -6,9 +6,9 @@ mod tray;
 #[cfg(windows)]
 use config::Config;
 #[cfg(windows)]
-use std::sync::{Arc, Mutex};
-#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(windows)]
+use std::sync::{Arc, Mutex};
 #[cfg(windows)]
 use std::thread;
 #[cfg(windows)]

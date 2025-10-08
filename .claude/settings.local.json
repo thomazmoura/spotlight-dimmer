@@ -24,7 +24,9 @@
       "Bash(git log:*)",
       "Bash(git fetch:*)",
       "Bash(gh run list:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(x86_64-w64-mingw32-gcc:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

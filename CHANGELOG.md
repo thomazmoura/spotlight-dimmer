@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **CI/CD workflow optimization**: Moved clippy and format checks from CI to local pre-commit hooks for faster development workflow
+  - Tests and builds now run exclusively on windows-latest runners for native Windows environment
+  - Removed ubuntu-latest cross-compilation complexity (MinGW, Wine setup) that was causing headaches
+  - Pre-commit hook automatically runs `cargo fmt --check` and `cargo clippy` before allowing commits
+  - Developers get immediate feedback on code quality issues before pushing to CI
+  - CI runtime reduced by eliminating redundant clippy and fmt jobs
+  - Simplified CI workflow focuses on what matters: testing and building on the target platform
+
+### Added
+- **Automatic git hooks with cargo-husky**: Zero-configuration pre-commit hooks that install themselves automatically
+  - Added `cargo-husky` as dev dependency with "user-hooks" feature
+  - Hooks stored in `.cargo-husky/hooks/` directory (version-controlled and committed to git)
+  - Automatically installed to `.git/hooks/` when running `cargo test`, `cargo build`, or `cargo check`
+  - **No manual setup required** - developers just clone and build as normal
+  - All team members automatically get identical hooks from the repository
+  - Hook updates propagate automatically on next build
+- **Pre-commit code quality enforcement**: Automatic checks before every commit
+  - Runs `cargo fmt --check` to verify code formatting compliance
+  - Runs `cargo clippy --all-targets --all-features` to catch common mistakes and enforce best practices
+  - Clear error messages guide developers to fix issues before committing
+  - Fast local feedback loop - catch issues before pushing to CI
+  - Prevents "fix formatting" and "fix clippy" commits by enforcing standards upfront
+
 ### Added
 - **Automated multi-platform publishing**: Fully automated release workflow publishes to both crates.io and npm with a single git tag
   - Push git tag (e.g., `v0.4.8`) triggers automated publishing to crates.io, npm, and GitHub Releases
@@ -33,6 +57,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All CI checks now pass: formatting (`cargo fmt --check`), linting (`cargo clippy`), and tests (`cargo test`)
 
 ---
+
+### Alterado
+- **Otimização do workflow CI/CD**: Movidas verificações clippy e format do CI para hooks pre-commit locais para workflow de desenvolvimento mais rápido
+  - Testes e builds agora executam exclusivamente em runners windows-latest para ambiente Windows nativo
+  - Removida complexidade de compilação cruzada ubuntu-latest (configuração MinGW, Wine) que estava causando dores de cabeça
+  - Hook pre-commit executa automaticamente `cargo fmt --check` e `cargo clippy` antes de permitir commits
+  - Desenvolvedores recebem feedback imediato sobre problemas de qualidade de código antes de enviar para CI
+  - Tempo de execução do CI reduzido ao eliminar jobs redundantes de clippy e fmt
+  - Workflow CI simplificado foca no que importa: testar e construir na plataforma alvo
+
+### Adicionado
+- **Hooks git automáticos com cargo-husky**: Hooks pre-commit de configuração zero que se instalam automaticamente
+  - Adicionado `cargo-husky` como dependência de desenvolvimento com feature "user-hooks"
+  - Hooks armazenados no diretório `.cargo-husky/hooks/` (versionados e commitados no git)
+  - Instalados automaticamente em `.git/hooks/` ao executar `cargo test`, `cargo build` ou `cargo check`
+  - **Sem necessidade de configuração manual** - desenvolvedores apenas clonam e constroem normalmente
+  - Todos os membros da equipe automaticamente recebem hooks idênticos do repositório
+  - Atualizações de hooks propagam automaticamente no próximo build
+- **Aplicação de qualidade de código pre-commit**: Verificações automáticas antes de cada commit
+  - Executa `cargo fmt --check` para verificar conformidade de formatação do código
+  - Executa `cargo clippy --all-targets --all-features` para detectar erros comuns e aplicar melhores práticas
+  - Mensagens de erro claras orientam desenvolvedores a corrigir problemas antes de fazer commit
+  - Loop de feedback local rápido - detectar problemas antes de enviar para CI
+  - Previne commits "corrigir formatação" e "corrigir clippy" ao aplicar padrões antecipadamente
 
 ### Adicionado
 - **Publicação automatizada multiplataforma**: Workflow de release totalmente automatizado publica para crates.io e npm com uma única tag git
