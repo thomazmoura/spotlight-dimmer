@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **CI/CD workflow optimization**: Moved clippy and format checks from CI to local pre-commit hooks for faster development workflow
-  - Tests and builds now run exclusively on windows-latest runners for native Windows environment
-  - Removed ubuntu-latest cross-compilation complexity (MinGW, Wine setup) that was causing headaches
-  - Pre-commit hook automatically runs `cargo fmt --check` and `cargo clippy` before allowing commits
-  - Developers get immediate feedback on code quality issues before pushing to CI
-  - CI runtime reduced by eliminating redundant clippy and fmt jobs
-  - Simplified CI workflow focuses on what matters: testing and building on the target platform
+- **Release workflow optimization**: Updated release pipeline to match CI approach with Windows-native builds
+  - Release builds now run on windows-latest runners (removed ubuntu-latest cross-compilation)
+  - Removed clippy and fmt checks from release workflow (handled by pre-commit hooks)
+  - Simplified build process without MinGW/Wine complexity
+  - Uses native PowerShell commands for ZIP archive creation
+  - Both GitHub Releases and npm publishing now use Windows runners
+  - Faster and more reliable release builds on native Windows environment
 
 ### Added
 - **Automatic git hooks with cargo-husky**: Zero-configuration pre-commit hooks that install themselves automatically
@@ -59,13 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Alterado
-- **Otimização do workflow CI/CD**: Movidas verificações clippy e format do CI para hooks pre-commit locais para workflow de desenvolvimento mais rápido
-  - Testes e builds agora executam exclusivamente em runners windows-latest para ambiente Windows nativo
-  - Removida complexidade de compilação cruzada ubuntu-latest (configuração MinGW, Wine) que estava causando dores de cabeça
-  - Hook pre-commit executa automaticamente `cargo fmt --check` e `cargo clippy` antes de permitir commits
-  - Desenvolvedores recebem feedback imediato sobre problemas de qualidade de código antes de enviar para CI
-  - Tempo de execução do CI reduzido ao eliminar jobs redundantes de clippy e fmt
-  - Workflow CI simplificado foca no que importa: testar e construir na plataforma alvo
+- **Otimização do workflow de release**: Pipeline de release atualizado para corresponder à abordagem do CI com builds nativos do Windows
+  - Builds de release agora executam em runners windows-latest (removida compilação cruzada ubuntu-latest)
+  - Removidas verificações clippy e fmt do workflow de release (tratadas por hooks pre-commit)
+  - Processo de build simplificado sem complexidade MinGW/Wine
+  - Usa comandos PowerShell nativos para criação de arquivo ZIP
+  - Tanto GitHub Releases quanto publicação npm agora usam runners Windows
+  - Builds de release mais rápidos e confiáveis em ambiente Windows nativo
 
 ### Adicionado
 - **Hooks git automáticos com cargo-husky**: Hooks pre-commit de configuração zero que se instalam automaticamente

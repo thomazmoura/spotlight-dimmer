@@ -46,41 +46,30 @@ jobs:
     needs: changelog
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu
-          components: rustfmt, clippy
-
-      - name: Install MinGW
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --lib --verbose --target x86_64-pc-windows-gnu
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
+        run: cargo test --lib --verbose
 
       - name: Build binaries
-        run: |
-          cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
+        run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 
       - name: Create ZIP archive
+        shell: pwsh
         run: |
-          version="${{ needs.changelog.outputs.version }}"
-          zipName="spotlight-dimmer-v${version}-windows-x86_64.zip"
-          zip $zipName target/x86_64-pc-windows-gnu/release/spotlight-dimmer.exe target/x86_64-pc-windows-gnu/release/spotlight-dimmer-config.exe spotlight-dimmer-icon.ico spotlight-dimmer-icon-paused.ico
-          echo "ASSET_PATH=$zipName" >> $GITHUB_ENV
+          $version = "${{ needs.changelog.outputs.version }}"
+          $zipName = "spotlight-dimmer-v$version-windows-x86_64.zip"
+          Compress-Archive -Path target/release/spotlight-dimmer.exe, target/release/spotlight-dimmer-config.exe, spotlight-dimmer-icon.ico, spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
+          echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -150,7 +139,7 @@ jobs:
   publish-npm:
     needs: [changelog, build-and-release]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: read
       id-token: write
@@ -166,29 +155,22 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu
-
-      - name: Install MinGW
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
 
       - name: Build binaries for npm
-        run: |
-          cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
+        run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 
       - name: Prepare npm package
+        shell: pwsh
         run: |
           # Copy executables to bin directory
-          cp target/x86_64-pc-windows-gnu/release/spotlight-dimmer.exe bin/
-          cp target/x86_64-pc-windows-gnu/release/spotlight-dimmer-config.exe bin/
+          Copy-Item target/release/spotlight-dimmer.exe bin/
+          Copy-Item target/release/spotlight-dimmer-config.exe bin/
 
           # Copy icon files to bin directory
-          cp spotlight-dimmer-icon.ico bin/
-          cp spotlight-dimmer-icon-paused.ico bin/
+          Copy-Item spotlight-dimmer-icon.ico bin/
+          Copy-Item spotlight-dimmer-icon-paused.ico bin/
 
-          echo "Package contents ready for npm publish"
+          Write-Host "Package contents ready for npm publish"
 
       - name: Publish to npm
         continue-on-error: true
