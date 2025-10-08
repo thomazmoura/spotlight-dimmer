@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Cargo publish compilation failure**: Fixed publish-cargo job failing on Linux by switching to windows-latest runner
+  - cargo publish must compile Windows-specific code during verification step
+  - Cannot use pre-built artifacts since crates.io publishes source code, not binaries
+  - Now builds successfully with Windows API dependencies (std::os::windows, winapi)
+
+---
+
+### Corrigido
+- **Falha de compilação do cargo publish**: Corrigido job publish-cargo falhando no Linux ao mudar para runner windows-latest
+  - cargo publish deve compilar código específico do Windows durante etapa de verificação
+  - Não pode usar artefatos pré-construídos pois crates.io publica código-fonte, não binários
+  - Agora compila com sucesso com dependências da API do Windows (std::os::windows, winapi)
+
 ## [0.5.3] - 2025-10-08
 
 ### Changed
@@ -15,8 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Binaries uploaded as GitHub Actions artifacts with 1-day retention
   - publish-npm job downloads pre-built binaries instead of rebuilding
   - Guarantees identical binaries in GitHub Releases and npm package
-  - Saves ~1-2 minutes of CI time per release by eliminating duplicate builds
+  - Saves ~1-2 minutes of CI time per release by eliminating duplicate builds for npm
   - Removed redundant Rust toolchain installation from publish-npm job
+  - Note: publish-cargo still rebuilds (required by crates.io verification)
 
 ---
 
@@ -26,8 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Binários enviados como artefatos GitHub Actions com retenção de 1 dia
   - Job publish-npm baixa binários pré-construídos ao invés de reconstruir
   - Garante binários idênticos em GitHub Releases e pacote npm
-  - Economiza ~1-2 minutos de tempo de CI por release ao eliminar builds duplicados
+  - Economiza ~1-2 minutos de tempo de CI por release ao eliminar builds duplicados para npm
   - Removida instalação redundante de toolchain Rust do job publish-npm
+  - Nota: publish-cargo ainda reconstrói (requerido pela verificação do crates.io)
 
 ## [0.5.2] - 2025-10-08
 
