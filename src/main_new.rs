@@ -6,13 +6,15 @@ mod tray;
 #[cfg(windows)]
 use config::Config;
 #[cfg(windows)]
+use std::ptr;
+#[cfg(windows)]
 use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(windows)]
 use std::sync::{Arc, Mutex};
 #[cfg(windows)]
 use std::thread;
 #[cfg(windows)]
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(windows)]
 use overlay::OverlayManager;
@@ -20,6 +22,9 @@ use overlay::OverlayManager;
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
 #[cfg(windows)]
 use tray::TrayIcon;
+
+#[cfg(windows)]
+use winapi::um::winuser::{DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE};
 
 #[cfg(windows)]
 fn hide_console_if_not_launched_from_terminal() {
@@ -45,25 +50,29 @@ fn hide_console_if_not_launched_from_terminal() {
     // No-op on non-Windows platforms
 }
 
-#[cfg(windows)]
-fn process_windows_messages() {
-    use std::mem;
-    use winapi::um::winuser::{DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE};
+// Phase 2 & 3: Event-driven infrastructure (commented out for incremental migration)
+// These will be enabled in later phases after Phase 1 is complete and tested
 
+// #[cfg(windows)]
+// // Custom window messages for our event-driven architecture
+// const WM_USER_FOREGROUND_CHANGED: UINT = 0x0400; // WM_USER base
+// const WM_USER_WINDOW_MOVED: UINT = 0x0401;
+// const WM_USER_CONFIG_CHANGED: UINT = 0x0402;
+
+#[cfg(windows)]
+// Process Windows messages in a non-blocking manner (used during transition phase)
+// Returns the number of messages processed
+fn process_windows_messages() -> u32 {
+    let mut count = 0;
     unsafe {
-        let mut msg: MSG = mem::zeroed();
-        // Process all available messages without blocking
-        while PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
+        let mut msg: MSG = std::mem::zeroed();
+        while PeekMessageW(&mut msg, ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
             TranslateMessage(&msg);
             DispatchMessageW(&msg);
+            count += 1;
         }
     }
-}
-
-#[cfg(not(windows))]
-#[allow(dead_code)]
-fn process_windows_messages() {
-    // No-op on non-Windows platforms
+    count
 }
 
 #[cfg(windows)]
@@ -172,7 +181,13 @@ fn main() {
     let mut last_config_modified = Config::last_modified();
     let mut loop_counter: u32 = 0;
 
+    // Phase 1: Message loop optimization metrics
+    let mut total_messages_processed: u64 = 0;
+    let mut metrics_start_time = Instant::now();
+    let mut last_activity_time = Instant::now();
+
     println!("[Main] Starting focus monitoring loop...");
+    println!("[Main] Phase 1: Message loop optimization active - collecting baseline metrics");
     if last_paused {
         println!("[Main] Application started in PAUSED state");
         let manager = overlay_manager.lock().unwrap();
@@ -185,8 +200,27 @@ fn main() {
 
     // Main monitoring loop
     loop {
-        // Process Windows messages (for tray icon events)
-        process_windows_messages();
+        // Phase 1: Process Windows messages and count them
+        let messages_this_iteration = process_windows_messages();
+        total_messages_processed += messages_this_iteration as u64;
+
+        // Track activity for adaptive sleep
+        if messages_this_iteration > 0 {
+            last_activity_time = Instant::now();
+        }
+
+        // Phase 1: Log metrics every 10 seconds
+        let elapsed_since_metrics = metrics_start_time.elapsed().as_secs();
+        if elapsed_since_metrics >= 10 {
+            let messages_per_sec = total_messages_processed as f64 / elapsed_since_metrics as f64;
+            println!(
+                "[Phase1] Metrics: {:.2} messages/sec over {} seconds ({} total messages)",
+                messages_per_sec, elapsed_since_metrics, total_messages_processed
+            );
+            // Reset metrics
+            total_messages_processed = 0;
+            metrics_start_time = Instant::now();
+        }
 
         // Check if exit was requested via tray icon
         if exit_flag.load(Ordering::SeqCst) {
@@ -222,11 +256,21 @@ fn main() {
             continue;
         }
 
-        thread::sleep(Duration::from_millis(100));
+        // Phase 1: Adaptive sleep based on recent activity
+        // If we had activity in the last 2 seconds, use shorter sleep for better responsiveness
+        // Otherwise, use longer sleep to reduce CPU usage when idle
+        let time_since_activity = last_activity_time.elapsed().as_millis();
+        let sleep_duration = if time_since_activity < 2000 {
+            Duration::from_millis(50) // Active: 50ms for better responsiveness
+        } else {
+            Duration::from_millis(200) // Idle: 200ms for lower CPU usage
+        };
+        thread::sleep(sleep_duration);
         loop_counter = loop_counter.wrapping_add(1);
 
-        // Check for config file changes every 2 seconds (20 iterations of 100ms)
-        if loop_counter % 20 == 0 {
+        // Phase 1: Check for config file changes every ~2 seconds
+        // Since sleep duration is variable, check based on loop counter (~40 iterations at 50ms = 2s)
+        if loop_counter % 40 == 0 {
             if let Some((new_config, new_modified_time)) =
                 Config::reload_if_changed(last_config_modified)
             {
@@ -440,6 +484,9 @@ fn main() {
                 let display_changed = last_display_id.as_ref() != Some(&active_window.display_id);
 
                 if window_changed || display_changed {
+                    // Phase 1: Track activity for adaptive sleep
+                    last_activity_time = Instant::now();
+
                     if window_changed {
                         println!(
                             "[Main] Active window: {} ({})",

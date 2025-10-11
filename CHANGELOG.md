@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Message loop optimization (Phase 1 of event-driven migration)**: Enhanced polling efficiency with adaptive sleep and performance metrics
+  - Implemented adaptive sleep: 50ms when active for better responsiveness, 200ms when idle for lower CPU usage
+  - Added message processing counters to track Windows message frequency
+  - Implemented activity tracking that detects user interactions (window changes, tray icon clicks)
+  - System automatically adjusts polling interval based on recent activity (2-second window)
+  - Added performance metrics logging every 10 seconds showing messages/second throughput
+  - Lays foundation for complete event-driven migration in future phases
+  - Expected CPU improvement: 5-10% reduction during idle periods
+  - Part of 7-phase incremental migration plan to eliminate polling entirely
+
+---
+
+### Melhorado
+- **Otimização do loop de mensagens (Fase 1 da migração orientada a eventos)**: Eficiência de polling aprimorada com sleep adaptativo e métricas de performance
+  - Implementado sleep adaptativo: 50ms quando ativo para melhor responsividade, 200ms quando ocioso para menor uso de CPU
+  - Adicionados contadores de processamento de mensagens para rastrear frequência de mensagens Windows
+  - Implementado rastreamento de atividade que detecta interações do usuário (mudanças de janela, cliques no ícone da bandeja)
+  - Sistema ajusta automaticamente intervalo de polling baseado em atividade recente (janela de 2 segundos)
+  - Adicionado logging de métricas de performance a cada 10 segundos mostrando throughput de mensagens/segundo
+  - Estabelece fundação para migração completa orientada a eventos em fases futuras
+  - Melhoria esperada de CPU: redução de 5-10% durante períodos ociosos
+  - Parte do plano de migração incremental de 7 fases para eliminar polling completamente
+
+### Added
+- **Event-driven architecture research and planning**: Comprehensive analysis of migrating from polling to event-driven Windows API
+  - Created detailed polling-to-events migration report analyzing all 7 polling dependencies
+  - Ranked migration feasibility for each feature (display hotplug: 5/5, foreground changes: 4/5, window movement: 3/5, etc.)
+  - Documented expected performance improvements (100% CPU reduction when idle, up to 100x faster event latency)
+  - Created incremental refactor plan with 7 phases to ensure zero-downtime migration
+  - Identified HWND threading safety challenges and proposed solutions for Rust ownership model
+  - Estimated total effort: 12-24 hours for complete migration, 2-4 hours for Phase 1 quick-wins
+  - Reports saved in `.docs/` directory: `polling-to-events-migration-report.md` and `incremental-refactor-plan.md`
+
+---
+
+### Adicionado
+- **Pesquisa e planejamento de arquitetura orientada a eventos**: Análise abrangente da migração de polling para Windows API orientado a eventos
+  - Criado relatório detalhado de migração polling-para-eventos analisando todas as 7 dependências de polling
+  - Classificada viabilidade de migração para cada funcionalidade (hotplug de display: 5/5, mudanças de foco: 4/5, movimento de janela: 3/5, etc.)
+  - Documentadas melhorias de performance esperadas (redução de 100% de CPU quando ocioso, latência de evento até 100x mais rápida)
+  - Criado plano de refatoração incremental com 7 fases para garantir migração sem tempo de inatividade
+  - Identificados desafios de segurança de threading HWND e propostas de soluções para modelo de ownership do Rust
+  - Esforço total estimado: 12-24 horas para migração completa, 2-4 horas para vitórias rápidas da Fase 1
+  - Relatórios salvos no diretório `.docs/`: `polling-to-events-migration-report.md` e `incremental-refactor-plan.md`
+
 ## [0.5.4] - 2025-10-08
 
 ### Fixed

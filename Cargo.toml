@@ -1,6 +1,6 @@
 [package]
 name = "spotlight-dimmer"
-version = "0.5.4"
+version = "0.5.5-beta.1"
 description = "A lightweight application that dims inactive displays to highlight the active one"
 authors = ["Spotlight Dimmer Team"]
 license = "MIT"
@@ -29,6 +29,8 @@ path = "src/config_cli.rs"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+lazy_static = "1.4"
+widestring = "1.0"
 
 # Windows-specific dependencies
 [target.'cfg(windows)'.dependencies]
