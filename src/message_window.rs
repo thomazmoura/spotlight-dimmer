@@ -6,12 +6,13 @@ use std::ffi::OsStr;
 use std::mem;
 use std::os::windows::ffi::OsStrExt;
 use std::ptr;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
 use winapi::shared::windef::HWND;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassExW, HWND_MESSAGE, WNDCLASSEXW,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassExW, HWND_MESSAGE,
+    WM_DISPLAYCHANGE, WNDCLASSEXW,
 };
 
 // Custom message constants for event-driven architecture
@@ -27,6 +28,10 @@ pub const WM_USER_TEST: UINT = 0x0400; // WM_USER base
 
 // Phase 6: Configuration file change events
 // const WM_USER_CONFIG_CHANGED: UINT = 0x0403;
+
+// Phase 3: Display configuration change detection
+// This flag is set to true when WM_DISPLAYCHANGE is received
+static DISPLAY_CHANGED: AtomicBool = AtomicBool::new(false);
 
 /// Thread-safe wrapper for HWND (Windows window handle)
 ///
@@ -64,6 +69,20 @@ pub fn get_message_count() -> u32 {
 /// Reset the message counter (useful for testing)
 pub fn reset_message_count() {
     MESSAGE_COUNT.store(0, Ordering::Relaxed);
+}
+
+/// Check if display configuration changed and reset the flag
+///
+/// This function is called from the main loop to detect display changes.
+/// It uses an atomic compare-and-swap to atomically check and reset the flag,
+/// ensuring thread-safe communication between the message window procedure
+/// and the main loop.
+///
+/// Returns true if a display change occurred since the last check.
+pub fn check_and_reset_display_changed() -> bool {
+    // Atomically swap false for the current value, returning the old value
+    // This ensures we only process each display change event once
+    DISPLAY_CHANGED.swap(false, Ordering::SeqCst)
 }
 
 /// Message-only window for receiving custom Windows messages
@@ -193,6 +212,24 @@ unsafe extern "system" fn message_window_proc(
                 "[MessageWindow] WM_USER_TEST received (wparam: {}, lparam: {})",
                 wparam, lparam
             );
+            0 // Message handled
+        }
+        WM_DISPLAYCHANGE => {
+            // Phase 3: Display configuration changed (resolution, orientation, hotplug)
+            // wparam = new bit depth (bits per pixel)
+            // lparam = LOWORD is new width, HIWORD is new height
+            let width = lparam & 0xFFFF;
+            let height = (lparam >> 16) & 0xFFFF;
+            let bits_per_pixel = wparam;
+
+            println!(
+                "[Phase3] WM_DISPLAYCHANGE received ({}x{} @ {} bpp) - setting display changed flag",
+                width, height, bits_per_pixel
+            );
+
+            // Set the flag to notify the main loop
+            DISPLAY_CHANGED.store(true, Ordering::SeqCst);
+
             0 // Message handled
         }
         // Future phases will add handlers here:

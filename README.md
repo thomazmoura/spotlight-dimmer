@@ -78,7 +78,7 @@ The application will:
 
 #### Stopping the Application
 
-To stop the running application, use PowerShell:
+To stop the running application, use PowerShell (**not** Command Prompt or bash):
 
 ```powershell
 Get-Process spotlight-dimmer | Stop-Process

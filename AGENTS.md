@@ -65,6 +65,8 @@ rm ~/.cargo/bin/spotlight-dimmer-icon.ico ~/.cargo/bin/spotlight-dimmer-icon-pau
 
 ### Stopping the Application
 
+**IMPORTANT**: This command MUST be run in PowerShell, not bash. Use Windows PowerShell or PowerShell Core.
+
 ```powershell
 Get-Process spotlight-dimmer | Stop-Process
 ```

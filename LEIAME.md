@@ -52,7 +52,7 @@ A aplicação irá:
 
 #### Parando a Aplicação
 
-Para parar a aplicação em execução, use PowerShell:
+Para parar a aplicação em execução, use PowerShell (**não** Prompt de Comando ou bash):
 
 ```powershell
 Get-Process spotlight-dimmer | Stop-Process

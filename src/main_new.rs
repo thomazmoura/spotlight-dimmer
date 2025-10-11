@@ -18,7 +18,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 #[cfg(windows)]
-use message_window::MessageWindow;
+use message_window::{check_and_reset_display_changed, MessageWindow};
 #[cfg(windows)]
 use overlay::OverlayManager;
 #[cfg(windows)]
@@ -463,49 +463,73 @@ fn main() {
             continue;
         }
 
-        // Check for display configuration changes
-        if let Ok(current_display_count) = display_manager.get_display_count() {
-            if current_display_count != last_display_count {
-                println!(
-                    "[Main] Display configuration changed: {} -> {} displays",
-                    last_display_count, current_display_count
-                );
+        // Phase 3: Check for display configuration changes via WM_DISPLAYCHANGE event
+        // This replaces the polling-based approach with event-driven detection
+        if check_and_reset_display_changed() {
+            println!("[Phase3] Display configuration change detected via WM_DISPLAYCHANGE event");
+            println!("[Main] Performing complete reset - starting fresh");
 
-                // Get new display list
-                if let Ok(new_displays) = display_manager.get_displays() {
-                    let mut manager = overlay_manager.lock().unwrap();
+            // RESET ALL TRACKING STATE FIRST for a clean slate
+            last_window_handle = None;
+            last_display_id = None;
+            last_window_rect = None;
+            last_rect_change_time = None;
+            is_dragging = false;
 
-                    if is_dimming_enabled {
-                        if let Err(e) = manager.recreate_inactive_overlays(&new_displays) {
-                            eprintln!("[Main] Failed to recreate inactive overlays: {}", e);
-                        } else {
-                            println!(
-                                "[Main] Recreated {} inactive overlay(s)",
-                                manager.inactive_count()
-                            );
-                        }
-                    }
+            // Get new display list and count
+            if let Ok(new_displays) = display_manager.get_displays() {
+                let new_display_count = new_displays.len();
 
-                    if is_active_overlay_enabled {
-                        if let Err(e) = manager.recreate_active_overlays(&new_displays) {
-                            eprintln!("[Main] Failed to recreate active overlays: {}", e);
-                        } else {
-                            println!(
-                                "[Main] Recreated {} active overlay(s)",
-                                manager.active_count()
-                            );
-                        }
+                if new_display_count != last_display_count {
+                    println!(
+                        "[Main] Display count changed: {} -> {} displays",
+                        last_display_count, new_display_count
+                    );
+                    last_display_count = new_display_count;
+                } else {
+                    println!("[Main] Display configuration changed (resolution/orientation)");
+                }
+
+                let mut manager = overlay_manager.lock().unwrap();
+
+                // Complete reset: destroy ALL overlays (inactive, active, partial) for clean slate
+                manager.close_all();
+                println!("[Main] Closed all overlays for complete reset");
+
+                // Recreate only the enabled overlay types based on new display configuration
+                if is_dimming_enabled {
+                    if let Err(e) = manager.create_inactive_overlays(&new_displays) {
+                        eprintln!("[Main] Failed to create inactive overlays: {}", e);
+                    } else {
+                        println!(
+                            "[Main] Created {} inactive overlay(s)",
+                            manager.inactive_count()
+                        );
                     }
                 }
 
-                last_display_count = current_display_count;
-                last_window_handle = None;
-                last_display_id = None;
-                last_window_rect = None;
-                last_rect_change_time = None;
-                is_dragging = false;
-                continue;
+                if is_active_overlay_enabled {
+                    if let Err(e) = manager.create_active_overlays(&new_displays) {
+                        eprintln!("[Main] Failed to create active overlays: {}", e);
+                    } else {
+                        println!(
+                            "[Main] Created {} active overlay(s)",
+                            manager.active_count()
+                        );
+                    }
+                }
+
+                // Drop manager lock
+                drop(manager);
+
+                println!("[Main] Display reset complete - next iteration will update visibility");
+            } else {
+                eprintln!("[Phase3] Failed to get display list after WM_DISPLAYCHANGE");
             }
+
+            // Continue to next iteration - let normal loop logic handle visibility update
+            // This ensures we start completely fresh, just like program startup
+            continue;
         }
 
         // Get active window

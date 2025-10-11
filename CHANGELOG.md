@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Ghost overlay and broken visibility during display configuration changes**: Fixed overlays persisting incorrectly or becoming broken when switching between dual/single display configurations
+  - Display changes now trigger complete fresh start: reset all tracking state, destroy all overlays, recreate from scratch
+  - Tracking state (window handle, display ID, window rect, drag state) now reset BEFORE overlay recreation
+  - Next loop iteration naturally detects active window and updates visibility with clean state
+  - Eliminates inconsistent state that caused ghost windows and broken visibility
+  - Complete reset ensures behavior identical to program startup after every display change
+  - Prevents overlays from persisting on wrong displays or appearing broken when display count changes
+  - Fixes issue where overlays would be created with correct positions but incorrect visibility states
+  - Changed `WM_DISPLAYCHANGE` handler to perform reset → close → recreate sequence for proper initialization
+
+---
+
+### Corrigido
+- **Sobreposição fantasma e visibilidade quebrada durante mudanças de configuração de display**: Corrigidas sobreposições persistindo incorretamente ou ficando quebradas ao alternar entre configurações de display duplo/único
+  - Mudanças de display agora disparam início completamente novo: resetar todo estado de rastreamento, destruir todas sobreposições, recriar do zero
+  - Estado de rastreamento (handle de janela, ID de display, rect de janela, estado de arraste) agora resetado ANTES da recriação de sobreposição
+  - Próxima iteração do loop naturalmente detecta janela ativa e atualiza visibilidade com estado limpo
+  - Elimina estado inconsistente que causava janelas fantasma e visibilidade quebrada
+  - Reset completo garante comportamento idêntico ao início do programa após cada mudança de display
+  - Previne sobreposições de persistirem em displays errados ou aparecerem quebradas quando contagem de displays muda
+  - Corrige problema onde sobreposições seriam criadas com posições corretas mas estados de visibilidade incorretos
+  - Alterado handler `WM_DISPLAYCHANGE` para realizar sequência reset → fechar → recriar para inicialização adequada
+
+### Improved
+- **Event-driven display change detection (Phase 3 of event-driven migration)**: Replaced polling with instant WM_DISPLAYCHANGE event handling
+  - Added `WM_DISPLAYCHANGE` handler to message window procedure for instant notification of display configuration changes
+  - Created thread-safe atomic flag (`DISPLAY_CHANGED`) for communication between message window and main loop
+  - Implemented `check_and_reset_display_changed()` function using atomic compare-and-swap for thread-safe event checking
+  - Replaced polling-based `get_display_count()` check (100-200ms delay) with event-driven detection (0ms latency)
+  - Display changes now detected instantly: monitor hotplug, resolution changes, orientation changes, DPI changes
+  - Eliminates one `EnumDisplayMonitors` call every 100-200ms, reducing CPU usage during idle periods
+  - Event handler logs display configuration details (width, height, bits per pixel) for debugging
+  - Maintains all existing overlay recreation logic and state reset behavior
+  - Part of 7-phase incremental migration plan to achieve zero CPU usage when idle
+
+---
+
+### Melhorado
+- **Detecção de mudança de display orientada a eventos (Fase 3 da migração orientada a eventos)**: Substituído polling por tratamento instantâneo de evento WM_DISPLAYCHANGE
+  - Adicionado handler `WM_DISPLAYCHANGE` ao procedimento de janela de mensagens para notificação instantânea de mudanças de configuração de display
+  - Criada flag atômica thread-safe (`DISPLAY_CHANGED`) para comunicação entre janela de mensagens e loop principal
+  - Implementada função `check_and_reset_display_changed()` usando compare-and-swap atômico para verificação de eventos thread-safe
+  - Substituída verificação baseada em polling `get_display_count()` (atraso 100-200ms) por detecção orientada a eventos (latência 0ms)
+  - Mudanças de display agora detectadas instantaneamente: hotplug de monitor, mudanças de resolução, mudanças de orientação, mudanças de DPI
+  - Elimina uma chamada `EnumDisplayMonitors` a cada 100-200ms, reduzindo uso de CPU durante períodos ociosos
+  - Handler de eventos registra detalhes de configuração de display (largura, altura, bits por pixel) para depuração
+  - Mantém toda lógica existente de recriação de sobreposição e comportamento de reset de estado
+  - Parte do plano de migração incremental de 7 fases para alcançar uso zero de CPU quando ocioso
+
 ## [0.5.5-beta.1] - 2025-10-11
 
 ### Improved
