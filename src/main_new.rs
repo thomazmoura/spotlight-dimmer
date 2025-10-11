@@ -1,4 +1,5 @@
 mod config;
+mod message_window;
 mod overlay;
 mod platform;
 mod tray;
@@ -17,6 +18,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 #[cfg(windows)]
+use message_window::MessageWindow;
+#[cfg(windows)]
 use overlay::OverlayManager;
 #[cfg(windows)]
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
@@ -24,7 +27,9 @@ use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWind
 use tray::TrayIcon;
 
 #[cfg(windows)]
-use winapi::um::winuser::{DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE};
+use winapi::um::winuser::{
+    DispatchMessageW, PeekMessageW, PostMessageW, TranslateMessage, MSG, PM_REMOVE,
+};
 
 #[cfg(windows)]
 fn hide_console_if_not_launched_from_terminal() {
@@ -109,6 +114,16 @@ fn main() {
         }
     };
 
+    // Phase 2: Create message-only window for event-driven communication
+    let message_window = match MessageWindow::new() {
+        Ok(window) => window,
+        Err(e) => {
+            eprintln!("[Main] Failed to create message window: {}", e);
+            return;
+        }
+    };
+    println!("[Main] Phase 2: Message window infrastructure initialized");
+
     // Initialize display and window managers
     let display_manager = WindowsDisplayManager;
     let window_manager = WindowsWindowManager;
@@ -186,8 +201,12 @@ fn main() {
     let mut metrics_start_time = Instant::now();
     let mut last_activity_time = Instant::now();
 
+    // Phase 2: Test message timing
+    let mut last_test_message_time = Instant::now();
+
     println!("[Main] Starting focus monitoring loop...");
     println!("[Main] Phase 1: Message loop optimization active - collecting baseline metrics");
+    println!("[Main] Phase 2: Test messages will be posted every 10 seconds");
     if last_paused {
         println!("[Main] Application started in PAUSED state");
         let manager = overlay_manager.lock().unwrap();
@@ -220,6 +239,27 @@ fn main() {
             // Reset metrics
             total_messages_processed = 0;
             metrics_start_time = Instant::now();
+        }
+
+        // Phase 2: Post test message every 10 seconds
+        let elapsed_since_test = last_test_message_time.elapsed().as_secs();
+        if elapsed_since_test >= 10 {
+            unsafe {
+                let result = PostMessageW(
+                    message_window.hwnd(),
+                    message_window::WM_USER_TEST,
+                    42,   // Test wparam value
+                    1337, // Test lparam value
+                );
+                if result != 0 {
+                    println!(
+                        "[Phase2] Test message posted to message window (wparam: 42, lparam: 1337)"
+                    );
+                } else {
+                    eprintln!("[Phase2] Failed to post test message");
+                }
+            }
+            last_test_message_time = Instant::now();
         }
 
         // Check if exit was requested via tray icon
@@ -715,6 +755,7 @@ fn main() {
     println!("[Main] Performing cleanup...");
     drop(overlay_manager);
     drop(tray_icon);
+    drop(message_window);
     println!("[Main] Spotlight Dimmer exited successfully");
 }
 

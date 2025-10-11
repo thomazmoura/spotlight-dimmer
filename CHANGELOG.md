@@ -10,6 +10,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.5-beta.1] - 2025-10-11
 
 ### Improved
+- **Message window infrastructure (Phase 2 of event-driven migration)**: Foundation for event-based Windows API communication
+  - Created thread-safe HWND wrapper (`MessageWindowHandle`) for cross-thread messaging with safe Send implementation
+  - Implemented message-only window using `HWND_MESSAGE` parent for efficient inter-thread communication
+  - Message-only windows are more efficient than hidden windows: no z-order, painting, or input processing overhead
+  - Added custom message constants (`WM_USER_TEST`) with reserved space for future event types
+  - Window procedure logs all received messages for debugging and validation
+  - Test infrastructure posts messages every 10 seconds to verify message delivery
+  - Automatic cleanup via Drop trait prevents resource leaks
+  - Runs alongside existing polling loop with zero functional impact
+  - Preparation for event hooks in Phases 3-5 (display changes, foreground window, window movement)
+  - Part of 7-phase incremental migration plan to achieve zero CPU usage when idle
+
+---
+
+### Melhorado
+- **Infraestrutura de janela de mensagens (Fase 2 da migração orientada a eventos)**: Fundação para comunicação Windows API baseada em eventos
+  - Criado wrapper HWND thread-safe (`MessageWindowHandle`) para mensagens cross-thread com implementação Send segura
+  - Implementada janela somente de mensagens usando parent `HWND_MESSAGE` para comunicação inter-thread eficiente
+  - Janelas somente de mensagens são mais eficientes que janelas ocultas: sem sobrecarga de z-order, pintura ou processamento de entrada
+  - Adicionadas constantes de mensagens personalizadas (`WM_USER_TEST`) com espaço reservado para tipos de eventos futuros
+  - Procedimento de janela registra todas as mensagens recebidas para depuração e validação
+  - Infraestrutura de teste posta mensagens a cada 10 segundos para verificar entrega de mensagens
+  - Limpeza automática via trait Drop previne vazamentos de recursos
+  - Executa junto ao loop de polling existente com impacto funcional zero
+  - Preparação para hooks de eventos nas Fases 3-5 (mudanças de display, janela em primeiro plano, movimento de janela)
+  - Parte do plano de migração incremental de 7 fases para alcançar uso zero de CPU quando ocioso
+
+### Improved
 - **Message loop optimization (Phase 1 of event-driven migration)**: Enhanced polling efficiency with adaptive sleep and performance metrics
   - Implemented adaptive sleep: 50ms when active for better responsiveness, 200ms when idle for lower CPU usage
   - Added message processing counters to track Windows message frequency

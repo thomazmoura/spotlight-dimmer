@@ -9,3 +9,6 @@ pub mod overlay;
 
 #[cfg(windows)]
 pub mod tray;
+
+#[cfg(windows)]
+pub mod message_window;
