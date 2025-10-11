@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5-beta.1] - 2025-10-11
+
 ### Improved
 - **Message loop optimization (Phase 1 of event-driven migration)**: Enhanced polling efficiency with adaptive sleep and performance metrics
   - Implemented adaptive sleep: 50ms when active for better responsiveness, 200ms when idle for lower CPU usage
