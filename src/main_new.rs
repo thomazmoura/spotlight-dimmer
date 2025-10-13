@@ -49,6 +49,28 @@ fn hide_console_if_not_launched_from_terminal() {
     }
 }
 
+#[cfg(windows)]
+fn set_dpi_awareness() {
+    use winapi::um::winuser::SetProcessDpiAwarenessContext;
+    use winapi::shared::windef::DPI_AWARENESS_CONTEXT;
+
+    // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+    // This is the most advanced DPI awareness mode that ensures:
+    // - Application receives physical pixels (not scaled)
+    // - Per-monitor DPI awareness (each monitor can have different scaling)
+    // - Automatic non-client area (title bar, borders) scaling
+    const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT = -4isize as DPI_AWARENESS_CONTEXT;
+
+    unsafe {
+        if SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == 0 {
+            eprintln!("[Main] Warning: Failed to set DPI awareness context");
+            eprintln!("[Main] Overlays may not align correctly with windows at non-100% display scales");
+        } else {
+            println!("[Main] DPI awareness set to Per-Monitor V2");
+        }
+    }
+}
+
 #[cfg(not(windows))]
 #[allow(dead_code)]
 fn hide_console_if_not_launched_from_terminal() {
@@ -82,6 +104,9 @@ fn process_windows_messages() -> u32 {
 
 #[cfg(windows)]
 fn main() {
+    // Set DPI awareness FIRST - before any Windows API calls
+    set_dpi_awareness();
+
     // Hide console if not launched from terminal
     hide_console_if_not_launched_from_terminal();
 

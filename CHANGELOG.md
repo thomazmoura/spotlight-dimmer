@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **DPI scaling overlay mismatch**: Fixed overlay borders not matching window borders at non-100% display scaling (125%, 150%, etc.)
+  - Root cause: Application wasn't declaring DPI awareness to Windows, causing automatic coordinate scaling
+  - At 125% scale: Windows applied automatic scaling, but overlays used already-scaled coordinates → double-scaling
+  - Solution: Added `SetProcessDpiAwarenessContext` with `DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2` mode
+  - Per-Monitor V2 ensures application receives physical pixels directly from Windows APIs
+  - Overlays now align perfectly with window borders at all DPI scales (100%, 125%, 150%, 175%, 200%)
+  - Fix also enables per-monitor DPI awareness: each monitor can have different scaling independently
+  - DPI awareness set at application startup before any Windows API calls
+  - Technical reference: `src/main_new.rs:set_dpi_awareness()` and `src/main_new.rs:108`
+
+---
+
+### Corrigido
+- **Incompatibilidade de escala DPI de sobreposição**: Corrigidas bordas de sobreposição não correspondendo às bordas da janela em escalas de display não-100% (125%, 150%, etc.)
+  - Causa raiz: Aplicação não estava declarando consciência de DPI ao Windows, causando escalonamento automático de coordenadas
+  - Em escala de 125%: Windows aplicava escalonamento automático, mas sobreposições usavam coordenadas já escalonadas → escalonamento duplo
+  - Solução: Adicionado `SetProcessDpiAwarenessContext` com modo `DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2`
+  - Per-Monitor V2 garante que aplicação receba pixels físicos diretamente das APIs do Windows
+  - Sobreposições agora se alinham perfeitamente com bordas de janela em todas as escalas DPI (100%, 125%, 150%, 175%, 200%)
+  - Correção também habilita consciência DPI por monitor: cada monitor pode ter escalonamento diferente independentemente
+  - Consciência DPI definida no início da aplicação antes de quaisquer chamadas à API do Windows
+  - Referência técnica: `src/main_new.rs:set_dpi_awareness()` e `src/main_new.rs:108`
+
 ## [0.5.5-beta.2] - 2025-10-11
 
 ## [0.5.5-beta.1] - 2025-10-11
