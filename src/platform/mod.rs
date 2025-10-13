@@ -3,6 +3,7 @@
 pub mod windows;
 
 #[cfg(windows)]
+#[allow(unused_imports)] // Re-export all Windows platform items
 pub use windows::*;
 
 // Future Linux support

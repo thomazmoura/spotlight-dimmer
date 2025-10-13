@@ -51,20 +51,23 @@ fn hide_console_if_not_launched_from_terminal() {
 
 #[cfg(windows)]
 fn set_dpi_awareness() {
-    use winapi::um::winuser::SetProcessDpiAwarenessContext;
     use winapi::shared::windef::DPI_AWARENESS_CONTEXT;
+    use winapi::um::winuser::SetProcessDpiAwarenessContext;
 
     // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
     // This is the most advanced DPI awareness mode that ensures:
     // - Application receives physical pixels (not scaled)
     // - Per-monitor DPI awareness (each monitor can have different scaling)
     // - Automatic non-client area (title bar, borders) scaling
-    const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT = -4isize as DPI_AWARENESS_CONTEXT;
+    const DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2: DPI_AWARENESS_CONTEXT =
+        -4isize as DPI_AWARENESS_CONTEXT;
 
     unsafe {
         if SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == 0 {
             eprintln!("[Main] Warning: Failed to set DPI awareness context");
-            eprintln!("[Main] Overlays may not align correctly with windows at non-100% display scales");
+            eprintln!(
+                "[Main] Overlays may not align correctly with windows at non-100% display scales"
+            );
         } else {
             println!("[Main] DPI awareness set to Per-Monitor V2");
         }
@@ -170,6 +173,7 @@ fn main() {
         (cfg.overlay_color.clone(), cfg.active_overlay_color.clone())
     };
 
+    #[allow(clippy::arc_with_non_send_sync)] // Arc used only in single-threaded main loop
     let overlay_manager = Arc::new(Mutex::new(
         match OverlayManager::new(inactive_color, active_color) {
             Ok(manager) => manager,
@@ -488,16 +492,29 @@ fn main() {
             continue;
         }
 
-        // Check for display configuration changes
-        if let Ok(current_display_count) = display_manager.get_display_count() {
-            if current_display_count != last_display_count {
-                println!(
-                    "[Main] Display configuration changed: {} -> {} displays",
-                    last_display_count, current_display_count
-                );
+        // Phase 3: Event-driven display configuration change detection
+        // Two-stage stabilization: 500ms (fast) + 5000ms (safety net)
+        if let Some(is_final_check) = message_window::check_display_change_ready() {
+            let check_type = if is_final_check { "FINAL" } else { "FIRST" };
+            println!(
+                "[Phase3] Display stabilization {} check triggered",
+                check_type
+            );
 
-                // Get new display list
-                if let Ok(new_displays) = display_manager.get_displays() {
+            // Get new display list (now that Windows has finished reconfiguring)
+            if let Ok(new_displays) = display_manager.get_displays() {
+                let new_display_count = new_displays.len();
+
+                // Check if display count actually changed
+                let count_changed = new_display_count != last_display_count;
+
+                if count_changed || is_final_check {
+                    // Process if count changed OR this is the final check (force refresh)
+                    println!(
+                        "[Main] Display configuration changed: {} -> {} displays ({})",
+                        last_display_count, new_display_count, check_type
+                    );
+
                     let mut manager = overlay_manager.lock().unwrap();
 
                     if is_dimming_enabled {
@@ -521,15 +538,20 @@ fn main() {
                             );
                         }
                     }
-                }
 
-                last_display_count = current_display_count;
-                last_window_handle = None;
-                last_display_id = None;
-                last_window_rect = None;
-                last_rect_change_time = None;
-                is_dragging = false;
-                continue;
+                    last_display_count = new_display_count;
+                    last_window_handle = None;
+                    last_display_id = None;
+                    last_window_rect = None;
+                    last_rect_change_time = None;
+                    is_dragging = false;
+                    continue;
+                } else {
+                    println!(
+                        "[Phase3] Display count unchanged ({} displays) - waiting for final check",
+                        new_display_count
+                    );
+                }
             }
         }
 

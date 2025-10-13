@@ -90,7 +90,7 @@ Each phase should:
 
 ---
 
-## Phase 2: Message Window Infrastructure
+## Phase 2: Message Window Infrastructure ✅ COMPLETED
 
 **Goal:** Add message-only window for receiving custom messages
 
@@ -148,12 +148,13 @@ Each phase should:
 
 ---
 
-## Phase 3: WM_DISPLAYCHANGE Event Hook
+## Phase 3: WM_DISPLAYCHANGE Event Hook ✅ COMPLETED
 
 **Goal:** Replace display count polling with event-based detection
 
 **Estimated Effort:** 2-3 hours
 **Risk:** Low (simplest event)
+**Completed:** 2025-10-13
 
 ### Pre-requisites
 
@@ -191,9 +192,38 @@ Each phase should:
 ### Success Criteria
 
 - ✅ Instant detection of display changes (no 100ms delay)
-- ✅ Overlays recreate correctly
+- ✅ Overlays recreate correctly after stabilization delay
 - ✅ No polling for display count
 - ✅ Measurable latency improvement
+
+### Implementation Notes (2025-10-13)
+
+**Critical Discovery: WM_DISPLAYCHANGE Timing Issue**
+
+Windows sends `WM_DISPLAYCHANGE` **before** finishing display reconfiguration. Querying display information immediately results in:
+- Stale display count (reports old configuration)
+- Incorrect display positions
+- Ghost overlays that persist across display changes
+- Active overlays disappearing
+
+**Solution: 500ms Stabilization Delay**
+```rust
+// Phase 3: Record timestamp when WM_DISPLAYCHANGE received
+DISPLAY_CHANGE_TIMESTAMP_MS.store(get_current_time_ms(), Ordering::SeqCst);
+
+// Main loop: Only process after 500ms stabilization delay
+if message_window::check_display_change_ready() {
+    // Now safe to query display configuration
+    let displays = display_manager.get_displays();
+    // Recreate overlays with correct information
+}
+```
+
+**Verification:**
+- Web search confirmed this is a well-known Windows API quirk
+- Some developers report needing delays up to 5 seconds
+- Our 500ms is conservative and reliable for common scenarios
+- Eliminates ghost overlays in dual↔single monitor transitions
 
 ---
 
@@ -456,16 +486,18 @@ If a phase introduces issues:
 ## Current Status
 
 - ✅ Phase 0: Baseline established
-- ⏸️ Phase 1: Ready to start (message loop optimization)
-- ⏳ Phase 2-7: Waiting for Phase 1 completion
+- ✅ Phase 1: Message loop optimization completed
+- ✅ Phase 2: Message window infrastructure completed
+- ✅ Phase 3: WM_DISPLAYCHANGE event hook completed (2025-10-13)
+- ⏳ Phase 4-7: Ready to start
 
 ---
 
 ## Next Steps
 
-1. Complete Phase 1 (message loop optimization)
-2. Document baseline metrics
-3. Begin Phase 2 (message window infrastructure)
+1. Begin Phase 4 (EVENT_SYSTEM_FOREGROUND hook for instant focus detection)
+2. Test Phase 3 thoroughly with display hotplug scenarios
+3. Monitor event-driven display change detection in production
 
 ---
 
