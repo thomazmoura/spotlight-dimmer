@@ -203,7 +203,7 @@ dependencies = [
 
 [[package]]
 name = "spotlight-dimmer"
-version = "0.5.5-beta.4"
+version = "0.5.5-beta.5"
 dependencies = [
  "cargo-husky",
  "lazy_static",

@@ -555,7 +555,13 @@ fn main() {
             }
         }
 
-        // Get active window
+        // Phase 4: Check if foreground window changed (event-driven via EVENT_SYSTEM_FOREGROUND hook)
+        let foreground_changed = message_window::check_and_reset_foreground_changed();
+        if foreground_changed {
+            println!("[Phase4] Foreground window changed (event-driven detection)");
+        }
+
+        // Always get active window (needed for rect polling even if foreground didn't change)
         match window_manager.get_active_window() {
             Ok(active_window) => {
                 // Skip our own overlay windows
@@ -566,42 +572,46 @@ fn main() {
                     continue;
                 }
 
-                // Check if window or display changed
-                let window_changed = Some(active_window.handle) != last_window_handle;
-                let display_changed = last_display_id.as_ref() != Some(&active_window.display_id);
+                // Phase 4: Only process window/display changes when foreground actually changed
+                // This replaces the polling-based change detection
+                if foreground_changed {
+                    let window_changed = Some(active_window.handle) != last_window_handle;
+                    let display_changed =
+                        last_display_id.as_ref() != Some(&active_window.display_id);
 
-                if window_changed || display_changed {
-                    // Phase 1: Track activity for adaptive sleep
-                    last_activity_time = Instant::now();
+                    if window_changed || display_changed {
+                        // Phase 1: Track activity for adaptive sleep
+                        last_activity_time = Instant::now();
 
-                    if window_changed {
-                        println!(
-                            "[Main] Active window: {} ({})",
-                            active_window.window_title, active_window.process_name
-                        );
+                        if window_changed {
+                            println!(
+                                "[Main] Active window: {} ({})",
+                                active_window.window_title, active_window.process_name
+                            );
+                        }
+
+                        if display_changed {
+                            println!(
+                                "[Main] Window moved to display: {}",
+                                active_window.display_id
+                            );
+                        }
+
+                        // Update overlays for any window or display change
+                        let mut manager = overlay_manager.lock().unwrap();
+                        manager.update_visibility(&active_window.display_id);
+
+                        // Clear partial overlays when switching displays or windows
+                        if display_changed {
+                            manager.clear_all_partial_overlays();
+                            last_window_rect = None;
+                            last_rect_change_time = None;
+                            is_dragging = false;
+                        }
+
+                        last_window_handle = Some(active_window.handle);
+                        last_display_id = Some(active_window.display_id.clone());
                     }
-
-                    if display_changed {
-                        println!(
-                            "[Main] Window moved to display: {}",
-                            active_window.display_id
-                        );
-                    }
-
-                    // Update overlays for any window or display change
-                    let mut manager = overlay_manager.lock().unwrap();
-                    manager.update_visibility(&active_window.display_id);
-
-                    // Clear partial overlays when switching displays or windows
-                    if display_changed {
-                        manager.clear_all_partial_overlays();
-                        last_window_rect = None;
-                        last_rect_change_time = None;
-                        is_dragging = false;
-                    }
-
-                    last_window_handle = Some(active_window.handle);
-                    last_display_id = Some(active_window.display_id.clone());
                 }
 
                 // Handle partial dimming (check for window movement/resize)

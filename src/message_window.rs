@@ -9,11 +9,13 @@ use std::ptr;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use winapi::shared::minwindef::{LPARAM, LRESULT, UINT, WPARAM};
+use winapi::shared::windef::HWINEVENTHOOK;
 use winapi::shared::windef::HWND;
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassExW, WM_DISPLAYCHANGE,
-    WNDCLASSEXW, WS_EX_TOOLWINDOW, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, PostMessageW, RegisterClassExW,
+    SetWinEventHook, UnhookWinEvent, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT,
+    WM_DISPLAYCHANGE, WNDCLASSEXW, WS_EX_TOOLWINDOW, WS_POPUP,
 };
 
 // Custom message constants for event-driven architecture
@@ -23,9 +25,8 @@ pub const WM_USER_TEST: UINT = 0x0400; // WM_USER base
 // Phase 3: Display configuration change events
 pub const WM_USER_DISPLAY_CHANGED: UINT = 0x0401;
 
-// Reserved for future phases (commented out until needed)
 // Phase 4: Foreground window change events
-// const WM_USER_FOREGROUND_CHANGED: UINT = 0x0402;
+pub const WM_USER_FOREGROUND_CHANGED: UINT = 0x0402;
 
 // Phase 5: Window location/size change events
 // const WM_USER_WINDOW_MOVED: UINT = 0x0403;
@@ -80,6 +81,15 @@ static DISPLAY_CHANGE_TIMESTAMP_MS: AtomicU64 = AtomicU64::new(0);
 /// 0 = no change pending, 1 = first check completed, needs verification
 static DISPLAY_CHANGE_FIRST_CHECK_DONE: AtomicU32 = AtomicU32::new(0);
 
+/// Phase 4: Foreground window change flag for event-driven focus monitoring
+/// 0 = no change pending, 1 = foreground window changed
+static FOREGROUND_CHANGED_FLAG: AtomicU32 = AtomicU32::new(0);
+
+/// Global HWND for posting messages from event hook callbacks
+/// Stored as AtomicU64 since HWND is a pointer (usize on 64-bit systems)
+/// This allows the foreground_callback to post messages to the message window
+static GLOBAL_MESSAGE_WINDOW_HWND: AtomicU64 = AtomicU64::new(0);
+
 /// Two-stage stabilization delays:
 /// - First check at 500ms (fast path for normal scenarios)
 /// - Second check at 5000ms (safety net for complex reconfigurations)
@@ -131,6 +141,44 @@ pub fn check_display_change_ready() -> Option<bool> {
     }
 }
 
+/// Phase 4: Check if foreground window has changed
+/// Returns true if WM_USER_FOREGROUND_CHANGED was posted since last check
+/// Automatically resets the flag when called
+pub fn check_and_reset_foreground_changed() -> bool {
+    FOREGROUND_CHANGED_FLAG.swap(0, Ordering::SeqCst) == 1
+}
+
+/// Phase 4: Event hook callback for EVENT_SYSTEM_FOREGROUND
+///
+/// This callback is invoked by Windows in a separate thread whenever the foreground
+/// window changes. Since it runs in a different thread than our main loop, we cannot
+/// directly access Rust state or call GetForegroundWindow safely here.
+///
+/// Instead, we post a custom message (WM_USER_FOREGROUND_CHANGED) to the message window,
+/// which will be processed in the main thread where it's safe to call GetForegroundWindow
+/// and update overlays.
+///
+/// SAFETY: This callback runs in Windows thread context. Must only use thread-safe
+/// operations and marshal work to main thread via PostMessageW.
+unsafe extern "system" fn foreground_callback(
+    _h_win_event_hook: HWINEVENTHOOK,
+    _event: u32,
+    _hwnd: HWND,
+    _id_object: i32,
+    _id_child: i32,
+    _dw_event_thread: u32,
+    _dwms_event_time: u32,
+) {
+    // Load the global message window HWND
+    let hwnd = GLOBAL_MESSAGE_WINDOW_HWND.load(Ordering::SeqCst) as HWND;
+
+    if !hwnd.is_null() {
+        // Post custom message to main thread
+        // This is thread-safe and non-blocking
+        PostMessageW(hwnd, WM_USER_FOREGROUND_CHANGED, 0, 0);
+    }
+}
+
 /// Hidden top-level window for receiving Windows broadcast messages
 ///
 /// IMPORTANT: This is NOT a message-only window (HWND_MESSAGE) because message-only
@@ -145,6 +193,9 @@ pub fn check_display_change_ready() -> Option<bool> {
 /// The window is never shown and uses WS_EX_TOOLWINDOW to avoid taskbar/Alt+Tab.
 pub struct MessageWindow {
     hwnd: HWND,
+    /// Phase 4: Event hook handle for EVENT_SYSTEM_FOREGROUND
+    /// Must be unhooked in Drop to avoid leaks
+    foreground_hook: Option<HWINEVENTHOOK>,
 }
 
 impl MessageWindow {
@@ -222,7 +273,40 @@ impl MessageWindow {
                 hwnd
             );
 
-            Ok(Self { hwnd })
+            // Phase 4: Store HWND globally for event hook callback
+            GLOBAL_MESSAGE_WINDOW_HWND.store(hwnd as u64, Ordering::SeqCst);
+
+            // Phase 4: Install EVENT_SYSTEM_FOREGROUND hook
+            // This replaces polling GetForegroundWindow() with instant event notification
+            let foreground_hook = SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND,   // eventMin
+                EVENT_SYSTEM_FOREGROUND,   // eventMax
+                ptr::null_mut(),           // hmodWinEventProc (NULL = callback in this process)
+                Some(foreground_callback), // pfnWinEventProc
+                0,                         // idProcess (0 = all processes)
+                0,                         // idThread (0 = all threads)
+                WINEVENT_OUTOFCONTEXT,     // dwFlags (callback in separate thread)
+            );
+
+            if foreground_hook.is_null() {
+                let err = winapi::um::errhandlingapi::GetLastError();
+                println!(
+                    "[MessageWindow] Warning: Failed to install EVENT_SYSTEM_FOREGROUND hook: error {}",
+                    err
+                );
+                println!("[MessageWindow] Will fall back to polling for foreground window changes");
+            } else {
+                println!("[MessageWindow] EVENT_SYSTEM_FOREGROUND hook installed successfully");
+            }
+
+            Ok(Self {
+                hwnd,
+                foreground_hook: if foreground_hook.is_null() {
+                    None
+                } else {
+                    Some(foreground_hook)
+                },
+            })
         }
     }
 
@@ -240,6 +324,15 @@ impl MessageWindow {
 impl Drop for MessageWindow {
     fn drop(&mut self) {
         unsafe {
+            // Phase 4: Unhook EVENT_SYSTEM_FOREGROUND if it was installed
+            if let Some(hook) = self.foreground_hook {
+                UnhookWinEvent(hook);
+                println!("[MessageWindow] EVENT_SYSTEM_FOREGROUND hook removed");
+            }
+
+            // Clear global HWND
+            GLOBAL_MESSAGE_WINDOW_HWND.store(0, Ordering::SeqCst);
+
             DestroyWindow(self.hwnd);
             println!("[MessageWindow] Message window destroyed");
         }
@@ -285,8 +378,14 @@ unsafe extern "system" fn message_window_proc(
             println!("[MessageWindow] WM_USER_DISPLAY_CHANGED received");
             0 // Message handled
         }
+        WM_USER_FOREGROUND_CHANGED => {
+            // Phase 4: Foreground window changed (posted by EVENT_SYSTEM_FOREGROUND hook)
+            // Set flag for main loop to check and process
+            FOREGROUND_CHANGED_FLAG.store(1, Ordering::SeqCst);
+            println!("[MessageWindow] WM_USER_FOREGROUND_CHANGED received - foreground changed");
+            0 // Message handled
+        }
         // Future phases will add handlers here:
-        // WM_USER_FOREGROUND_CHANGED => { ... }
         // WM_USER_WINDOW_MOVED => { ... }
         // WM_USER_CONFIG_CHANGED => { ... }
         _ => {
