@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5-beta.3] - 2025-10-13
+
 ### Fixed
 - **DPI scaling overlay mismatch**: Fixed overlay borders not matching window borders at non-100% display scaling (125%, 150%, etc.)
   - Root cause: Application wasn't declaring DPI awareness to Windows, causing automatic coordinate scaling
