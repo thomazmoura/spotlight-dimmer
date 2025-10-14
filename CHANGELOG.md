@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- GitHub Actions release workflow now builds the NSIS installer via `cargo packager --release` and publishes it alongside the portable ZIP
+
+### Changed
+- Documentation (README.md, LEIAME.md, AGENTS.md, PUBLISHING.md) now recommends the Windows installer first and keeps npm/cargo methods as alternatives
+
+---
+
+### Adicionado
+- O workflow de release do GitHub Actions agora gera o instalador NSIS com `cargo packager --release` e o publica junto ao ZIP portátil
+
+### Alterado
+- Documentação (README.md, LEIAME.md, AGENTS.md, PUBLISHING.md) passa a recomendar primeiro o instalador para Windows e mantém npm/cargo como alternativas
+
 ## [0.5.6] - 2025-10-14
 
 ## [0.5.6] - 2025-10-14

@@ -23,7 +23,18 @@ It's intended to help people who use multiple monitores to focus and assist in q
 
 ## Installation
 
-### Option 1: Install via npm (Recommended)
+### Option 1: Windows Installer (Recommended)
+
+1. Download the latest `spotlight-dimmer-v*-installer.exe` from the [GitHub Releases page](https://github.com/thomazmoura/spotlight-dimmer/releases).
+2. Run the installer and follow the setup wizard. It will:
+   - Install the main app and configuration CLI
+   - Copy the required icon files automatically
+   - Create Start Menu entries (optional desktop shortcut)
+   - Add an uninstaller entry in Windows Settings > Apps
+
+**Uninstall:** Open Windows Settings → Apps → Installed apps, search for "Spotlight Dimmer", and click Uninstall (or run the uninstaller from the Start Menu folder).
+
+### Option 2: Install via npm (Alternative)
 
 The easiest way to install Spotlight Dimmer is through npm:
 
@@ -42,7 +53,7 @@ The package includes pre-built binaries - no compilation needed! After installat
 npm uninstall -g spotlight-dimmer
 ```
 
-### Option 2: Build from Source
+### Option 3: Build from Source (Cargo)
 
 If you prefer to build and install manually using Cargo:
 

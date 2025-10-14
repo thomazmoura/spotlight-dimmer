@@ -22,30 +22,38 @@ This creates two binaries in `target/release/`:
 
 ### Installation
 
-**Option 1: Using the installation script (Recommended - Windows)**
-```powershell
-.\install.ps1
-```
+**Option 1: Windows installer (Recommended)**
+- Download the latest `spotlight-dimmer-v*-installer.exe` from GitHub Releases
+- Run the installer to deploy both executables, required icons, Start Menu entries, and the uninstaller entry in Windows Settings
+- Uninstall via Windows Settings → Apps → Installed apps → Spotlight Dimmer (or the Start Menu uninstaller shortcut)
 
-**Option 2: Manual installation**
+**Option 2: Install via npm (Alternative)**
 ```bash
-# Install binaries
+npm install -g spotlight-dimmer
+```
+- Provides pre-built binaries without compiling locally
+- Works on Windows x64 with Node.js 14+
+- Adds `spotlight-dimmer` and `spotlight-dimmer-config` commands to the PATH
+
+**Option 3: Manual installation (Cargo)**
+```bash
+# Install binaries from source
 cargo install --path . --bin spotlight-dimmer --bin spotlight-dimmer-config
 
 # Copy icon files to the installation directory (required)
 cp spotlight-dimmer-icon.ico spotlight-dimmer-icon-paused.ico ~/.cargo/bin/
 ```
 
-Binaries will be installed to `~/.cargo/bin/` (ensure it's in your PATH).
-
-**Note**: The application requires both icon files to be present in the same directory as the executable:
-- `spotlight-dimmer-icon.ico` - Active state icon
-- `spotlight-dimmer-icon-paused.ico` - Paused state icon (shown when you double-click the tray icon)
+Alternatively, you can run the PowerShell helper script:
+```powershell
+.\install.ps1
+```
 
 **Icon Management:**
-- During development: The `build.rs` script automatically copies icons to `target/release/` or `target/debug/`
-- After `cargo install`: You must manually copy the icons to `~/.cargo/bin/` as shown above
-- Icon names are program-specific to avoid conflicts with other applications in `~/.cargo/bin/`
+- Both icon files must live alongside the executables (`spotlight-dimmer-icon.ico` and `spotlight-dimmer-icon-paused.ico`)
+- During development: `build.rs` copies icons to `target/release/` or `target/debug/`
+- After `cargo install`: copy icons to `~/.cargo/bin/` manually (or use `install.ps1`)
+- Icon names are unique to avoid conflicts with other binaries in `~/.cargo/bin/`
 
 ### Uninstallation
 

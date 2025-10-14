@@ -23,7 +23,37 @@ Spotlight Dimmer é um programa para Windows que escurece todos os monitores exc
 
 ## Instalação
 
-### A Partir do Código-Fonte
+### Opção 1: Instalador para Windows (Recomendado)
+
+1. Baixe o arquivo `spotlight-dimmer-v*-installer.exe` mais recente na [página de releases do GitHub](https://github.com/thomazmoura/spotlight-dimmer/releases).
+2. Execute o instalador e siga o assistente. Ele irá:
+   - Instalar o aplicativo principal e o CLI de configuração
+   - Copiar automaticamente os arquivos de ícone necessários
+   - Criar atalhos no Menu Iniciar (opcionalmente na área de trabalho)
+   - Adicionar uma entrada de desinstalação em Configurações do Windows > Aplicativos
+
+**Desinstalar:** Abra Configurações do Windows → Aplicativos → Aplicativos instalados, procure por "Spotlight Dimmer" e clique em Desinstalar (ou execute o desinstalador na pasta do Menu Iniciar).
+
+### Opção 2: Instalar via npm (Alternativa)
+
+A maneira mais simples de instalar o Spotlight Dimmer via linha de comando é usando npm:
+
+```bash
+npm install -g spotlight-dimmer
+```
+
+**Requisitos:**
+- Node.js 14 ou superior
+- Windows x64
+
+O pacote inclui binários pré-compilados - sem necessidade de compilação! Após a instalação, os comandos `spotlight-dimmer` e `spotlight-dimmer-config` ficarão disponíveis globalmente.
+
+**Desinstalar:**
+```bash
+npm uninstall -g spotlight-dimmer
+```
+
+### Opção 3: Construir a Partir do Código-Fonte
 
 ```bash
 cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config

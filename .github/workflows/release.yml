@@ -63,6 +63,52 @@ jobs:
       - name: Build binaries
         run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 
+      - name: Install cargo-packager
+        run: cargo install --locked cargo-packager
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build NSIS installer
+        run: cargo packager --release
+
+      - name: Prepare installer asset
+        shell: pwsh
+        run: |
+          $version = "${{ needs.changelog.outputs.version }}"
+          if (-not $version) {
+            $version = "${{ github.ref_name }}"
+            if ($version.StartsWith("v")) {
+              $version = $version.Substring(1)
+            }
+          }
+
+          $packagerDir = "target/release/packager"
+          if (-not (Test-Path $packagerDir)) {
+            Write-Host "::error::Packager output directory '$packagerDir' not found"
+            throw "Packager output missing"
+          }
+
+          $installer = Get-ChildItem -Path $packagerDir -Recurse -Filter '*.exe' | Where-Object { $_.Name -match 'setup\.exe$' } | Select-Object -First 1
+          if (-not $installer) {
+            Write-Host "::error::NSIS installer not found under target/release/packager"
+            Get-ChildItem -Path target/release/packager -Recurse -Force | Format-List FullName
+            throw "NSIS installer missing"
+          }
+
+          $assetName = "spotlight-dimmer-v$version-installer.exe"
+          Copy-Item -Path $installer.FullName -Destination $assetName -Force
+
+          "INSTALLER_ASSET_PATH=$assetName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ env.INSTALLER_ASSET_PATH }}
+          retention-days: 1
+
       - name: Upload binaries as artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -76,9 +122,16 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ needs.changelog.outputs.version }}"
+          if (-not $version) {
+            $version = "${{ github.ref_name }}"
+            if ($version.StartsWith("v")) {
+              $version = $version.Substring(1)
+            }
+          }
+
           $zipName = "spotlight-dimmer-v$version-windows-x86_64.zip"
           Compress-Archive -Path target/release/spotlight-dimmer.exe, target/release/spotlight-dimmer-config.exe, spotlight-dimmer-icon.ico, spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
-          echo "ASSET_PATH=$zipName" >> $env:GITHUB_ENV
+          "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -92,14 +145,11 @@ jobs:
 
             ## Installation
 
-            ### Direct Download (Recommended)
-            Download the ZIP file below and extract all files:
-            - `spotlight-dimmer.exe` - Main application (~561 KB)
-            - `spotlight-dimmer-config.exe` - Configuration tool (~627 KB)
-            - `spotlight-dimmer-icon.ico` - System tray icon (required)
-            - `spotlight-dimmer-icon-paused.ico` - Paused state icon (required)
+            ### Windows Installer (Recommended)
+            Download the `.exe` installer below and follow the setup wizard. It installs Spotlight Dimmer with Start Menu shortcuts, desktop integration, and an uninstaller entry in Windows Settings.
 
-            **Important**: Keep the icon files in the same directory as the executables for the system tray to work correctly.
+            ### Portable ZIP (Alternative)
+            Download the ZIP file if you prefer a portable installation. Extract all files to the same folder to keep the icons alongside the executables.
 
             ### Via Cargo
             ```bash
@@ -121,7 +171,9 @@ jobs:
             🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
           draft: false
           prerelease: false
-          files: ${{ env.ASSET_PATH }}
+          files: |
+            ${{ env.INSTALLER_ASSET_PATH }}
+            ${{ env.ZIP_ASSET_PATH }}
 
   publish-cargo:
     needs: [changelog, build-and-release]

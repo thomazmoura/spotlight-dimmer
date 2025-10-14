@@ -6,7 +6,7 @@ This guide explains how to publish Spotlight Dimmer to **both crates.io and npm*
 
 **Publishing is fully automated via GitHub Actions!** When you push a git tag (e.g., `v0.4.8`), the workflow automatically:
 1. Builds Windows binaries on GitHub Actions runners
-2. Creates GitHub Release with ZIP artifacts
+2. Creates GitHub Release with a Windows installer and portable ZIP artifacts
 3. **Publishes to crates.io** (for Rust users: `cargo install spotlight-dimmer`)
 4. **Publishes to npm** with pre-built binaries (for Node.js users: `npm install -g spotlight-dimmer`)
 5. Updates CHANGELOG.md
@@ -69,7 +69,7 @@ The `.github/workflows/release.yml` workflow handles everything:
 
 1. **Trigger**: Push a git tag matching `v*` (e.g., `v0.4.8`)
 2. **Build**: Compiles Windows binaries on GitHub Actions
-3. **Release**: Creates GitHub Release with ZIP artifact
+3. **Release**: Creates GitHub Release with NSIS installer and ZIP artifact
 4. **Cargo Publish**: Publishes to crates.io
 5. **npm Package**: Copies `.exe` and `.ico` files to `bin/`
 6. **npm Publish**: Publishes to npm with pre-built binaries
@@ -100,7 +100,7 @@ The `.github/workflows/release.yml` workflow handles everything:
 
 5. **Watch GitHub Actions**:
    - The workflow builds binaries
-   - Creates GitHub Release with ZIP
+   - Creates GitHub Release with Windows installer and ZIP
    - Publishes to **crates.io** automatically
    - Publishes to **npm** automatically
    - Updates CHANGELOG.md
@@ -157,20 +157,20 @@ The `/commit` slash command automatically increments the patch version.
 
 Spotlight Dimmer is available through **three automated channels**:
 
-1. **npm** (recommended): `npm install -g spotlight-dimmer`
+1. **GitHub Releases** (recommended): Direct download
+   - NSIS installer (`spotlight-dimmer-v*-installer.exe`) for guided setup
+   - Portable ZIP with binaries/icons for manual installs
+   - No package manager needed
+
+2. **npm**: `npm install -g spotlight-dimmer`
    - Pre-built binaries included
    - No Rust toolchain required
    - Instant installation
 
-2. **crates.io**: `cargo install spotlight-dimmer`
+3. **crates.io**: `cargo install spotlight-dimmer`
    - Builds from source
    - Requires Rust toolchain
    - For Rust developers
-
-3. **GitHub Releases**: Direct download
-   - Pre-built Windows binaries (ZIP)
-   - No package manager needed
-   - Manual installation
 
 **All three channels are automatically updated** when you push a git tag!
 
