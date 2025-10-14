@@ -1,6 +1,6 @@
 [package]
 name = "spotlight-dimmer"
-version = "0.5.5-beta.9"
+version = "0.5.5-beta.11"
 description = "A lightweight application that dims inactive displays to highlight the active one"
 authors = ["Spotlight Dimmer Team"]
 license = "MIT"
@@ -49,10 +49,42 @@ winapi = { version = "0.3", features = [
     "dwmapi",
     "fileapi",
     "synchapi",
-    "winbase"
+    "winbase",
+    "winerror"
 ] }
+
+[build-dependencies]
+winres = "0.1"
 
 [dev-dependencies]
 tempfile = "3.8"
 serde_json = "1.0"
 cargo-husky = { version = "1", features = ["user-hooks"] }
+
+[package.metadata.packager]
+product_name = "Spotlight Dimmer"
+identifier = "com.thomazmoura.spotlight-dimmer"
+publisher = "Thomaz Moura"
+authors = ["Thomaz Moura"]
+homepage = "https://github.com/thomazmoura/spotlight-dimmer"
+license_file = "LICENSE"
+
+icons = ["spotlight-dimmer-icon.ico"]
+
+binaries = [
+    { path = "spotlight-dimmer.exe", main = true },
+    { path = "spotlight-dimmer-config.exe", main = false }
+]
+
+resources = [
+    "spotlight-dimmer-icon.ico",
+    "spotlight-dimmer-icon-paused.ico",
+    "README.md",
+    "LICENSE"
+]
+
+[package.metadata.packager.nsis]
+installMode = "currentUser"
+compression = "lzma"
+languages = ["English"]
+displayLanguageSelector = false

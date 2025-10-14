@@ -28,15 +28,20 @@ use tray::TrayIcon;
 
 #[cfg(windows)]
 use winapi::um::winuser::{
-    DispatchMessageW, PeekMessageW, PostMessageW, TranslateMessage, MSG, PM_REMOVE,
+    DispatchMessageW, MessageBoxW, PeekMessageW, PostMessageW, TranslateMessage, MB_ICONWARNING,
+    MB_OK, MSG, PM_REMOVE,
 };
 
+#[cfg(windows)]
+use winapi::shared::winerror::ERROR_ALREADY_EXISTS;
+#[cfg(windows)]
+use winapi::um::errhandlingapi::GetLastError;
 #[cfg(windows)]
 use winapi::um::fileapi::{FindFirstChangeNotificationW, FindNextChangeNotification};
 #[cfg(windows)]
 use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
 #[cfg(windows)]
-use winapi::um::synchapi::WaitForSingleObject;
+use winapi::um::synchapi::{CreateMutexW, WaitForSingleObject};
 #[cfg(windows)]
 use winapi::um::winbase::WAIT_OBJECT_0;
 #[cfg(windows)]
@@ -82,6 +87,44 @@ fn setup_config_file_watching() -> Option<HANDLE> {
             config_dir
         );
         Some(handle)
+    }
+}
+
+#[cfg(windows)]
+/// Check if another instance is already running using a named mutex
+/// Returns true if this is the first/only instance, false otherwise
+/// The mutex handle is intentionally leaked to keep it alive for the process lifetime
+fn ensure_single_instance() -> bool {
+    unsafe {
+        // Create a unique mutex name for this application
+        let mutex_name = U16CString::from_str("Global\\SpotlightDimmerSingleInstanceMutex")
+            .expect("Failed to create mutex name");
+
+        // Try to create the mutex
+        let mutex_handle = CreateMutexW(
+            ptr::null_mut(), // Default security attributes
+            0,               // Not initially owned
+            mutex_name.as_ptr(),
+        );
+
+        if mutex_handle.is_null() {
+            eprintln!("[Main] Failed to create single-instance mutex");
+            return true; // Allow running in case of error
+        }
+
+        // Check if the mutex already existed (another instance is running)
+        let last_error = GetLastError();
+        if last_error == ERROR_ALREADY_EXISTS {
+            eprintln!("[Main] Another instance of Spotlight Dimmer is already running");
+            eprintln!("[Main] Only one instance can run at a time to prevent overlay conflicts");
+            CloseHandle(mutex_handle);
+            return false;
+        }
+
+        // This is the first instance - mutex handle is intentionally leaked
+        // to keep it alive for the process lifetime
+        println!("[Main] Single-instance mutex created successfully");
+        true
     }
 }
 
@@ -166,6 +209,24 @@ fn main() {
 
     // Hide console if not launched from terminal
     hide_console_if_not_launched_from_terminal();
+
+    // Check for single instance - exit if another instance is already running
+    if !ensure_single_instance() {
+        // Show message box to inform user (since console might be hidden)
+        let title = U16CString::from_str("Spotlight Dimmer").unwrap();
+        let message = U16CString::from_str(
+            "Spotlight Dimmer is already running.\n\nOnly one instance can run at a time to prevent overlay conflicts.\n\nCheck your system tray for the running instance."
+        ).unwrap();
+        unsafe {
+            MessageBoxW(
+                ptr::null_mut(),
+                message.as_ptr(),
+                title.as_ptr(),
+                MB_OK | MB_ICONWARNING,
+            );
+        }
+        return;
+    }
 
     println!("[Main] Spotlight Dimmer starting...");
 

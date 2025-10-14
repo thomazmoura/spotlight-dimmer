@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.5-beta.9] - 2025-10-14
+### Added
+- **Professional NSIS installer for Windows**: Proper installation experience with Start Menu integration and uninstaller
+  - Per-user installation requiring no administrator privileges
+  - Start Menu shortcuts automatically created in "Spotlight Dimmer" folder
+  - Application appears in Windows Settings > Apps & features for easy uninstallation
+  - Desktop shortcut option during installation
+  - Proper Windows Search integration - users can find "Spotlight Dimmer" by typing in Start Menu
+  - Embedded application icon in executables for professional appearance in shortcuts, taskbar, and Add/Remove Programs
+  - 1.7 MB compressed installer with LZMA compression
+  - Built with cargo-packager for modern, automated packaging
+  - WinGet compatible installer format for future Windows Package Manager submission
 
 ### Improved
+- **Single-instance enforcement**: Prevents multiple instances from running simultaneously
+  - Uses Windows named mutex (`Global\\SpotlightDimmerSingleInstanceMutex`) for reliable instance detection
+  - Shows friendly message box if user tries to launch second instance
+  - Prevents overlay conflicts and resource wastage from duplicate processes
+  - Works across all launch methods (Start Menu, desktop shortcut, direct executable)
+  - Mutex automatically released when application exits
+
 - **Event-driven config file watching**: Configuration file changes now detected instantly via Windows file system notifications
   - Replaced 2-second polling with Windows `FindFirstChangeNotificationW` API for instant detection
   - Config changes applied immediately when file is modified (no polling delay)
@@ -21,7 +38,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### Adicionado
+- **Instalador NSIS profissional para Windows**: Experiência de instalação adequada com integração ao Menu Iniciar e desinstalador
+  - Instalação por usuário sem necessidade de privilégios de administrador
+  - Atalhos do Menu Iniciar criados automaticamente na pasta "Spotlight Dimmer"
+  - Aplicação aparece em Configurações do Windows > Aplicativos e recursos para fácil desinstalação
+  - Opção de atalho na área de trabalho durante instalação
+  - Integração adequada com Pesquisa do Windows - usuários podem encontrar "Spotlight Dimmer" digitando no Menu Iniciar
+  - Ícone da aplicação embutido nos executáveis para aparência profissional em atalhos, barra de tarefas e Adicionar/Remover Programas
+  - Instalador comprimido de 1.7 MB com compressão LZMA
+  - Construído com cargo-packager para empacotamento moderno e automatizado
+  - Formato de instalador compatível com WinGet para futura submissão ao Windows Package Manager
+
 ### Melhorado
+- **Aplicação de instância única**: Previne múltiplas instâncias de executarem simultaneamente
+  - Usa mutex nomeado do Windows (`Global\\SpotlightDimmerSingleInstanceMutex`) para detecção confiável de instância
+  - Mostra caixa de mensagem amigável se usuário tentar iniciar segunda instância
+  - Previne conflitos de sobreposição e desperdício de recursos de processos duplicados
+  - Funciona em todos os métodos de inicialização (Menu Iniciar, atalho da área de trabalho, executável direto)
+  - Mutex automaticamente liberado quando aplicação sai
+
 - **Observação de arquivo de configuração orientada a eventos**: Mudanças no arquivo de configuração agora detectadas instantaneamente via notificações do sistema de arquivos do Windows
   - Substituído polling de 2 segundos pela API `FindFirstChangeNotificationW` do Windows para detecção instantânea
   - Mudanças de configuração aplicadas imediatamente quando arquivo é modificado (sem atraso de polling)

@@ -3,7 +3,56 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
+    // Only embed icon on Windows builds
+    #[cfg(windows)]
+    {
+        embed_icon_resource();
+    }
+
     copy_icon_files();
+}
+
+#[cfg(windows)]
+fn embed_icon_resource() {
+    // Embed the icon into the executable using winres
+    let mut res = winres::WindowsResource::new();
+    res.set_icon("spotlight-dimmer-icon.ico");
+
+    // Set application manifest for proper DPI awareness and Windows 10/11 compatibility
+    res.set_manifest(r#"
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+    version="1.0.0.0"
+    processorArchitecture="*"
+    name="SpotlightDimmer"
+    type="win32"
+  />
+  <description>Spotlight Dimmer - Focus by dimming inactive displays</description>
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 and Windows 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+    </application>
+  </compatibility>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+    </windowsSettings>
+  </application>
+</assembly>
+"#);
+
+    if let Err(e) = res.compile() {
+        eprintln!("Failed to compile Windows resources: {}", e);
+    }
 }
 
 fn copy_icon_files() {
