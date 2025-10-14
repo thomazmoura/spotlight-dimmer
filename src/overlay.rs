@@ -698,6 +698,331 @@ impl OverlayManager {
         self.partial_overlays.clear();
         println!("[Overlay] Cleared all partial overlays");
     }
+
+    /// Update both partial overlays AND active overlay atomically (all at once)
+    /// This prevents visual fragmentation by ensuring all overlays are repositioned simultaneously
+    /// Returns true if overlays were successfully updated, false if they need to be recreated
+    pub fn update_partial_and_active_overlays_atomic(
+        &self,
+        display_id: &str,
+        window_rect: RECT,
+        display: &DisplayInfo,
+        update_active: bool,
+        is_maximized: bool,
+    ) -> Result<bool, String> {
+        // Check if we have existing overlays for this display
+        let existing_overlays = match self.partial_overlays.get(display_id) {
+            Some(overlays) => overlays,
+            None => return Ok(false), // No existing overlays, need to create
+        };
+
+        // Define tolerance for edge detection (5 pixels)
+        const EDGE_TOLERANCE: i32 = 5;
+
+        // Calculate display bounds
+        let display_left = display.x;
+        let display_top = display.y;
+        let display_right = display.x + display.width;
+        let display_bottom = display.y + display.height;
+
+        // Check if window is touching each edge
+        let touches_left = (window_rect.left - display_left).abs() <= EDGE_TOLERANCE;
+        let touches_right = (window_rect.right - display_right).abs() <= EDGE_TOLERANCE;
+        let touches_top = (window_rect.top - display_top).abs() <= EDGE_TOLERANCE;
+        let touches_bottom = (window_rect.bottom - display_bottom).abs() <= EDGE_TOLERANCE;
+
+        // Calculate which overlays we need (Top, Bottom, Left, Right)
+        let mut needed_overlays = Vec::new();
+
+        // Top overlay
+        if !touches_top && window_rect.top > display_top {
+            let height = window_rect.top - display_top;
+            if height > 0 {
+                needed_overlays.push((display_left, display_top, display.width, height));
+            }
+        }
+
+        // Bottom overlay
+        if !touches_bottom && window_rect.bottom < display_bottom {
+            let height = display_bottom - window_rect.bottom;
+            if height > 0 {
+                needed_overlays.push((display_left, window_rect.bottom, display.width, height));
+            }
+        }
+
+        // Calculate vertical bounds for left/right overlays
+        let vertical_start = window_rect.top;
+        let vertical_end = window_rect.bottom;
+        let vertical_height = vertical_end - vertical_start;
+
+        // Left overlay
+        if !touches_left && window_rect.left > display_left && vertical_height > 0 {
+            let width = window_rect.left - display_left;
+            if width > 0 {
+                needed_overlays.push((display_left, vertical_start, width, vertical_height));
+            }
+        }
+
+        // Right overlay
+        if !touches_right && window_rect.right < display_right && vertical_height > 0 {
+            let width = display_right - window_rect.right;
+            if width > 0 {
+                needed_overlays.push((window_rect.right, vertical_start, width, vertical_height));
+            }
+        }
+
+        // If the number of needed overlays doesn't match existing overlays, recreate
+        if needed_overlays.len() != existing_overlays.len() {
+            return Ok(false);
+        }
+
+        // Get active overlay if we need to update it
+        let active_hwnd = if update_active {
+            self.active_overlays.get(display_id).copied()
+        } else {
+            None
+        };
+
+        // Update all overlays atomically using deferred window positioning
+        unsafe {
+            use winapi::um::winuser::{
+                BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, SWP_NOACTIVATE,
+                SWP_NOREDRAW, SWP_NOZORDER,
+            };
+
+            // Calculate total number of windows to update
+            let total_windows = existing_overlays.len() + if active_hwnd.is_some() { 1 } else { 0 };
+
+            // Begin deferred window positioning for batch update
+            let hdwp = BeginDeferWindowPos(total_windows as i32);
+            if hdwp.is_null() {
+                eprintln!("[Overlay] Warning: BeginDeferWindowPos failed");
+                return Ok(false);
+            }
+
+            let mut current_hdwp = hdwp;
+
+            // Defer each partial overlay position AND size change
+            // SWP_NOREDRAW prevents individual redraws - all windows will redraw together after EndDeferWindowPos
+            for (i, &hwnd) in existing_overlays.iter().enumerate() {
+                if i >= needed_overlays.len() {
+                    break;
+                }
+
+                let (x, y, width, height) = needed_overlays[i];
+
+                current_hdwp = DeferWindowPos(
+                    current_hdwp,
+                    hwnd,
+                    ptr::null_mut(),
+                    x,
+                    y,
+                    width,
+                    height,
+                    SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW,
+                );
+
+                if current_hdwp.is_null() {
+                    let err = winapi::um::errhandlingapi::GetLastError();
+                    eprintln!(
+                        "[Overlay] Warning: DeferWindowPos failed for partial overlay: error {}",
+                        err
+                    );
+                    return Ok(false);
+                }
+            }
+
+            // Defer active overlay position AND size change
+            if let Some(hwnd) = active_hwnd {
+                let (x, y, width, height) = if is_maximized {
+                    // Restore to full display size
+                    (display.x, display.y, display.width, display.height)
+                } else {
+                    // Match window size
+                    let w = window_rect.right - window_rect.left;
+                    let h = window_rect.bottom - window_rect.top;
+                    (window_rect.left, window_rect.top, w, h)
+                };
+
+                current_hdwp = DeferWindowPos(
+                    current_hdwp,
+                    hwnd,
+                    ptr::null_mut(),
+                    x,
+                    y,
+                    width,
+                    height,
+                    SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW,
+                );
+
+                if current_hdwp.is_null() {
+                    let err = winapi::um::errhandlingapi::GetLastError();
+                    eprintln!(
+                        "[Overlay] Warning: DeferWindowPos failed for active overlay: error {}",
+                        err
+                    );
+                    return Ok(false);
+                }
+            }
+
+            // Apply all deferred window positions atomically
+            // This will trigger a single redraw of all windows simultaneously
+            if EndDeferWindowPos(current_hdwp) == 0 {
+                let err = winapi::um::errhandlingapi::GetLastError();
+                eprintln!("[Overlay] Warning: EndDeferWindowPos failed: error {}", err);
+                return Ok(false);
+            }
+        }
+
+        Ok(true) // Successfully updated
+    }
+
+    /// Update (reposition/resize) existing partial overlays without recreating them
+    /// Returns true if overlays were successfully updated, false if they need to be recreated
+    pub fn update_partial_overlays(
+        &self,
+        display_id: &str,
+        window_rect: RECT,
+        display: &DisplayInfo,
+    ) -> Result<bool, String> {
+        // Check if we have existing overlays for this display
+        let existing_overlays = match self.partial_overlays.get(display_id) {
+            Some(overlays) => overlays,
+            None => return Ok(false), // No existing overlays, need to create
+        };
+
+        // Define tolerance for edge detection (5 pixels)
+        const EDGE_TOLERANCE: i32 = 5;
+
+        // Calculate display bounds
+        let display_left = display.x;
+        let display_top = display.y;
+        let display_right = display.x + display.width;
+        let display_bottom = display.y + display.height;
+
+        // Check if window is touching each edge
+        let touches_left = (window_rect.left - display_left).abs() <= EDGE_TOLERANCE;
+        let touches_right = (window_rect.right - display_right).abs() <= EDGE_TOLERANCE;
+        let touches_top = (window_rect.top - display_top).abs() <= EDGE_TOLERANCE;
+        let touches_bottom = (window_rect.bottom - display_bottom).abs() <= EDGE_TOLERANCE;
+
+        // Calculate which overlays we need (Top, Bottom, Left, Right)
+        let mut needed_overlays = Vec::new();
+
+        // Top overlay
+        if !touches_top && window_rect.top > display_top {
+            let height = window_rect.top - display_top;
+            if height > 0 {
+                needed_overlays.push(("Top", display_left, display_top, display.width, height));
+            }
+        }
+
+        // Bottom overlay
+        if !touches_bottom && window_rect.bottom < display_bottom {
+            let height = display_bottom - window_rect.bottom;
+            if height > 0 {
+                needed_overlays.push((
+                    "Bottom",
+                    display_left,
+                    window_rect.bottom,
+                    display.width,
+                    height,
+                ));
+            }
+        }
+
+        // Calculate vertical bounds for left/right overlays
+        let vertical_start = window_rect.top;
+        let vertical_end = window_rect.bottom;
+        let vertical_height = vertical_end - vertical_start;
+
+        // Left overlay
+        if !touches_left && window_rect.left > display_left && vertical_height > 0 {
+            let width = window_rect.left - display_left;
+            if width > 0 {
+                needed_overlays.push((
+                    "Left",
+                    display_left,
+                    vertical_start,
+                    width,
+                    vertical_height,
+                ));
+            }
+        }
+
+        // Right overlay
+        if !touches_right && window_rect.right < display_right && vertical_height > 0 {
+            let width = display_right - window_rect.right;
+            if width > 0 {
+                needed_overlays.push((
+                    "Right",
+                    window_rect.right,
+                    vertical_start,
+                    width,
+                    vertical_height,
+                ));
+            }
+        }
+
+        // If the number of needed overlays doesn't match existing overlays, recreate
+        if needed_overlays.len() != existing_overlays.len() {
+            return Ok(false);
+        }
+
+        // Update all overlays atomically using deferred window positioning
+        // This ensures all overlays are repositioned and rendered simultaneously
+        unsafe {
+            use winapi::um::winuser::{
+                BeginDeferWindowPos, DeferWindowPos, EndDeferWindowPos, SWP_NOACTIVATE,
+                SWP_NOREDRAW, SWP_NOZORDER,
+            };
+
+            // Begin deferred window positioning for batch update
+            let hdwp = BeginDeferWindowPos(existing_overlays.len() as i32);
+            if hdwp.is_null() {
+                eprintln!("[Overlay] Warning: BeginDeferWindowPos failed");
+                return Ok(false);
+            }
+
+            let mut current_hdwp = hdwp;
+
+            // Defer each window position AND size change
+            // SWP_NOREDRAW prevents individual redraws - all windows will redraw together after EndDeferWindowPos
+            for (i, &hwnd) in existing_overlays.iter().enumerate() {
+                if i >= needed_overlays.len() {
+                    break;
+                }
+
+                let (_side, x, y, width, height) = needed_overlays[i];
+
+                current_hdwp = DeferWindowPos(
+                    current_hdwp,
+                    hwnd,
+                    ptr::null_mut(),
+                    x,
+                    y,
+                    width,
+                    height,
+                    SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW,
+                );
+
+                if current_hdwp.is_null() {
+                    let err = winapi::um::errhandlingapi::GetLastError();
+                    eprintln!("[Overlay] Warning: DeferWindowPos failed: error {}", err);
+                    return Ok(false);
+                }
+            }
+
+            // Apply all deferred window positions atomically
+            if EndDeferWindowPos(current_hdwp) == 0 {
+                let err = winapi::um::errhandlingapi::GetLastError();
+                eprintln!("[Overlay] Warning: EndDeferWindowPos failed: error {}", err);
+                return Ok(false);
+            }
+        }
+
+        Ok(true) // Successfully updated
+    }
 }
 
 impl Drop for OverlayManager {

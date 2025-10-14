@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Atomic overlay updates for smooth visual rendering**: All overlays now update simultaneously without visual fragmentation
+  - Implemented Windows deferred positioning API (`BeginDeferWindowPos` / `DeferWindowPos` / `EndDeferWindowPos`)
+  - All partial overlays (top, bottom, left, right) AND active overlay update in a single atomic operation
+  - Windows renders all overlay changes in a single frame, eliminating visual "tearing" or desynchronization
+  - No more visible lag between individual overlay movements during window dragging
+  - Significantly improved visual smoothness and professional appearance
+  - Technical: Batch updates reduce Windows message queue pressure and improve rendering consistency
+
+- **Partial dimming performance optimization**: Overlays now reposition instead of recreate during window movement
+  - Previously: Destroyed and recreated all partial overlays on every position change (inefficient)
+  - Now: Reuses existing overlay windows and repositions them via `SetWindowPos()` (much more efficient)
+  - Overlays only recreate when topology changes (e.g., window touches screen edge, display change)
+  - Significantly reduced CPU usage and eliminated visual stuttering during window dragging
+  - Smoother, more fluid overlay animations when moving or resizing windows
+  
+- **Partial dimming responsiveness**: Removed drag detection to update overlays immediately on window position or size changes
+  - Eliminated 150ms rapid change detection and 200ms stability threshold that delayed overlay updates
+  - Overlays now resize and reposition instantly when windows are moved or resized (no waiting for drag to complete)
+  - Removed ~100 lines of complex drag detection logic including timing variables and state tracking
+  - Simpler, more responsive user experience with instant visual feedback during window manipulation
+  - Performance improvement: no timing calculations or state checks on every frame
+
+---
+
+### Melhorado
+- **Atualizações atômicas de sobreposição para renderização visual suave**: Todas as sobreposições agora atualizam simultaneamente sem fragmentação visual
+  - Implementada API de posicionamento diferido do Windows (`BeginDeferWindowPos` / `DeferWindowPos` / `EndDeferWindowPos`)
+  - Todas as sobreposições parciais (topo, fundo, esquerda, direita) E sobreposição ativa atualizam em uma única operação atômica
+  - Windows renderiza todas as mudanças de sobreposição em um único quadro, eliminando "tearing" visual ou dessincronização
+  - Sem mais atraso visível entre movimentos individuais de sobreposição durante arrasto de janela
+  - Suavidade visual significativamente melhorada e aparência profissional
+  - Técnico: Atualizações em lote reduzem pressão na fila de mensagens do Windows e melhoram consistência de renderização
+
+- **Otimização de desempenho do escurecimento parcial**: Sobreposições agora reposicionam ao invés de recriar durante movimento de janela
+  - Anteriormente: Destruía e recriava todas as sobreposições parciais em cada mudança de posição (ineficiente)
+  - Agora: Reutiliza janelas de sobreposição existentes e as reposiciona via `SetWindowPos()` (muito mais eficiente)
+  - Sobreposições só são recriadas quando a topologia muda (ex: janela toca borda da tela, mudança de display)
+  - Redução significativa no uso de CPU e eliminação de engasgos visuais durante arrasto de janelas
+  - Animações de sobreposição mais suaves e fluidas ao mover ou redimensionar janelas
+
+- **Responsividade do escurecimento parcial**: Removida detecção de arrasto para atualizar sobreposições imediatamente em mudanças de posição ou tamanho da janela
+  - Eliminado detecção de mudança rápida de 150ms e limiar de estabilidade de 200ms que atrasavam atualizações de sobreposição
+  - Sobreposições agora redimensionam e reposicionam instantaneamente quando janelas são movidas ou redimensionadas (sem esperar conclusão do arrasto)
+  - Removidas ~100 linhas de lógica complexa de detecção de arrasto incluindo variáveis de tempo e rastreamento de estado
+  - Experiência de usuário mais simples e responsiva com feedback visual instantâneo durante manipulação de janelas
+  - Melhoria de desempenho: sem cálculos de tempo ou verificações de estado a cada quadro
+
 ## [0.5.5-beta.5] - 2025-10-13
 
 ## [0.5.5-beta.4] - 2025-10-13

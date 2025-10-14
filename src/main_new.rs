@@ -218,8 +218,6 @@ fn main() {
     let mut last_display_count = displays.len();
     let mut last_paused = pause_flag.load(Ordering::SeqCst);
     let mut last_window_rect: Option<winapi::shared::windef::RECT> = None;
-    let mut last_rect_change_time: Option<std::time::Instant> = None;
-    let mut is_dragging = false;
 
     // Track config file modification time for periodic reloading
     let mut last_config_modified = Config::last_modified();
@@ -472,7 +470,6 @@ fn main() {
                     let mut manager = overlay_manager.lock().unwrap();
                     manager.clear_all_partial_overlays();
                     last_window_rect = None;
-                    is_dragging = false;
                 }
             }
         }
@@ -543,8 +540,6 @@ fn main() {
                     last_window_handle = None;
                     last_display_id = None;
                     last_window_rect = None;
-                    last_rect_change_time = None;
-                    is_dragging = false;
                     continue;
                 } else {
                     println!(
@@ -605,8 +600,6 @@ fn main() {
                         if display_changed {
                             manager.clear_all_partial_overlays();
                             last_window_rect = None;
-                            last_rect_change_time = None;
-                            is_dragging = false;
                         }
 
                         last_window_handle = Some(active_window.handle);
@@ -628,43 +621,57 @@ fn main() {
                         };
 
                         if rect_changed {
-                            let now = std::time::Instant::now();
-
-                            // Detect drag: if rect changed recently (< 150ms ago), we're probably dragging
-                            let is_rapid_change = if let Some(last_change) = last_rect_change_time {
-                                now.duration_since(last_change).as_millis() < 150
-                            } else {
-                                false
-                            };
-
-                            if is_rapid_change && !is_dragging {
-                                // Start of drag detected
-                                is_dragging = true;
-                                println!("[Main] Drag detected - hiding partial overlays");
+                            // Update overlays immediately when rect changes
+                            if let Ok(display_info) =
+                                window_manager.get_window_display(active_window.handle)
+                            {
                                 let mut manager = overlay_manager.lock().unwrap();
-                                manager.clear_all_partial_overlays();
 
-                                // Restore active overlay to full screen during drag
-                                if is_active_overlay_enabled {
-                                    if let Ok(display_info) =
-                                        window_manager.get_window_display(active_window.handle)
-                                    {
-                                        if let Err(e) = manager.restore_active_overlay_full_size(
-                                            &active_window.display_id,
-                                            &display_info,
-                                        ) {
-                                            eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
+                                // Check if window is maximized (needed for atomic update)
+                                let is_maximized = window_manager
+                                    .is_window_maximized(active_window.handle)
+                                    .unwrap_or(false);
+
+                                // Try atomic update of both partial and active overlays (more efficient and no visual fragmentation)
+                                let updated = if is_active_overlay_enabled {
+                                    match manager.update_partial_and_active_overlays_atomic(
+                                        &active_window.display_id,
+                                        current_rect,
+                                        &display_info,
+                                        true, // Update active overlay
+                                        is_maximized,
+                                    ) {
+                                        Ok(true) => true,   // Successfully updated all overlays atomically
+                                        Ok(false) => false, // Need to recreate (topology changed)
+                                        Err(e) => {
+                                            eprintln!(
+                                                "[Main] Failed to update overlays atomically: {}",
+                                                e
+                                            );
+                                            false // Need to recreate on error
                                         }
                                     }
-                                }
-                            } else if is_dragging {
-                                // Still dragging, keep overlays hidden
-                            } else {
-                                // Not dragging, normal update
-                                if let Ok(display_info) =
-                                    window_manager.get_window_display(active_window.handle)
-                                {
-                                    let mut manager = overlay_manager.lock().unwrap();
+                                } else {
+                                    // No active overlay, just update partial overlays
+                                    match manager.update_partial_overlays(
+                                        &active_window.display_id,
+                                        current_rect,
+                                        &display_info,
+                                    ) {
+                                        Ok(true) => true,
+                                        Ok(false) => false,
+                                        Err(e) => {
+                                            eprintln!(
+                                                "[Main] Failed to update partial overlays: {}",
+                                                e
+                                            );
+                                            false
+                                        }
+                                    }
+                                };
+
+                                // If atomic update failed or overlays don't exist, recreate them
+                                if !updated {
                                     if let Err(e) = manager.create_partial_overlays(
                                         &active_window.display_id,
                                         current_rect,
@@ -676,93 +683,34 @@ fn main() {
                                         );
                                     }
 
-                                    // Resize active overlay to match window if enabled and not maximized
+                                    // Resize active overlay separately if needed
                                     if is_active_overlay_enabled {
-                                        if let Ok(is_maximized) =
-                                            window_manager.is_window_maximized(active_window.handle)
-                                        {
-                                            if !is_maximized {
-                                                if let Err(e) = manager.resize_active_overlay(
-                                                    &active_window.display_id,
-                                                    current_rect,
-                                                ) {
-                                                    eprintln!("[Main] Failed to resize active overlay: {}", e);
-                                                }
-                                            } else {
-                                                // Window is maximized, restore active overlay to full display size
-                                                if let Err(e) = manager
-                                                    .restore_active_overlay_full_size(
-                                                        &active_window.display_id,
-                                                        &display_info,
-                                                    )
-                                                {
-                                                    eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            last_rect_change_time = Some(now);
-                            last_window_rect = Some(current_rect);
-                        } else if is_dragging {
-                            // Rect hasn't changed - check if drag ended (stable for 200ms)
-                            if let Some(last_change) = last_rect_change_time {
-                                let now = std::time::Instant::now();
-                                if now.duration_since(last_change).as_millis() >= 200 {
-                                    // Drag ended
-                                    is_dragging = false;
-                                    println!("[Main] Drag ended - recreating partial overlays");
-
-                                    // Recreate overlays at final position
-                                    if let Some(final_rect) = last_window_rect {
-                                        if let Ok(display_info) =
-                                            window_manager.get_window_display(active_window.handle)
-                                        {
-                                            let mut manager = overlay_manager.lock().unwrap();
-                                            if let Err(e) = manager.create_partial_overlays(
+                                        if !is_maximized {
+                                            if let Err(e) = manager.resize_active_overlay(
                                                 &active_window.display_id,
-                                                final_rect,
-                                                &display_info,
+                                                current_rect,
                                             ) {
                                                 eprintln!(
-                                                    "[Main] Failed to create partial overlays: {}",
+                                                    "[Main] Failed to resize active overlay: {}",
                                                     e
                                                 );
                                             }
-
-                                            // Resize active overlay to match final window position if enabled and not maximized
-                                            if is_active_overlay_enabled {
-                                                if let Ok(is_maximized) = window_manager
-                                                    .is_window_maximized(active_window.handle)
-                                                {
-                                                    if !is_maximized {
-                                                        if let Err(e) = manager
-                                                            .resize_active_overlay(
-                                                                &active_window.display_id,
-                                                                final_rect,
-                                                            )
-                                                        {
-                                                            eprintln!("[Main] Failed to resize active overlay: {}", e);
-                                                        }
-                                                    } else {
-                                                        // Window is maximized, restore active overlay to full display size
-                                                        if let Err(e) = manager
-                                                            .restore_active_overlay_full_size(
-                                                                &active_window.display_id,
-                                                                &display_info,
-                                                            )
-                                                        {
-                                                            eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
-                                                        }
-                                                    }
-                                                }
+                                        } else {
+                                            // Window is maximized, restore active overlay to full display size
+                                            if let Err(e) = manager
+                                                .restore_active_overlay_full_size(
+                                                    &active_window.display_id,
+                                                    &display_info,
+                                                )
+                                            {
+                                                eprintln!("[Main] Failed to restore active overlay to full size: {}", e);
                                             }
                                         }
                                     }
                                 }
                             }
+
+                            last_window_rect = Some(current_rect);
                         }
                     }
                 } else if !is_partial_dimming_enabled && last_window_rect.is_some() {
@@ -770,7 +718,6 @@ fn main() {
                     let mut manager = overlay_manager.lock().unwrap();
                     manager.clear_all_partial_overlays();
                     last_window_rect = None;
-                    is_dragging = false;
 
                     // Restore active overlay to full size when partial dimming is disabled
                     if is_active_overlay_enabled {
@@ -796,8 +743,6 @@ fn main() {
                     last_window_handle = None;
                     last_display_id = None;
                     last_window_rect = None;
-                    last_rect_change_time = None;
-                    is_dragging = false;
                     // Clear partial overlays when no active window
                     if is_partial_dimming_enabled {
                         let mut manager = overlay_manager.lock().unwrap();
