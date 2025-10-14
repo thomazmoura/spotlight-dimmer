@@ -84,22 +84,17 @@ jobs:
             }
           }
 
-          $bundleDir = "target/release/bundle"
-          if (-not (Test-Path $bundleDir)) {
-            Write-Host "::error::Bundle output directory '$bundleDir' not found"
-            Write-Host "Listing target/release contents:"
-            Get-ChildItem -Path target/release -Force | Format-List FullName
-            throw "Bundle output missing"
-          }
-
-          $installer = Get-ChildItem -Path $bundleDir -Recurse -Filter '*.exe' | Where-Object { $_.Name -match 'setup\.exe$|installer\.exe$' } | Select-Object -First 1
+          # cargo-packager outputs the installer directly to target/release/
+          # with the naming pattern: spotlight-dimmer_{version}_x64-setup.exe
+          $installer = Get-ChildItem -Path target/release -Filter '*-setup.exe' | Select-Object -First 1
           if (-not $installer) {
-            Write-Host "::error::NSIS installer not found under $bundleDir"
-            Write-Host "Bundle directory contents:"
-            Get-ChildItem -Path $bundleDir -Recurse -Force | Format-List FullName
+            Write-Host "::error::NSIS installer not found in target/release/"
+            Write-Host "target/release contents:"
+            Get-ChildItem -Path target/release -Force | Format-List FullName
             throw "NSIS installer missing"
           }
 
+          Write-Host "Found installer: $($installer.FullName)"
           $assetName = "spotlight-dimmer-v$version-installer.exe"
           Copy-Item -Path $installer.FullName -Destination $assetName -Force
 
