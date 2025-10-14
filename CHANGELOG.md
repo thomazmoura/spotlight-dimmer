@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.6] - 2025-10-14
 
+## [0.5.6] - 2025-10-14
+
 ### Fixed
 - **Installer icon visibility**: Fixed missing application icons in desktop shortcuts, Start Menu, and Add/Remove Programs
   - Fixed field naming in packager.toml: cargo-packager uses kebab-case (`installer-icon`) not camelCase (`installerIcon`)
