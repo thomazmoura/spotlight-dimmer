@@ -32,6 +32,60 @@ use winapi::um::winuser::{
 };
 
 #[cfg(windows)]
+use winapi::um::fileapi::{FindFirstChangeNotificationW, FindNextChangeNotification};
+#[cfg(windows)]
+use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+#[cfg(windows)]
+use winapi::um::synchapi::WaitForSingleObject;
+#[cfg(windows)]
+use winapi::um::winbase::WAIT_OBJECT_0;
+#[cfg(windows)]
+use winapi::um::winnt::{FILE_NOTIFY_CHANGE_LAST_WRITE, HANDLE};
+
+#[cfg(windows)]
+use widestring::U16CString;
+
+#[cfg(windows)]
+/// Sets up file watching for the config directory using Windows FindFirstChangeNotificationW
+/// Returns a HANDLE that can be checked with WaitForSingleObject
+fn setup_config_file_watching() -> Option<HANDLE> {
+    // Get config file path and extract directory
+    let config_path = Config::config_path().ok()?;
+    let config_dir = config_path.parent()?;
+
+    // Convert path to wide string for Windows API
+    let wide_path = match U16CString::from_os_str(config_dir.as_os_str()) {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!(
+                "[FileWatch] Failed to convert config path to wide string: {}",
+                e
+            );
+            return None;
+        }
+    };
+
+    unsafe {
+        let handle = FindFirstChangeNotificationW(
+            wide_path.as_ptr(),
+            0, // bWatchSubtree: FALSE - only watch the directory itself, not subdirectories
+            FILE_NOTIFY_CHANGE_LAST_WRITE, // Watch for file modification events
+        );
+
+        if handle == INVALID_HANDLE_VALUE || handle.is_null() {
+            eprintln!("[FileWatch] Failed to create file change notification");
+            return None;
+        }
+
+        println!(
+            "[FileWatch] Watching config directory for changes: {:?}",
+            config_dir
+        );
+        Some(handle)
+    }
+}
+
+#[cfg(windows)]
 fn hide_console_if_not_launched_from_terminal() {
     use winapi::um::wincon::{FreeConsole, GetConsoleProcessList};
 
@@ -152,6 +206,14 @@ fn main() {
     };
     println!("[Main] Phase 2: Message window infrastructure initialized");
 
+    // Set up file watching for config directory
+    let config_watch_handle = setup_config_file_watching();
+    if config_watch_handle.is_some() {
+        println!("[Main] Config file watching enabled (event-driven detection)");
+    } else {
+        eprintln!("[Main] Warning: Config file watching failed to initialize - config changes may not be detected");
+    }
+
     // Initialize display and window managers
     let display_manager = WindowsDisplayManager;
     let window_manager = WindowsWindowManager;
@@ -219,9 +281,8 @@ fn main() {
     let mut last_paused = pause_flag.load(Ordering::SeqCst);
     let mut last_window_rect: Option<winapi::shared::windef::RECT> = None;
 
-    // Track config file modification time for periodic reloading
+    // Track config file modification time for reloading when file watcher triggers
     let mut last_config_modified = Config::last_modified();
-    let mut loop_counter: u32 = 0;
 
     // Phase 1: Message loop optimization metrics
     let mut total_messages_processed: u64 = 0;
@@ -333,11 +394,28 @@ fn main() {
             Duration::from_millis(200) // Idle: 200ms for lower CPU usage
         };
         thread::sleep(sleep_duration);
-        loop_counter = loop_counter.wrapping_add(1);
 
-        // Phase 1: Check for config file changes every ~2 seconds
-        // Since sleep duration is variable, check based on loop counter (~40 iterations at 50ms = 2s)
-        if loop_counter % 40 == 0 {
+        // Check for config file changes using file watching (event-driven detection)
+        let config_changed = if let Some(handle) = config_watch_handle {
+            unsafe {
+                // Check if file change notification is signaled (non-blocking check with 0 timeout)
+                let wait_result = WaitForSingleObject(handle, 0);
+                if wait_result == WAIT_OBJECT_0 {
+                    // File change detected! Re-arm the notification for next change
+                    if FindNextChangeNotification(handle) == 0 {
+                        eprintln!("[FileWatch] Failed to re-arm file change notification");
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+        } else {
+            false
+        };
+
+        if config_changed {
+            println!("[FileWatch] Config file change detected");
             if let Some((new_config, new_modified_time)) =
                 Config::reload_if_changed(last_config_modified)
             {
@@ -755,6 +833,15 @@ fn main() {
 
     // Cleanup on exit
     println!("[Main] Performing cleanup...");
+
+    // Close file watching handle
+    if let Some(handle) = config_watch_handle {
+        unsafe {
+            CloseHandle(handle);
+        }
+        println!("[FileWatch] File watching handle closed");
+    }
+
     drop(overlay_manager);
     drop(tray_icon);
     drop(message_window);

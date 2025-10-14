@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Event-driven config file watching**: Configuration file changes now detected instantly via Windows file system notifications
+  - Replaced 2-second polling with Windows `FindFirstChangeNotificationW` API for instant detection
+  - Config changes applied immediately when file is modified (no polling delay)
+  - Zero CPU overhead when config file is not being modified
+  - Non-blocking check using `WaitForSingleObject` with 0 timeout
+  - Notification automatically re-armed with `FindNextChangeNotification` for continuous monitoring
+  - File watching handle properly cleaned up on application exit
+  - Technical: Added `fileapi`, `synchapi`, and `winbase` features to winapi dependency
+
+---
+
+### Melhorado
+- **Observação de arquivo de configuração orientada a eventos**: Mudanças no arquivo de configuração agora detectadas instantaneamente via notificações do sistema de arquivos do Windows
+  - Substituído polling de 2 segundos pela API `FindFirstChangeNotificationW` do Windows para detecção instantânea
+  - Mudanças de configuração aplicadas imediatamente quando arquivo é modificado (sem atraso de polling)
+  - Zero sobrecarga de CPU quando arquivo de configuração não está sendo modificado
+  - Verificação não-bloqueante usando `WaitForSingleObject` com timeout 0
+  - Notificação automaticamente rearma com `FindNextChangeNotification` para monitoramento contínuo
+  - Handle de observação de arquivo devidamente limpo ao sair da aplicação
+  - Técnico: Adicionadas features `fileapi`, `synchapi` e `winbase` à dependência winapi
+
 ## [0.5.5-beta.8] - 2025-10-14
 
 ## [0.5.5-beta.7] - 2025-10-14
