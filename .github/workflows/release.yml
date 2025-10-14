@@ -84,16 +84,19 @@ jobs:
             }
           }
 
-          $packagerDir = "target/release/packager"
-          if (-not (Test-Path $packagerDir)) {
-            Write-Host "::error::Packager output directory '$packagerDir' not found"
-            throw "Packager output missing"
+          $bundleDir = "target/release/bundle"
+          if (-not (Test-Path $bundleDir)) {
+            Write-Host "::error::Bundle output directory '$bundleDir' not found"
+            Write-Host "Listing target/release contents:"
+            Get-ChildItem -Path target/release -Force | Format-List FullName
+            throw "Bundle output missing"
           }
 
-          $installer = Get-ChildItem -Path $packagerDir -Recurse -Filter '*.exe' | Where-Object { $_.Name -match 'setup\.exe$' } | Select-Object -First 1
+          $installer = Get-ChildItem -Path $bundleDir -Recurse -Filter '*.exe' | Where-Object { $_.Name -match 'setup\.exe$|installer\.exe$' } | Select-Object -First 1
           if (-not $installer) {
-            Write-Host "::error::NSIS installer not found under target/release/packager"
-            Get-ChildItem -Path target/release/packager -Recurse -Force | Format-List FullName
+            Write-Host "::error::NSIS installer not found under $bundleDir"
+            Write-Host "Bundle directory contents:"
+            Get-ChildItem -Path $bundleDir -Recurse -Force | Format-List FullName
             throw "NSIS installer missing"
           }
 
