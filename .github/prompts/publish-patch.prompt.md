@@ -33,18 +33,17 @@ Create a patch release for bug fixes and small changes (no new features).
 **CRITICAL**: Run in order. If ANY fail, STOP and cancel release.
 
 ```powershell
-# Step 1: Library tests (with Wine for Windows target)
-$env:CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER="wine64"
-cargo test --lib --verbose --target x86_64-pc-windows-gnu
+# Step 1: Library tests
+cargo test --lib --verbose
 
 # Step 2: Doc tests
 cargo test --doc --verbose
 
-# Step 3: Clippy checks (Windows target)
-cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
+# Step 3: Clippy checks
+cargo clippy --all-targets --all-features -- -W clippy::all -A dead_code
 
-# Step 4: Release build (Windows binaries)
-cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
+# Step 4: Release build
+cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
 ```
 
 **If validation fails:**
@@ -53,6 +52,12 @@ cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bi
 3. Display error to user
 4. Tell user: "Validation failed. Please run the check workflow first."
 5. DO NOT attempt to auto-fix
+
+## Format Code
+
+```powershell
+cargo fmt --all
+```
 
 ## Generate Release Commit Message
 

@@ -14,45 +14,24 @@ fn main() {
 
 #[cfg(windows)]
 fn embed_icon_resource() {
-    // Embed the icon into the executable using winres
-    let mut res = winres::WindowsResource::new();
-    res.set_icon("spotlight-dimmer-icon.ico");
+    // Use embed-resource for reliable icon embedding
+    let resource_file = "icon.rc";
+    let icon_path = "src/icons/icon.ico";
 
-    // Set application manifest for proper DPI awareness and Windows 10/11 compatibility
-    res.set_manifest(r#"
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity
-    version="1.0.0.0"
-    processorArchitecture="*"
-    name="SpotlightDimmer"
-    type="win32"
-  />
-  <description>Spotlight Dimmer - Focus by dimming inactive displays</description>
-  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
-    <security>
-      <requestedPrivileges>
-        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
-      </requestedPrivileges>
-    </security>
-  </trustInfo>
-  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
-    <application>
-      <!-- Windows 10 and Windows 11 -->
-      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
-    </application>
-  </compatibility>
-  <application xmlns="urn:schemas-microsoft-com:asm.v3">
-    <windowsSettings>
-      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
-      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
-    </windowsSettings>
-  </application>
-</assembly>
-"#);
+    println!(
+        "cargo:warning=Attempting to embed icon using resource file: {}",
+        resource_file
+    );
 
-    if let Err(e) = res.compile() {
-        eprintln!("Failed to compile Windows resources: {}", e);
-    }
+    // Trigger rebuild if icon or resource file changes
+    println!("cargo:rerun-if-changed={}", resource_file);
+    println!("cargo:rerun-if-changed={}", icon_path);
+
+    // embed-resource will automatically find rc.exe and embed the resources
+    // It will panic with a clear error message if it fails
+    embed_resource::compile(resource_file, embed_resource::NONE);
+
+    println!("cargo:warning=Successfully embedded icon resource using embed-resource crate");
 }
 
 fn copy_icon_files() {

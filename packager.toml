@@ -45,7 +45,7 @@ resources = [
 ]
 
 # Application icon (for installer and Start Menu)
-icons = ["spotlight-dimmer-icon.ico"]
+icons = ["src/icons/icon.ico"]
 
 # Windows-specific configuration
 [windows]
@@ -57,7 +57,7 @@ allow_downgrades = true
 # Install mode: "currentUser" = No admin required, per-user installation
 # "perMachine" = Requires admin, system-wide installation
 # "both" = User can choose
-installMode = "currentUser"
+install-mode = "currentUser"
 
 # Compression algorithm (lzma provides best compression)
 compression = "lzma"
@@ -66,7 +66,7 @@ compression = "lzma"
 languages = ["English"]
 
 # Display language selector before installation
-displayLanguageSelector = false
+display-language-selector = false
 
 # Installer header image (optional - 150x57px recommended)
 # headerImage = "installer-header.bmp"
@@ -74,8 +74,11 @@ displayLanguageSelector = false
 # Installer sidebar image (optional - 164x314px recommended)
 # sidebarImage = "installer-sidebar.bmp"
 
-# Installer icon
-# installerIcon = "spotlight-dimmer-icon.ico"
+# Installer icon (sets the icon for the installer .exe itself and MUI_ICON for the wizard)
+installer-icon = "src/icons/icon.ico"
+
+# Custom NSIS template with explicit icon parameters for shortcuts
+template = "custom-installer-template.nsi"
 
 # Uninstaller configuration
 # Automatically handled - creates uninstaller in installation directory

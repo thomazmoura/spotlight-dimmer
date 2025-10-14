@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.5-beta.11] - 2025-10-14
+## [0.5.6] - 2025-10-14
 
+### Fixed
+- **Installer icon visibility**: Fixed missing application icons in desktop shortcuts, Start Menu, and Add/Remove Programs
+  - Fixed field naming in packager.toml: cargo-packager uses kebab-case (`installer-icon`) not camelCase (`installerIcon`)
+  - Enabled `installer-icon = "spotlight-dimmer-icon.ico"` to set the installer's MUI_ICON (was empty due to incorrect field name)
+  - Created custom NSIS template (`custom-installer-template.nsi`) based on cargo-packager default
+  - Modified `CreateShortcut` commands to explicitly specify icon file: `"" "$INSTDIR\spotlight-dimmer-icon.ico" 0`
+  - NSIS CreateShortcut parameters: link target parameters iconfile iconindex (empty strings required for skipped params)
+  - Icons now properly displayed in installer window, desktop shortcuts, Start Menu, and Windows Settings > Apps
+  - Previously shortcuts relied only on embedded .exe icon without explicit icon parameter
+  - Solution ensures consistent icon display across all Windows versions and UI components
+
+## [0.5.5-beta.11] - 2025-10-14
 ### Added
 - **Professional NSIS installer for Windows**: Proper installation experience with Start Menu integration and uninstaller
   - Per-user installation requiring no administrator privileges
@@ -39,6 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Technical: Added `fileapi`, `synchapi`, and `winbase` features to winapi dependency
 
 ---
+
+### Corrigido
+- **Visibilidade de ícone do instalador**: Corrigidos ícones de aplicação ausentes em atalhos da área de trabalho, Menu Iniciar e Adicionar/Remover Programas
+  - Corrigida nomenclatura de campo no packager.toml: cargo-packager usa kebab-case (`installer-icon`) não camelCase (`installerIcon`)
+  - Habilitado `installer-icon = "spotlight-dimmer-icon.ico"` para definir MUI_ICON do instalador (estava vazio devido ao nome de campo incorreto)
+  - Criado template NSIS customizado (`custom-installer-template.nsi`) baseado no padrão do cargo-packager
+  - Modificados comandos `CreateShortcut` para especificar explicitamente arquivo de ícone: `"" "$INSTDIR\spotlight-dimmer-icon.ico" 0`
+  - Parâmetros NSIS CreateShortcut: link target parameters iconfile iconindex (strings vazias necessárias para params pulados)
+  - Ícones agora exibidos adequadamente na janela do instalador, atalhos da área de trabalho, Menu Iniciar e Configurações do Windows > Aplicativos
+  - Anteriormente atalhos dependiam apenas de ícone embutido no .exe sem parâmetro de ícone explícito
+  - Solução garante exibição consistente de ícone através de todas versões do Windows e componentes de interface
 
 ### Adicionado
 - **Instalador NSIS profissional para Windows**: Experiência de instalação adequada com integração ao Menu Iniciar e desinstalador

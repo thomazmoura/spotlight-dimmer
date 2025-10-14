@@ -26,7 +26,12 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(x86_64-w64-mingw32-gcc:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:docs.crabnebula.dev)",
+      "Read(//c/Users/thomaz.moura/Pictures/Prints/**)",
+      "Bash(export:*)",
+      "Bash(tee:*)"
     ],
     "deny": [],
     "ask": []
