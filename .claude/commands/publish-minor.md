@@ -36,9 +36,10 @@ The agent will:
    - Display error output to user
    - Instruct user to run `/check` first to fix errors
    - **DO NOT proceed with release** and **DO NOT attempt to fix errors**
-6. Once validation passes, run `git status` and `git diff` to understand changes
-7. Generate a descriptive commit message based on the changes
-8. Execute a **single bash command** that does all of the following:
+6. Once validation passes, run `cargo fmt --all` to ensure code is properly formatted
+7. Run `git status` and `git diff` to understand changes
+8. Generate a descriptive commit message based on the changes
+9. Execute a **single bash command** that does all of the following:
    ```bash
    git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.0 && git push origin main && git push origin vX.Y.0
    ```
