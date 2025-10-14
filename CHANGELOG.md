@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5-beta.11] - 2025-10-14
+
 ### Added
 - **Professional NSIS installer for Windows**: Proper installation experience with Start Menu integration and uninstaller
   - Per-user installation requiring no administrator privileges
