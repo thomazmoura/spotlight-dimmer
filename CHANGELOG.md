@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5-beta.9] - 2025-10-14
+
 ### Improved
 - **Event-driven config file watching**: Configuration file changes now detected instantly via Windows file system notifications
   - Replaced 2-second polling with Windows `FindFirstChangeNotificationW` API for instant detection
