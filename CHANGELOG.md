@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-10-15
+
 ### Fixed
 - **Full-screen window movement detection**: Fixed overlay not updating when moving full-screen applications between displays using `Win+Shift+Arrow`
   - Root cause: `Win+Shift+Arrow` moves windows silently without triggering `EVENT_SYSTEM_FOREGROUND` hook
