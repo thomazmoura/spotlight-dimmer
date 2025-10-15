@@ -2,7 +2,7 @@
 name = "spotlight-dimmer"
 version = "0.6.1"
 description = "A lightweight application that dims inactive displays to highlight the active one"
-authors = ["Spotlight Dimmer Team"]
+authors = ["Thomaz Moura"]
 license = "MIT"
 repository = "https://github.com/thomazmoura/spotlight-dimmer"
 homepage = "https://github.com/thomazmoura/spotlight-dimmer"
