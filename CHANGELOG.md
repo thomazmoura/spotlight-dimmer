@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2025-10-15
+
 ### Added
 - **Winget manifest automation**: GitHub Actions now automatically generates Windows Package Manager (Winget) manifests on every release
   - Workflow downloads installer and calculates SHA256 hash automatically
