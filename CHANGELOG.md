@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Winget manifest automation**: GitHub Actions now automatically generates Windows Package Manager (Winget) manifests on every release
+  - Workflow downloads installer and calculates SHA256 hash automatically
+  - Generates all three required manifest files (version, installer, locale)
+  - Uploads manifests as GitHub Actions artifacts for easy PR submission
+  - Can be triggered manually for existing releases via `gh workflow run winget-publish.yml -f version=X.Y.Z`
+  - Simplifies Winget publishing to a single PR submission step
+
+### Improved
+- **Publishing documentation**: Updated PUBLISHING.md with comprehensive Winget publishing guide
+  - Explains Winget's Pull Request-based submission model
+  - Documents automated manifest generation workflow
+  - Provides step-by-step PR submission instructions
+  - Includes troubleshooting for common Winget validation issues
+  - Added Winget as fourth official distribution channel
+
+---
+
+### Adicionado
+- **Automação de manifest do Winget**: GitHub Actions agora gera automaticamente manifests do Windows Package Manager (Winget) em cada release
+  - Workflow baixa instalador e calcula hash SHA256 automaticamente
+  - Gera todos os três arquivos de manifest necessários (versão, instalador, locale)
+  - Envia manifests como artefatos do GitHub Actions para fácil submissão de PR
+  - Pode ser acionado manualmente para releases existentes via `gh workflow run winget-publish.yml -f version=X.Y.Z`
+  - Simplifica publicação no Winget a um único passo de submissão de PR
+
+### Melhorado
+- **Documentação de publicação**: Atualizado PUBLISHING.md com guia abrangente de publicação no Winget
+  - Explica modelo de submissão baseado em Pull Request do Winget
+  - Documenta workflow de geração automática de manifest
+  - Fornece instruções passo a passo para submissão de PR
+  - Inclui troubleshooting para problemas comuns de validação do Winget
+  - Adicionado Winget como quarto canal oficial de distribuição
+
 ## [0.6.1] - 2025-10-15
 
 ### Fixed
@@ -18,8 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Overlays now update immediately when full-screen apps move between displays via keyboard shortcuts
   - Fix also applies to any window movement scenario where the window handle doesn't change but the display does
   - Technical reference: `src/main_new.rs:709-746`
-
----
 
 ### Corrigido
 - **Detecção de movimento de janela em tela cheia**: Corrigida sobreposição não atualizando ao mover aplicações em tela cheia entre displays usando `Win+Shift+Seta`

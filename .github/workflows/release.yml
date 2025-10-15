@@ -259,3 +259,10 @@ jobs:
             git commit -m "Update CHANGELOG.md for release v${{ needs.changelog.outputs.version }}"
             git push
           fi
+
+  generate-winget-manifests:
+    needs: [changelog, build-and-release]
+    uses: ./.github/workflows/winget-publish.yml
+    if: success()
+    with:
+      version: ${{ needs.changelog.outputs.version }}

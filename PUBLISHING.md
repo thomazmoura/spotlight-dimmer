@@ -1,15 +1,16 @@
 # Publishing Spotlight Dimmer
 
-This guide explains how to publish Spotlight Dimmer to **both crates.io and npm** with automated GitHub Actions.
+This guide explains how to publish Spotlight Dimmer to **crates.io, npm, and Winget** with automated GitHub Actions.
 
 ## Overview
 
-**Publishing is fully automated via GitHub Actions!** When you push a git tag (e.g., `v0.4.8`), the workflow automatically:
+**Publishing is mostly automated via GitHub Actions!** When you push a git tag (e.g., `v0.6.1`), the workflow automatically:
 1. Builds Windows binaries on GitHub Actions runners
 2. Creates GitHub Release with a Windows installer and portable ZIP artifacts
 3. **Publishes to crates.io** (for Rust users: `cargo install spotlight-dimmer`)
 4. **Publishes to npm** with pre-built binaries (for Node.js users: `npm install -g spotlight-dimmer`)
-5. Updates CHANGELOG.md
+5. **Generates Winget manifests** (ready for manual PR to microsoft/winget-pkgs)
+6. Updates CHANGELOG.md
 
 ## Prerequisites
 
@@ -155,7 +156,7 @@ The `/commit` slash command automatically increments the patch version.
 
 ## Distribution Channels
 
-Spotlight Dimmer is available through **three automated channels**:
+Spotlight Dimmer is available through **four channels**:
 
 1. **GitHub Releases** (recommended): Direct download
    - NSIS installer (`spotlight-dimmer-v*-installer.exe`) for guided setup
@@ -172,7 +173,12 @@ Spotlight Dimmer is available through **three automated channels**:
    - Requires Rust toolchain
    - For Rust developers
 
-**All three channels are automatically updated** when you push a git tag!
+4. **Winget**: `winget install ThomazMoura.SpotlightDimmer`
+   - Official Windows Package Manager
+   - NSIS installer with silent install support
+   - Requires manual PR submission (manifest generation is automated)
+
+**Channels 1-3 are fully automated** when you push a git tag. **Winget (channel 4)** requires a manual Pull Request, but manifest generation is automated.
 
 ## Troubleshooting
 
@@ -246,9 +252,113 @@ By default, packages are public. To verify:
 npm access public spotlight-dimmer
 ```
 
+## Publishing to Winget
+
+### How Winget Publishing Works
+
+Unlike npm and crates.io, Winget packages are submitted via Pull Requests to the [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs) repository. The manifest generation is automated, but the PR submission is manual.
+
+### Automated Manifest Generation
+
+When you push a git tag, the workflow automatically generates Winget manifests and uploads them as GitHub Actions artifacts. Each release generates three manifest files:
+
+1. **Version manifest** (`ThomazMoura.SpotlightDimmer.yaml`) - Package metadata
+2. **Installer manifest** (`ThomazMoura.SpotlightDimmer.installer.yaml`) - Download URL and SHA256 hash
+3. **Locale manifest** (`ThomazMoura.SpotlightDimmer.locale.en-US.yaml`) - Human-readable descriptions
+
+### Manual Workflow Trigger (For Existing Releases)
+
+You can also generate manifests for existing releases manually:
+
+```bash
+# Via GitHub CLI
+gh workflow run winget-publish.yml -f version=0.6.1
+
+# Or via GitHub UI
+# Go to Actions → Publish to Winget → Run workflow
+# Enter version: 0.6.1
+```
+
+### Submission Steps
+
+1. **Wait for release workflow** to complete (or trigger manual workflow)
+2. **Download manifests** from GitHub Actions artifacts:
+   - Go to the workflow run
+   - Find "winget-manifests-X.Y.Z" artifact
+   - Download and extract the ZIP file
+
+3. **Fork winget-pkgs repository** (first time only):
+   ```bash
+   # Visit https://github.com/microsoft/winget-pkgs
+   # Click "Fork" button
+   ```
+
+4. **Clone your fork** and add manifests:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/winget-pkgs
+   cd winget-pkgs
+
+   # Create new branch
+   git checkout -b spotlight-dimmer-0.6.1
+
+   # Copy the manifests (adjust path to your downloaded artifact)
+   cp -r ~/Downloads/winget-manifests/t manifests/
+
+   # Commit and push
+   git add manifests/t/ThomazMoura/SpotlightDimmer/0.6.1/
+   git commit -m "New version: ThomazMoura.SpotlightDimmer version 0.6.1"
+   git push origin spotlight-dimmer-0.6.1
+   ```
+
+5. **Create Pull Request**:
+   - Go to your fork on GitHub
+   - Click "Contribute" → "Open pull request"
+   - Title: `ThomazMoura.SpotlightDimmer version 0.6.1`
+   - Submit the PR
+
+6. **Wait for automated validation**:
+   - Microsoft's bots will validate your manifests
+   - Check for SHA256 hash correctness
+   - Verify installer download and silent install
+   - If validation passes, PR will be auto-merged
+
+### Winget Requirements
+
+The automated workflow ensures these requirements are met:
+
+✅ **Silent install support** - NSIS installer configured for silent mode
+✅ **Stable download URL** - GitHub Releases provides permanent URLs
+✅ **Correct SHA256 hash** - Automatically calculated from installer
+✅ **Manifest schema 1.6.0** - Latest Winget manifest format
+✅ **No telemetry/adware** - Pure Rust application, no bundled software
+
+### Troubleshooting Winget Submissions
+
+#### Problem: Validation fails with "SHA256 mismatch"
+
+**Solution**: The workflow automatically calculates the correct SHA256. If validation fails:
+- Ensure the release was fully uploaded to GitHub
+- Re-run the workflow to regenerate manifests
+- Verify the installer URL is accessible: `https://github.com/thomazmoura/spotlight-dimmer/releases/download/vX.Y.Z/spotlight-dimmer-vX.Y.Z-installer.exe`
+
+#### Problem: "Installer does not support silent install"
+
+**Solution**: Our NSIS installer is configured for silent install via `install-mode = "currentUser"` in `packager.toml`. This shouldn't fail. If it does:
+- Check that cargo-packager built the installer correctly
+- Test silent install locally: `spotlight-dimmer-vX.Y.Z-installer.exe /S`
+
+#### Problem: PR stuck in review
+
+**Solution**: Winget PRs with new versions for existing packages usually auto-merge if validation passes. If stuck:
+- Check the PR comments for validation errors
+- Ensure all three manifest files are present
+- Verify the package identifier matches: `ThomazMoura.SpotlightDimmer`
+
 ## Support
 
-For issues with npm publishing:
-- npm documentation: https://docs.npmjs.com/
-- npm support: https://www.npmjs.com/support
-- GitHub issues: https://github.com/thomazmoura/spotlight-dimmer/issues
+For issues with publishing:
+- **npm documentation**: https://docs.npmjs.com/
+- **npm support**: https://www.npmjs.com/support
+- **Winget documentation**: https://learn.microsoft.com/en-us/windows/package-manager/package/
+- **Winget repository**: https://github.com/microsoft/winget-pkgs
+- **GitHub issues**: https://github.com/thomazmoura/spotlight-dimmer/issues

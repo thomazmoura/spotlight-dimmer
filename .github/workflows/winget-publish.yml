@@ -1,0 +1,185 @@
+name: Publish to Winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.6.1)'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to publish'
+        required: true
+        type: string
+
+jobs:
+  winget-publish:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Invalid version format: $version. Expected format: x.y.z"
+            exit 1
+          }
+
+      - name: Check if release exists
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $releaseUrl = "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$version"
+
+          try {
+            $response = Invoke-RestMethod -Uri $releaseUrl -Headers @{ Authorization = "Bearer ${{ secrets.GITHUB_TOKEN }}" }
+            Write-Host "✅ Release v$version found"
+          } catch {
+            Write-Error "❌ Release v$version not found. Please create a release first."
+            exit 1
+          }
+
+      - name: Download and calculate SHA256
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-v$version-installer.exe"
+          $installerPath = "spotlight-dimmer-v$version-installer.exe"
+
+          Write-Host "Downloading installer from: $installerUrl"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
+
+          $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash
+          Write-Host "SHA256: $hash"
+
+          # Save for next step
+          "INSTALLER_SHA256=$hash" | Out-File -FilePath $Env:GITHUB_ENV -Append
+          "INSTALLER_URL=$installerUrl" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Generate Winget manifests
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $sha256 = "${{ env.INSTALLER_SHA256 }}"
+          $installerUrl = "${{ env.INSTALLER_URL }}"
+
+          # Create manifest directory
+          $manifestDir = "winget-manifests/t/ThomazMoura/SpotlightDimmer/$version"
+          New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
+
+          # Version manifest
+          $versionManifest = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json
+
+PackageIdentifier: ThomazMoura.SpotlightDimmer
+PackageVersion: $version
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
+"@
+          Set-Content -Path "$manifestDir/ThomazMoura.SpotlightDimmer.yaml" -Value $versionManifest -Encoding UTF8
+
+          # Installer manifest
+          $installerManifest = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+
+PackageIdentifier: ThomazMoura.SpotlightDimmer
+PackageVersion: $version
+Platform:
+  - Windows.Desktop
+MinimumOSVersion: 10.0.0.0
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+UpgradeBehavior: install
+Installers:
+  - Architecture: x64
+    InstallerUrl: $installerUrl
+    InstallerSha256: $sha256
+ManifestType: installer
+ManifestVersion: 1.6.0
+"@
+          Set-Content -Path "$manifestDir/ThomazMoura.SpotlightDimmer.installer.yaml" -Value $installerManifest -Encoding UTF8
+
+          # Locale manifest
+          $localeManifest = @"
+# yaml-language-server: `$schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: ThomazMoura.SpotlightDimmer
+PackageVersion: $version
+PackageLocale: en-US
+Publisher: Thomaz Moura
+PublisherUrl: https://github.com/thomazmoura
+PublisherSupportUrl: https://github.com/thomazmoura/spotlight-dimmer/issues
+PackageName: Spotlight Dimmer
+PackageUrl: https://github.com/thomazmoura/spotlight-dimmer
+License: MIT
+LicenseUrl: https://github.com/thomazmoura/spotlight-dimmer/blob/main/LICENSE
+ShortDescription: A lightweight Windows application that dims inactive displays to highlight the active one
+Description: |-
+  Spotlight Dimmer helps you focus by dimming all displays except the one with your currently active window.
+
+  Features:
+  • Ultra-lightweight: Only ~7.6 MB RAM usage
+  • Real-time Monitoring: Instantly detects window focus changes
+  • Click-through Overlays: Dimming doesn't interfere with your workflow
+  • Native Windows API: No browser engine overhead, instant startup
+  • Auto-reload Config: Changes detected instantly via file system notifications
+
+  Perfect for multi-monitor setups!
+Moniker: spotlight-dimmer
+Tags:
+  - desktop
+  - display
+  - dimming
+  - focus
+  - multi-monitor
+  - productivity
+  - windows
+  - rust
+  - native
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
+"@
+          Set-Content -Path "$manifestDir/ThomazMoura.SpotlightDimmer.locale.en-US.yaml" -Value $localeManifest -Encoding UTF8
+
+          Write-Host "✅ Manifests generated in $manifestDir"
+          Get-ChildItem -Path $manifestDir | Format-Table Name, Length
+
+      - name: Upload manifest artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: winget-manifests-${{ inputs.version }}
+          path: winget-manifests/
+          retention-days: 30
+
+      - name: Summary
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+
+          Write-Host "`n========================================="
+          Write-Host "✅ Winget manifests generated for v$version"
+          Write-Host "=========================================`n"
+
+          Write-Host "📦 Artifacts uploaded to GitHub Actions"
+          Write-Host "📥 Download the 'winget-manifests-$version' artifact"
+          Write-Host "`n📋 Next Steps:"
+          Write-Host "  1. Download the manifest artifact from this workflow run"
+          Write-Host "  2. Fork microsoft/winget-pkgs repository (if not already)"
+          Write-Host "  3. Copy the manifests folder to your fork"
+          Write-Host "  4. Create a Pull Request to microsoft/winget-pkgs"
+          Write-Host "  5. Wait for automated validation and review"
+          Write-Host "`n🔗 Links:"
+          Write-Host "  - Winget Packages Repo: https://github.com/microsoft/winget-pkgs"
+          Write-Host "  - Submission Guide: https://learn.microsoft.com/en-us/windows/package-manager/package/"
+          Write-Host "  - Your Artifacts: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
