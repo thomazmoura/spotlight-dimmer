@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Full-screen window movement detection**: Fixed overlay not updating when moving full-screen applications between displays using `Win+Shift+Arrow`
+  - Root cause: `Win+Shift+Arrow` moves windows silently without triggering `EVENT_SYSTEM_FOREGROUND` hook
+  - The window handle remains unchanged (same window), so `EVENT_SYSTEM_FOREGROUND` doesn't fire
+  - Previous implementation only checked display changes when foreground window changed, missing silent window movements
+  - Solution: Display change detection now runs continuously, not gated behind `foreground_changed` flag
+  - Overlays now update immediately when full-screen apps move between displays via keyboard shortcuts
+  - Fix also applies to any window movement scenario where the window handle doesn't change but the display does
+  - Technical reference: `src/main_new.rs:709-746`
+
+---
+
+### Corrigido
+- **Detecção de movimento de janela em tela cheia**: Corrigida sobreposição não atualizando ao mover aplicações em tela cheia entre displays usando `Win+Shift+Seta`
+  - Causa raiz: `Win+Shift+Seta` move janelas silenciosamente sem disparar hook `EVENT_SYSTEM_FOREGROUND`
+  - O handle da janela permanece inalterado (mesma janela), então `EVENT_SYSTEM_FOREGROUND` não dispara
+  - Implementação anterior só verificava mudanças de display quando a janela em primeiro plano mudava, perdendo movimentos silenciosos de janela
+  - Solução: Detecção de mudança de display agora executa continuamente, não limitada pela flag `foreground_changed`
+  - Sobreposições agora atualizam imediatamente quando apps em tela cheia movem entre displays via atalhos de teclado
+  - Correção também se aplica a qualquer cenário de movimento de janela onde o handle da janela não muda mas o display muda
+  - Referência técnica: `src/main_new.rs:709-746`
+
 ## [0.6.0] - 2025-10-14
 
 ## [0.5.10] - 2025-10-14

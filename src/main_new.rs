@@ -706,44 +706,42 @@ fn main() {
                     continue;
                 }
 
-                // Phase 4: Only process window/display changes when foreground actually changed
-                // This replaces the polling-based change detection
-                if foreground_changed {
-                    let window_changed = Some(active_window.handle) != last_window_handle;
-                    let display_changed =
-                        last_display_id.as_ref() != Some(&active_window.display_id);
+                // Phase 4: Check for window/display changes
+                // Display changes must be checked even when foreground didn't change
+                // because Win+Shift+Arrow moves windows without triggering EVENT_SYSTEM_FOREGROUND
+                let window_changed = Some(active_window.handle) != last_window_handle;
+                let display_changed = last_display_id.as_ref() != Some(&active_window.display_id);
 
-                    if window_changed || display_changed {
-                        // Phase 1: Track activity for adaptive sleep
-                        last_activity_time = Instant::now();
+                if window_changed || display_changed {
+                    // Phase 1: Track activity for adaptive sleep
+                    last_activity_time = Instant::now();
 
-                        if window_changed {
-                            println!(
-                                "[Main] Active window: {} ({})",
-                                active_window.window_title, active_window.process_name
-                            );
-                        }
-
-                        if display_changed {
-                            println!(
-                                "[Main] Window moved to display: {}",
-                                active_window.display_id
-                            );
-                        }
-
-                        // Update overlays for any window or display change
-                        let mut manager = overlay_manager.lock().unwrap();
-                        manager.update_visibility(&active_window.display_id);
-
-                        // Clear partial overlays when switching displays or windows
-                        if display_changed {
-                            manager.clear_all_partial_overlays();
-                            last_window_rect = None;
-                        }
-
-                        last_window_handle = Some(active_window.handle);
-                        last_display_id = Some(active_window.display_id.clone());
+                    if window_changed {
+                        println!(
+                            "[Main] Active window: {} ({})",
+                            active_window.window_title, active_window.process_name
+                        );
                     }
+
+                    if display_changed {
+                        println!(
+                            "[Main] Window moved to display: {}",
+                            active_window.display_id
+                        );
+                    }
+
+                    // Update overlays for any window or display change
+                    let mut manager = overlay_manager.lock().unwrap();
+                    manager.update_visibility(&active_window.display_id);
+
+                    // Clear partial overlays when switching displays or windows
+                    if display_changed {
+                        manager.clear_all_partial_overlays();
+                        last_window_rect = None;
+                    }
+
+                    last_window_handle = Some(active_window.handle);
+                    last_display_id = Some(active_window.display_id.clone());
                 }
 
                 // Handle partial dimming (check for window movement/resize)
