@@ -261,8 +261,10 @@ jobs:
           fi
 
   generate-winget-manifests:
-    needs: [changelog, build-and-release]
+    needs: [changelog, build-and-release, publish-cargo, publish-npm]
+    permissions:
+      contents: read
     uses: ./.github/workflows/winget-publish.yml
-    if: success()
+    if: needs.build-and-release.result == 'success'
     with:
       version: ${{ needs.changelog.outputs.version }}
