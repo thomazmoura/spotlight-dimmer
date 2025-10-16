@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.6] - 2025-10-16
+
 ### Improved
 - **Code quality and cleanliness**: Comprehensive code review and cleanup eliminates all compiler warnings
   - Removed truly dead code: unused `MessageWindowHandle` wrapper, `get_message_count()`, `reset_message_count()`, and tray methods `hwnd()` and `update_tooltip()`
