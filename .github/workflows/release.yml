@@ -76,14 +76,6 @@ jobs:
       - name: Prepare installer asset
         shell: pwsh
         run: |
-          $version = "${{ needs.changelog.outputs.version }}"
-          if (-not $version) {
-            $version = "${{ github.ref_name }}"
-            if ($version.StartsWith("v")) {
-              $version = $version.Substring(1)
-            }
-          }
-
           # cargo-packager outputs the installer directly to target/release/
           # with the naming pattern: spotlight-dimmer_{version}_x64-setup.exe
           $installer = Get-ChildItem -Path target/release -Filter '*-setup.exe' | Select-Object -First 1
@@ -95,7 +87,8 @@ jobs:
           }
 
           Write-Host "Found installer: $($installer.FullName)"
-          $assetName = "spotlight-dimmer-v$version-installer.exe"
+          # Use version-less filename for fixed URL access
+          $assetName = "spotlight-dimmer-installer.exe"
           Copy-Item -Path $installer.FullName -Destination $assetName -Force
 
           "INSTALLER_ASSET_PATH=$assetName" | Out-File -FilePath $Env:GITHUB_ENV -Append
@@ -119,16 +112,10 @@ jobs:
       - name: Create ZIP archive
         shell: pwsh
         run: |
-          $version = "${{ needs.changelog.outputs.version }}"
-          if (-not $version) {
-            $version = "${{ github.ref_name }}"
-            if ($version.StartsWith("v")) {
-              $version = $version.Substring(1)
-            }
-          }
-
-          $zipName = "spotlight-dimmer-v$version-windows-x86_64.zip"
+          # Use version-less filename for fixed URL access
+          $zipName = "spotlight-dimmer-windows-x86_64.zip"
           Compress-Archive -Path target/release/spotlight-dimmer.exe, target/release/spotlight-dimmer-config.exe, spotlight-dimmer-icon.ico, spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
+
           "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
 
       - name: Create GitHub Release
