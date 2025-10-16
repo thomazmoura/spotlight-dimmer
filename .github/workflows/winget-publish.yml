@@ -50,8 +50,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ inputs.version }}"
-          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-v$version-installer.exe"
-          $installerPath = "spotlight-dimmer-v$version-installer.exe"
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer.exe"
+          $installerPath = "spotlight-dimmer-installer.exe"
 
           Write-Host "Downloading installer from: $installerUrl"
           Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath
