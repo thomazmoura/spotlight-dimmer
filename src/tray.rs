@@ -17,10 +17,10 @@ use winapi::um::shellapi::{
 };
 use winapi::um::winuser::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
-    GetCursorPos, LoadImageW, PostQuitMessage, RegisterClassExW, SetForegroundWindow,
-    TrackPopupMenu, CS_DBLCLKS, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_STRING,
-    TPM_BOTTOMALIGN, TPM_LEFTALIGN, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP, WM_RBUTTONUP,
-    WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+    GetCursorPos, LoadImageW, PostQuitMessage, RegisterClassExW, RegisterWindowMessageW,
+    SetForegroundWindow, TrackPopupMenu, CS_DBLCLKS, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE,
+    MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN, WM_COMMAND, WM_LBUTTONDBLCLK, WM_LBUTTONUP,
+    WM_RBUTTONUP, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
 
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
@@ -31,6 +31,11 @@ const CMD_PROFILE_BASE: u16 = 2000; // Base ID for profile menu items
 struct TrayState {
     exit_flag: Arc<AtomicBool>,
     pause_flag: Arc<AtomicBool>,
+    hicon_active: winapi::shared::windef::HICON,
+    hicon_paused: winapi::shared::windef::HICON,
+    #[allow(dead_code)] // Used in recreate_tray_icon, but compiler doesn't see it
+    hwnd: HWND,
+    taskbar_created_msg: u32,
 }
 
 /// Get the directory where the executable is located
@@ -126,15 +131,16 @@ impl TrayIcon {
                 return Err(format!("Failed to create tray window: error {}", err));
             }
 
-            // Store tray state (both flags) in window user data for access in window proc
-            let state = Box::new(TrayState {
-                exit_flag: exit_flag.clone(),
-                pause_flag: pause_flag.clone(),
-            });
-            winapi::um::winuser::SetWindowLongPtrW(
-                hwnd,
-                winapi::um::winuser::GWLP_USERDATA,
-                Box::into_raw(state) as isize,
+            // Register for TaskbarCreated message (broadcast when Explorer restarts)
+            let taskbar_created_str = to_wstring("TaskbarCreated");
+            let taskbar_created_msg = RegisterWindowMessageW(taskbar_created_str.as_ptr());
+            if taskbar_created_msg == 0 {
+                DestroyWindow(hwnd);
+                return Err("Failed to register TaskbarCreated message".to_string());
+            }
+            println!(
+                "[Tray] Registered TaskbarCreated message (ID: {})",
+                taskbar_created_msg
             );
 
             // Get absolute path to icon files (relative to executable)
@@ -221,6 +227,22 @@ impl TrayIcon {
                 return Err("Failed to add tray icon".to_string());
             }
 
+            // Store tray state in window user data for access in window proc
+            // This allows the window procedure to recreate the icon if Explorer restarts
+            let state = Box::new(TrayState {
+                exit_flag: exit_flag.clone(),
+                pause_flag: pause_flag.clone(),
+                hicon_active,
+                hicon_paused,
+                hwnd,
+                taskbar_created_msg,
+            });
+            winapi::um::winuser::SetWindowLongPtrW(
+                hwnd,
+                winapi::um::winuser::GWLP_USERDATA,
+                Box::into_raw(state) as isize,
+            );
+
             println!("[Tray] System tray icon created successfully");
 
             Ok(Self {
@@ -297,6 +319,40 @@ impl Drop for TrayIcon {
     }
 }
 
+/// Recreate the tray icon (called when Explorer restarts)
+unsafe fn recreate_tray_icon(hwnd: HWND, state: &TrayState) {
+    let is_paused = state.pause_flag.load(Ordering::SeqCst);
+    let tooltip = if is_paused {
+        "Spotlight Dimmer (PAUSED)"
+    } else {
+        "Spotlight Dimmer"
+    };
+    let hicon = if is_paused {
+        state.hicon_paused
+    } else {
+        state.hicon_active
+    };
+
+    let tooltip_wide = to_wstring(tooltip);
+    let mut nid: NOTIFYICONDATAW = mem::zeroed();
+    nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
+    nid.hWnd = hwnd;
+    nid.uID = 1;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.uCallbackMessage = WM_TRAYICON;
+    nid.hIcon = hicon;
+
+    // Copy tooltip (max 128 chars)
+    let tooltip_len = tooltip_wide.len().min(127);
+    ptr::copy_nonoverlapping(tooltip_wide.as_ptr(), nid.szTip.as_mut_ptr(), tooltip_len);
+
+    if Shell_NotifyIconW(NIM_ADD, &mut nid) != 0 {
+        println!("[Tray] System tray icon recreated successfully (Explorer restart detected)");
+    } else {
+        eprintln!("[Tray] Failed to recreate system tray icon");
+    }
+}
+
 /// Window procedure for tray icon message window
 unsafe extern "system" fn window_proc(
     hwnd: HWND,
@@ -304,6 +360,19 @@ unsafe extern "system" fn window_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    // Check for TaskbarCreated message first (it's a registered message, not a standard one)
+    let ptr = winapi::um::winuser::GetWindowLongPtrW(hwnd, winapi::um::winuser::GWLP_USERDATA)
+        as *const TrayState;
+    if !ptr.is_null() {
+        let state = &*ptr;
+        if msg == state.taskbar_created_msg {
+            // Explorer restarted - recreate the tray icon
+            println!("[Tray] TaskbarCreated message received - recreating tray icon");
+            recreate_tray_icon(hwnd, state);
+            return 0;
+        }
+    }
+
     match msg {
         WM_TRAYICON => {
             // Handle tray icon events
