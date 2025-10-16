@@ -34,43 +34,8 @@ pub const WM_USER_FOREGROUND_CHANGED: UINT = 0x0402;
 // Phase 6: Configuration file change events
 // const WM_USER_CONFIG_CHANGED: UINT = 0x0404;
 
-/// Thread-safe wrapper for HWND (Windows window handle)
-///
-/// HWND is a raw pointer (*mut HWND__) which doesn't implement Send by default.
-/// However, HWND values are opaque handles that can be safely sent between threads
-/// as they're just integer identifiers to kernel objects. Windows API functions
-/// that use HWND are internally thread-safe.
-///
-/// Safety: This wrapper stores HWND as usize, making it Send. The actual HWND
-/// operations are performed in the thread that owns the message window's message loop.
-pub struct MessageWindowHandle(usize);
-
-unsafe impl Send for MessageWindowHandle {}
-
-impl MessageWindowHandle {
-    /// Create a new MessageWindowHandle from an HWND
-    pub fn new(hwnd: HWND) -> Self {
-        Self(hwnd as usize)
-    }
-
-    /// Convert back to HWND for Windows API calls
-    pub fn as_hwnd(&self) -> HWND {
-        self.0 as HWND
-    }
-}
-
 /// Statistics for message window (used for debugging and metrics)
 static MESSAGE_COUNT: AtomicU32 = AtomicU32::new(0);
-
-/// Get the total number of messages processed by the message window
-pub fn get_message_count() -> u32 {
-    MESSAGE_COUNT.load(Ordering::Relaxed)
-}
-
-/// Reset the message counter (useful for testing)
-pub fn reset_message_count() {
-    MESSAGE_COUNT.store(0, Ordering::Relaxed);
-}
 
 /// Phase 3: Display change timestamp for event-driven display configuration monitoring
 /// Stores the millisecond timestamp when WM_DISPLAYCHANGE was received
@@ -314,11 +279,6 @@ impl MessageWindow {
     pub fn hwnd(&self) -> HWND {
         self.hwnd
     }
-
-    /// Get a thread-safe handle that can be sent to other threads
-    pub fn handle(&self) -> MessageWindowHandle {
-        MessageWindowHandle::new(self.hwnd)
-    }
 }
 
 impl Drop for MessageWindow {
@@ -415,14 +375,6 @@ fn to_wstring(s: &str) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_message_window_handle_is_send() {
-        // This test ensures MessageWindowHandle implements Send
-        // If it doesn't, this won't compile
-        fn assert_send<T: Send>() {}
-        assert_send::<MessageWindowHandle>();
-    }
 
     #[test]
     fn test_to_wstring() {

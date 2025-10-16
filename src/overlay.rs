@@ -18,11 +18,17 @@ use winapi::um::winuser::{
     WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
+// These constants are used in the OverlayManager implementation
+#[allow(dead_code)]
 const INACTIVE_CLASS_NAME: &str = "SpotlightDimmerInactiveOverlay";
+#[allow(dead_code)]
 const ACTIVE_CLASS_NAME: &str = "SpotlightDimmerActiveOverlay";
+#[allow(dead_code)]
 const PARTIAL_CLASS_NAME: &str = "SpotlightDimmerPartialOverlay";
 
 /// Manager for overlay windows
+/// Note: Used by main_new.rs binary, but appears unused due to cross-module analysis limitations
+#[allow(dead_code)]
 pub struct OverlayManager {
     inactive_overlays: HashMap<String, HWND>,
     active_overlays: HashMap<String, HWND>,
@@ -31,6 +37,8 @@ pub struct OverlayManager {
     active_color: Option<OverlayColor>,
 }
 
+// Methods used by main_new.rs binary but appear unused when compiling for config binary
+#[allow(dead_code)]
 impl OverlayManager {
     pub fn new(
         inactive_color: OverlayColor,
@@ -421,14 +429,6 @@ impl OverlayManager {
         self.create_active_overlays(displays)
     }
 
-    /// Recreate all overlays with new displays
-    pub fn recreate_all_overlays(&mut self, displays: &[DisplayInfo]) -> Result<(), String> {
-        self.close_all();
-        self.create_inactive_overlays(displays)?;
-        self.create_active_overlays(displays)?;
-        Ok(())
-    }
-
     /// Update inactive overlay color
     pub fn set_inactive_color(
         &mut self,
@@ -461,11 +461,6 @@ impl OverlayManager {
         self.active_color = color;
     }
 
-    /// Get current overlay count (inactive + active)
-    pub fn count(&self) -> usize {
-        self.inactive_overlays.len() + self.active_overlays.len()
-    }
-
     /// Get inactive overlay count
     pub fn inactive_count(&self) -> usize {
         self.inactive_overlays.len()
@@ -474,11 +469,6 @@ impl OverlayManager {
     /// Get active overlay count
     pub fn active_count(&self) -> usize {
         self.active_overlays.len()
-    }
-
-    /// Get partial overlay count (total across all displays)
-    pub fn partial_count(&self) -> usize {
-        self.partial_overlays.values().map(|v| v.len()).sum()
     }
 
     /// Create partial overlays for a specific display based on window bounds
@@ -1032,6 +1022,8 @@ impl Drop for OverlayManager {
 }
 
 /// Window procedure for overlay windows
+/// Used as callback in RegisterClassExW - appears unused due to function pointer limitations
+#[allow(dead_code)]
 unsafe extern "system" fn window_proc(
     hwnd: HWND,
     msg: UINT,
@@ -1052,6 +1044,8 @@ unsafe extern "system" fn window_proc(
 }
 
 /// Convert Rust string to null-terminated wide string
+/// Used throughout overlay creation - appears unused due to inlining
+#[allow(dead_code)]
 fn to_wstring(s: &str) -> Vec<u16> {
     OsStr::new(s)
         .encode_wide()

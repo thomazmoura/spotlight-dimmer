@@ -233,33 +233,6 @@ impl TrayIcon {
         }
     }
 
-    /// Get the window handle for message processing
-    pub fn hwnd(&self) -> HWND {
-        self.hwnd
-    }
-
-    /// Update the tray icon tooltip
-    pub fn update_tooltip(&self, tooltip: &str) -> Result<(), String> {
-        unsafe {
-            let tooltip_wide = to_wstring(tooltip);
-            let mut nid: NOTIFYICONDATAW = mem::zeroed();
-            nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
-            nid.hWnd = self.hwnd;
-            nid.uID = 1;
-            nid.uFlags = NIF_TIP;
-
-            // Copy tooltip (max 128 chars)
-            let tooltip_len = tooltip_wide.len().min(127);
-            ptr::copy_nonoverlapping(tooltip_wide.as_ptr(), nid.szTip.as_mut_ptr(), tooltip_len);
-
-            if Shell_NotifyIconW(winapi::um::shellapi::NIM_MODIFY, &mut nid) == 0 {
-                return Err("Failed to update tray icon tooltip".to_string());
-            }
-
-            Ok(())
-        }
-    }
-
     /// Update the tray icon and tooltip based on pause state
     pub fn update_icon(&self, is_paused: bool) -> Result<(), String> {
         unsafe {

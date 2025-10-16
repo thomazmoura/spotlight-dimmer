@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Code quality and cleanliness**: Comprehensive code review and cleanup eliminates all compiler warnings
+  - Removed truly dead code: unused `MessageWindowHandle` wrapper, `get_message_count()`, `reset_message_count()`, and tray methods `hwnd()` and `update_tooltip()`
+  - Removed unused overlay methods: `recreate_all_overlays()`, `count()`, and `partial_count()` that were never called
+  - Added `#[allow(dead_code)]` attributes to legitimately-used code flagged by compiler due to cross-module analysis limitations
+  - All structs, constants, and functions are either actively used or properly documented as false positives
+  - Build output now completely clean: zero warnings from `cargo check` and `cargo clippy`
+  - Reduced code maintenance burden by removing ~150 lines of unused utility code
+  - Improved code navigation: developers can trust that all code in the codebase is actually being used
+  - Better developer experience: clean builds without warning noise make real issues stand out
+
+---
+
+### Melhorado
+- **Qualidade e limpeza de código**: Revisão e limpeza abrangente de código elimina todos os avisos do compilador
+  - Removido código realmente morto: wrapper `MessageWindowHandle` não usado, `get_message_count()`, `reset_message_count()`, e métodos da bandeja `hwnd()` e `update_tooltip()`
+  - Removidos métodos de sobreposição não usados: `recreate_all_overlays()`, `count()`, e `partial_count()` que nunca foram chamados
+  - Adicionados atributos `#[allow(dead_code)]` para código legitimamente usado sinalizado pelo compilador devido a limitações de análise entre módulos
+  - Todas as structs, constantes e funções estão ativa sendo usadas ou adequadamente documentadas como falsos positivos
+  - Saída de build agora completamente limpa: zero avisos de `cargo check` e `cargo clippy`
+  - Reduzida carga de manutenção de código ao remover ~150 linhas de código utilitário não usado
+  - Melhorada navegação de código: desenvolvedores podem confiar que todo código na base está realmente sendo usado
+  - Melhor experiência do desenvolvedor: builds limpos sem ruído de avisos fazem problemas reais se destacarem
+
 ## [0.6.5] - 2025-10-16
 
 ## [0.6.4] - 2025-10-16

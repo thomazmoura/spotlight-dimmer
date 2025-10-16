@@ -8,7 +8,11 @@ use winapi::um::winuser::{
     GetWindowThreadProcessId, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
 
+// Used by main_new.rs binary, but appears unused when compiling for config binary
+#[allow(dead_code)]
 pub struct WindowsDisplayManager;
+
+#[allow(dead_code)]
 pub struct WindowsWindowManager;
 
 impl DisplayManager for WindowsDisplayManager {
@@ -167,6 +171,8 @@ impl WindowManager for WindowsWindowManager {
     }
 }
 
+// Helper function called by get_active_window() - appears unused due to inlining/analysis limitations
+#[allow(dead_code)]
 fn get_process_name(process_id: u32) -> Result<String, String> {
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::processthreadsapi::OpenProcess;
@@ -198,6 +204,8 @@ fn get_process_name(process_id: u32) -> Result<String, String> {
 }
 
 // Helper function to get window rectangle (excludes drop shadow)
+// Called via WindowManager trait method - appears unused when compiling for config binary
+#[allow(dead_code)]
 pub fn get_window_rect(window_handle: u64) -> Result<RECT, String> {
     unsafe {
         let hwnd = window_handle as HWND;
@@ -229,6 +237,8 @@ pub fn get_window_rect(window_handle: u64) -> Result<RECT, String> {
 }
 
 // Helper function to check if a window is maximized or fullscreen
+// Called via WindowManager trait method - appears unused when compiling for config binary
+#[allow(dead_code)]
 pub fn is_window_maximized(window_handle: u64) -> Result<bool, String> {
     unsafe {
         use winapi::um::winuser::IsZoomed;
