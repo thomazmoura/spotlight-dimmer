@@ -1,3 +1,4 @@
+mod autostart;
 mod config;
 mod message_window;
 mod overlay;

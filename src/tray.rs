@@ -25,6 +25,7 @@ use winapi::um::winuser::{
 
 const WM_TRAYICON: u32 = winapi::um::winuser::WM_USER + 1;
 const CMD_EXIT: u16 = 1001;
+const CMD_TOGGLE_AUTOSTART: u16 = 1002;
 const CMD_PROFILE_BASE: u16 = 2000; // Base ID for profile menu items
 
 /// Struct to hold shared state pointers for window procedure
@@ -428,6 +429,34 @@ unsafe extern "system" fn window_proc(
                     let state = &*ptr;
                     state.exit_flag.store(true, Ordering::SeqCst);
                 }
+            } else if cmd_id == CMD_TOGGLE_AUTOSTART {
+                // Toggle autostart
+                match super::autostart::is_enabled() {
+                    Ok(is_enabled) => {
+                        let result = if is_enabled {
+                            println!("[Tray] Disabling auto-start");
+                            super::autostart::disable()
+                        } else {
+                            println!("[Tray] Enabling auto-start");
+                            super::autostart::enable()
+                        };
+
+                        match result {
+                            Ok(_) => {
+                                println!(
+                                    "[Tray] Auto-start {}",
+                                    if is_enabled { "disabled" } else { "enabled" }
+                                );
+                            }
+                            Err(e) => {
+                                eprintln!("[Tray] Failed to toggle auto-start: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[Tray] Failed to check auto-start status: {}", e);
+                    }
+                }
             } else if (CMD_PROFILE_BASE..CMD_PROFILE_BASE + 100).contains(&cmd_id) {
                 // Profile menu item clicked
                 let profile_index = (cmd_id - CMD_PROFILE_BASE) as usize;
@@ -488,6 +517,23 @@ unsafe fn show_context_menu(hwnd: HWND) {
         // Add separator
         AppendMenuW(hmenu, winapi::um::winuser::MF_SEPARATOR, 0, ptr::null());
     }
+
+    // Add "Start at Login" menu item with checkmark if enabled
+    let autostart_text = to_wstring("Start at Login");
+    let autostart_flags = if super::autostart::is_enabled().unwrap_or(false) {
+        MF_STRING | winapi::um::winuser::MF_CHECKED
+    } else {
+        MF_STRING
+    };
+    AppendMenuW(
+        hmenu,
+        autostart_flags,
+        CMD_TOGGLE_AUTOSTART as usize,
+        autostart_text.as_ptr(),
+    );
+
+    // Add separator before Exit
+    AppendMenuW(hmenu, winapi::um::winuser::MF_SEPARATOR, 0, ptr::null());
 
     // Add "Exit" menu item
     let exit_text = to_wstring("Exit");

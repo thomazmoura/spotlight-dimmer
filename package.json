@@ -1,6 +1,6 @@
 {
   "name": "spotlight-dimmer",
-  "version": "0.6.8",
+  "version": "0.7.0",
   "description": "A lightweight Windows application that dims inactive displays to highlight the active one. Built with pure Rust and Windows API for maximum performance.",
   "main": "index.js",
   "bin": {

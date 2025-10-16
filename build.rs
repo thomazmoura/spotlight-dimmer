@@ -18,11 +18,6 @@ fn embed_icon_resource() {
     let resource_file = "icon.rc";
     let icon_path = "src/icons/icon.ico";
 
-    println!(
-        "cargo:warning=Attempting to embed icon using resource file: {}",
-        resource_file
-    );
-
     // Trigger rebuild if icon or resource file changes
     println!("cargo:rerun-if-changed={}", resource_file);
     println!("cargo:rerun-if-changed={}", icon_path);
@@ -30,8 +25,6 @@ fn embed_icon_resource() {
     // embed-resource will automatically find rc.exe and embed the resources
     // It will panic with a clear error message if it fails
     embed_resource::compile(resource_file, embed_resource::NONE);
-
-    println!("cargo:warning=Successfully embedded icon resource using embed-resource crate");
 }
 
 fn copy_icon_files() {

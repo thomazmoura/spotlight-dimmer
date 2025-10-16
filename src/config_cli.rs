@@ -1,3 +1,4 @@
+mod autostart;
 mod config;
 mod overlay;
 mod platform;
@@ -28,6 +29,9 @@ fn main() {
         "set-profile" => cmd_set_profile(&args[2..]),
         "save-profile" => cmd_save_profile(&args[2..]),
         "delete-profile" => cmd_delete_profile(&args[2..]),
+        "autostart-enable" => cmd_autostart_enable(),
+        "autostart-disable" => cmd_autostart_disable(),
+        "autostart-status" => cmd_autostart_status(),
         "help" | "--help" | "-h" => print_usage(),
         _ => {
             eprintln!("Unknown command: {}", args[1]);
@@ -65,6 +69,11 @@ fn print_usage() {
     println!("    status                      Show current configuration");
     println!("    reset                       Reset configuration to defaults");
     println!("    help                        Show this help message");
+    println!();
+    println!("AUTO-START COMMANDS:");
+    println!("    autostart-enable            Enable auto-start at Windows login");
+    println!("    autostart-disable           Disable auto-start at Windows login");
+    println!("    autostart-status            Check if auto-start is enabled");
     println!();
     println!("PROFILE COMMANDS:");
     println!("    list-profiles               List all saved profiles");
@@ -625,6 +634,54 @@ fn cmd_delete_profile(args: &[String]) {
         },
         Err(e) => {
             eprintln!("✗ {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_autostart_enable() {
+    match autostart::enable() {
+        Ok(_) => {
+            println!("✓ Auto-start at login enabled");
+            println!("  Spotlight Dimmer will now start automatically when you log in to Windows");
+            println!("  You can disable this in Windows Settings → Apps → Startup");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to enable auto-start: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_autostart_disable() {
+    match autostart::disable() {
+        Ok(_) => {
+            println!("✓ Auto-start at login disabled");
+            println!("  Spotlight Dimmer will no longer start automatically when you log in");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to disable auto-start: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_autostart_status() {
+    match autostart::is_enabled() {
+        Ok(enabled) => {
+            if enabled {
+                println!("✓ Auto-start is ENABLED");
+                println!("  Spotlight Dimmer will start automatically when you log in to Windows");
+                println!("  To disable, run: spotlight-dimmer-config autostart-disable");
+                println!("  Or toggle in: Windows Settings → Apps → Startup");
+            } else {
+                println!("○ Auto-start is DISABLED");
+                println!("  Spotlight Dimmer will NOT start automatically when you log in");
+                println!("  To enable, run: spotlight-dimmer-config autostart-enable");
+            }
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to check auto-start status: {}", e);
             std::process::exit(1);
         }
     }
