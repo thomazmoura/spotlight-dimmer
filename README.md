@@ -14,12 +14,20 @@ It's intended to help people who use multiple monitores to focus and assist in q
 
 - **Ultra-lightweight**: Only ~7.6 MB RAM usage, ~561 KB binary size
 - **Native Windows API**: No browser engine overhead, instant startup
-- **Perfect transparency**: Smooth 50% dimming (customizable) on inactive displays
+- **Flexible overlay modes**:
+  - **Inactive display dimming**: Dims all non-active displays (traditional mode)
+  - **Active display overlay**: Optional customizable overlay on the active display/window
+  - **Partial dimming**: Highlights windowed apps by dimming empty areas around the focused window
+- **System tray integration**:
+  - Double-click to hide/show overlays
+  - Right-click for profile switching
+  - Exit option available from tray menu
+- **Profile system**: Save and switch between custom configurations with different colors and overlay settings
 - **Click-through overlays**: Overlays don't interfere with mouse/keyboard input
 - **Automatic focus tracking**: Detects active window and display changes in real-time (100ms polling)
 - **Display hotplug support**: Automatically recreates overlays when displays are connected/disconnected
 - **Persistent configuration**: Settings saved in TOML format at `%APPDATA%\spotlight-dimmer\config.toml`
-- **CLI configuration tool**: Manage settings without running the main application
+- **CLI configuration tool**: Manage settings without restarting the application (2-second auto-reload)
 
 ## Installation
 
@@ -74,24 +82,36 @@ You can also use the PowerShell installation script:
 
 #### Running the Application
 
-Simply run `spotlight-dimmer.exe`:
+**If installed via Windows installer:**
+- Use the Start Menu shortcut: Start → Spotlight Dimmer
+- The application will run with a system tray icon
 
+**If installed via npm, cargo, or portable zip:**
 ```cmd
 spotlight-dimmer.exe
 ```
 
 The application will:
 1. Load configuration from `%APPDATA%\spotlight-dimmer\config.toml` (or create default)
-2. Detect all connected displays
-3. Create semi-transparent overlay windows on each display
-4. Monitor active window focus and hide overlay on active display
-5. Run indefinitely until terminated
+2. Add a system tray icon for quick access
+3. Detect all connected displays
+4. Create semi-transparent overlay windows on each display
+5. Monitor active window focus and update overlay visibility
+6. Run indefinitely until closed via system tray or Task Manager
 
-#### Stopping the Application
+#### Controlling the Application via System Tray
 
-To stop the running application, use PowerShell:
+The system tray icon provides quick access to key functions:
+
+- **Double-click**: Hide/show all overlays (pause/resume dimming)
+- **Right-click**: Access the context menu with:
+  - Profile switching (quick-switch between saved profiles)
+  - Exit option to close the application
+
+**Alternative ways to stop the application:**
 
 ```powershell
+# Using PowerShell
 Get-Process spotlight-dimmer | Stop-Process
 ```
 
@@ -99,22 +119,35 @@ Or use Task Manager to end the `spotlight-dimmer.exe` process.
 
 #### Configuration Tool
 
-Use `spotlight-dimmer-config.exe` to manage settings:
+Use `spotlight-dimmer-config.exe` to manage all settings:
 
 ```cmd
 # Show current configuration
 spotlight-dimmer-config status
 
-# Enable/disable dimming
-spotlight-dimmer-config enable
-spotlight-dimmer-config disable
+# Inactive overlay commands (dims non-active displays)
+spotlight-dimmer-config enable              # Enable inactive display dimming
+spotlight-dimmer-config disable             # Disable inactive display dimming
+spotlight-dimmer-config color 0 0 0 0.7     # Set inactive overlay color (RGB 0-255, alpha 0.0-1.0)
 
-# Set overlay color (RGB 0-255, alpha 0.0-1.0)
-spotlight-dimmer-config color 0 0 0 0.7      # 70% black overlay
-spotlight-dimmer-config color 50 50 50 0.3   # 30% gray overlay
+# Active overlay commands (highlights active display)
+spotlight-dimmer-config active-enable       # Enable active display overlay
+spotlight-dimmer-config active-disable      # Disable active display overlay
+spotlight-dimmer-config active-color 50 100 255 0.15  # Set active overlay color
 
-# Reset to defaults
-spotlight-dimmer-config reset
+# Partial dimming commands (dims empty areas around focused window)
+spotlight-dimmer-config partial-enable      # Enable partial dimming
+spotlight-dimmer-config partial-disable     # Disable partial dimming
+
+# Profile commands
+spotlight-dimmer-config list-profiles       # List all saved profiles
+spotlight-dimmer-config set-profile dark-mode    # Load and apply a saved profile
+spotlight-dimmer-config save-profile my-setup    # Save current settings as a profile
+spotlight-dimmer-config delete-profile my-setup  # Delete a saved profile
+
+# General commands
+spotlight-dimmer-config reset               # Reset to defaults
+spotlight-dimmer-config help                # Show all available commands
 ```
 
 **Note**: Configuration changes are automatically detected and reloaded within 2 seconds. No restart needed!
@@ -125,12 +158,52 @@ Configuration is stored at `%APPDATA%\spotlight-dimmer\config.toml`:
 
 ```toml
 is_dimming_enabled = true
+is_active_overlay_enabled = false
+is_paused = false
+is_partial_dimming_enabled = false
 
+# Inactive overlay color (for non-active displays)
 [overlay_color]
 r = 0
 g = 0
 b = 0
 a = 0.5
+
+# Active overlay color (for active display, optional)
+[active_overlay_color]
+r = 50
+g = 100
+b = 255
+a = 0.15
+
+# Saved profiles (two default profiles: "light-mode" and "dark-mode")
+[profiles.light-mode]
+is_dimming_enabled = true
+is_active_overlay_enabled = false
+is_partial_dimming_enabled = true
+
+[profiles.light-mode.overlay_color]
+r = 0
+g = 0
+b = 0
+a = 0.5
+
+[profiles.dark-mode]
+is_dimming_enabled = true
+is_active_overlay_enabled = true
+is_partial_dimming_enabled = true
+
+[profiles.dark-mode.overlay_color]
+r = 0
+g = 0
+b = 0
+a = 0.7
+
+[profiles.dark-mode.active_overlay_color]
+r = 0
+g = 0
+b = 0
+a = 0.3
 ```
 
 ## Architecture
@@ -156,16 +229,6 @@ a = 0.5
 - **No taskbar**: `WS_EX_TOOLWINDOW` prevents overlays from appearing in Alt+Tab
 - **No focus**: `WS_EX_NOACTIVATE` prevents overlays from stealing focus
 - **Transparency**: `SetLayeredWindowAttributes()` with `LWA_ALPHA` for smooth dimming
-
-## Comparison with Tauri Version
-
-| Metric | Tauri v0.1.8 | WinAPI v0.1.9 | Improvement |
-|--------|--------------|---------------|-------------|
-| Binary Size | 10.1 MB | 561 KB | ~95% reduction |
-| Memory Usage | ~200 MB | ~7.6 MB | ~96% reduction |
-| Startup Time | ~400ms | Instant | N/A |
-| Dependencies | 30+ crates | 3 crates | Minimal |
-| Runtime Deps | WebView2 | None | Self-contained |
 
 ## Development
 
@@ -197,30 +260,14 @@ cargo build --release
 - `toml` - TOML configuration parsing
 - `winapi` - Windows API bindings
 
-## Known Limitations
-
-### Window Dragging Behavior
-
-When dragging windows between monitors with the mouse, overlays are temporarily hidden to prevent system instability:
-
-- **During drag**: All overlays disappear when the left mouse button is pressed
-- **After drag**: Overlays reappear with correct visibility when the mouse button is released
-- **Why**: Windows' drag-and-drop message loop conflicts with overlay visibility updates, causing system instability if overlays remain visible
-- **Workaround**: Use keyboard shortcuts (Win+Arrow keys) for instant overlay updates without hiding
-
-This is a Windows API limitation, not a bug. Focus changes and keyboard-based window movement work instantly without hiding overlays.
-
-## Roadmap
-
-- [ ] System tray icon (optional, using `trayicon` crate)
-- [x] Hot reload configuration without restart (2-second detection window)
-- [ ] Per-display color customization
-- [ ] Linux support (using X11/Wayland)
-
 ## License
 
 MIT
 
 ## Credits
+
+Developed by **Thomaz Moura** with most of the code generated using AI-assisted development tools:
+- [Claude Code](https://claude.ai/code) (Anthropic)
+- [Codex CLI](https://github.com/thomazmoura/codex-cli) (OpenAI)
 
 Built with Rust and the Windows API for maximum performance.
