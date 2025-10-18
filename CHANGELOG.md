@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-10-18
+
 ### Fixed
 - **Winget manifest generation**: Fixed installer URL mismatch in automated Winget workflow
   - Updated winget-publish.yml to use version-less installer filename `spotlight-dimmer-installer.exe`
