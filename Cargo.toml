@@ -1,6 +1,6 @@
 [package]
 name = "spotlight-dimmer"
-version = "0.7.0"
+version = "0.7.1"
 description = "A lightweight application that dims inactive displays to highlight the active one"
 authors = ["Thomaz Moura"]
 license = "MIT"

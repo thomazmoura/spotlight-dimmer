@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Winget manifest generation**: Fixed installer URL mismatch in automated Winget workflow
+  - Updated winget-publish.yml to use version-less installer filename `spotlight-dimmer-installer.exe`
+  - Previously expected versioned filename `spotlight-dimmer-v{version}-installer.exe` causing 404 errors
+  - Aligns with release.yml which creates stable, version-less filenames for predictable URLs
+  - Winget manifest generation now successfully downloads installer and calculates SHA256 hash
+
+---
+
+### Corrigido
+- **Geração de manifesto Winget**: Corrigida incompatibilidade de URL do instalador no fluxo de trabalho automatizado do Winget
+  - Atualizado winget-publish.yml para usar nome de arquivo do instalador sem versão `spotlight-dimmer-installer.exe`
+  - Anteriormente esperava nome de arquivo versionado `spotlight-dimmer-v{version}-installer.exe` causando erros 404
+  - Alinha com release.yml que cria nomes de arquivos estáveis sem versão para URLs previsíveis
+  - Geração de manifesto Winget agora baixa o instalador com sucesso e calcula o hash SHA256
+
 ## [0.7.0] - 2025-10-16
 
 ## [0.6.8] - 2025-10-16
