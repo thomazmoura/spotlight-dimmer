@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2025-10-19
+
 ### Fixed
 - **Winget validation DLL dependency error**: Fixed `STATUS_DLL_NOT_FOUND` (exit code -1073741515) error during Winget package validation
   - Root cause: Binaries were dynamically linked to Visual C++ Runtime DLLs (vcruntime140.dll, msvcp140.dll) not present in Winget validation sandbox
