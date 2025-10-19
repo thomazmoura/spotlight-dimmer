@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Winget validation DLL dependency error**: Fixed `STATUS_DLL_NOT_FOUND` (exit code -1073741515) error during Winget package validation
+  - Root cause: Binaries were dynamically linked to Visual C++ Runtime DLLs (vcruntime140.dll, msvcp140.dll) not present in Winget validation sandbox
+  - Solution: Enabled static linking of C runtime via `.cargo/config.toml` with `target-feature=+crt-static` flag
+  - Binaries now fully self-contained and work on any Windows 10+ system without requiring Visual C++ Redistributables
+  - Binary size impact: Minimal increase of ~196 KB total (720KB→818KB and 634KB→732KB, ~14% larger)
+  - Ensures Winget package validation succeeds and provides better portability for all distribution methods
+  - Technical reference: `.cargo/config.toml` contains rustflags configuration for x86_64-pc-windows-msvc target
+
+---
+
+### Corrigido
+- **Erro de dependência DLL na validação Winget**: Corrigido erro `STATUS_DLL_NOT_FOUND` (código de saída -1073741515) durante validação de pacote Winget
+  - Causa raiz: Binários estavam dinamicamente vinculados a DLLs do Visual C++ Runtime (vcruntime140.dll, msvcp140.dll) não presentes no sandbox de validação Winget
+  - Solução: Habilitada vinculação estática do runtime C via `.cargo/config.toml` com flag `target-feature=+crt-static`
+  - Binários agora totalmente autocontidos e funcionam em qualquer sistema Windows 10+ sem necessidade de Visual C++ Redistributables
+  - Impacto no tamanho binário: Aumento mínimo de ~196 KB total (720KB→818KB e 634KB→732KB, ~14% maior)
+  - Garante sucesso na validação de pacote Winget e proporciona melhor portabilidade para todos os métodos de distribuição
+  - Referência técnica: `.cargo/config.toml` contém configuração rustflags para target x86_64-pc-windows-msvc
+
 ## [0.7.1] - 2025-10-18
 
 ### Fixed
