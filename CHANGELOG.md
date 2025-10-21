@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3-beta.1] - 2025-10-21
+
 ### Added
 - **Tmux pane focusing integration**: Dim inactive tmux panes within Windows Terminal (via WSL) for enhanced focus
   - Works even when Windows Terminal is in fullscreen mode
