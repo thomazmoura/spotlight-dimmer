@@ -7,8 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.2] - 2025-10-19
+### Added
+- **Tmux pane focusing integration**: Dim inactive tmux panes within Windows Terminal (via WSL) for enhanced focus
+  - Works even when Windows Terminal is in fullscreen mode
+  - Event-driven file watching for instant response to pane switches (zero polling overhead)
+  - Automatic Windows Terminal detection via process name matching
+  - Configurable terminal geometry (font size, padding) for accurate pixel-perfect overlay positioning
+  - Character-to-pixel coordinate translation system for tmux (columns/rows) → Windows (pixels)
+  - Seamless integration with existing partial dimming and active overlay features
+  - Tmux hook configuration writes pane boundaries to shared file accessible from Windows
+  - CLI commands: `tmux-enable`, `tmux-disable`, `tmux-config`, `tmux-auto-config`, `tmux-status`
+  - Setup guide included in CLI output with exact tmux configuration needed
+  - Independent file watcher for tmux pane file with automatic cleanup on exit
+  - Overlays automatically cleared when switching away from Windows Terminal or disabling mode
+  - Modular architecture: `tmux_watcher` (parsing), `tmux_overlay` (coordinate translation), overlay methods (rendering)
 
+- **Automatic terminal geometry detection** (`tmux-auto-config`): Zero-friction tmux setup with intelligent configuration
+  - Automatically reads Windows Terminal settings.json to extract font and padding configuration
+  - Uses Windows GDI API (`GetTextMetrics`) to calculate exact font pixel dimensions
+  - Supports both legacy (`fontSize`, `fontFace`) and modern (`font.size`, `font.face`) settings formats
+  - Optional profile selection: reads from specific profile or defaults section
+  - `--dry-run` flag for previewing detected settings before applying
+  - Shows before/after comparison with current configuration
+  - Handles all padding formats: single value, two values (horizontal/vertical), four values (left/top/right/bottom)
+  - Smart detection: only saves if configuration actually changed
+  - Comprehensive error messages with troubleshooting steps
+  - Eliminates manual font size measurement - calculates precise metrics automatically
+
+---
+
+### Adicionado
+- **Integração de foco de painel tmux**: Escurece painéis tmux inativos dentro do Windows Terminal (via WSL) para foco aprimorado
+  - Funciona mesmo quando o Windows Terminal está em modo tela cheia
+  - Observação de arquivo orientada a eventos para resposta instantânea a trocas de painel (zero sobrecarga de polling)
+  - Detecção automática do Windows Terminal via correspondência de nome de processo
+  - Geometria de terminal configurável (tamanho de fonte, padding) para posicionamento preciso de overlay pixel a pixel
+  - Sistema de tradução de coordenadas caractere-para-pixel para tmux (colunas/linhas) → Windows (pixels)
+  - Integração perfeita com recursos existentes de escurecimento parcial e overlay ativo
+  - Configuração de hook tmux escreve limites de painel para arquivo compartilhado acessível do Windows
+  - Comandos CLI: `tmux-enable`, `tmux-disable`, `tmux-config`, `tmux-auto-config`, `tmux-status`
+  - Guia de configuração incluído na saída CLI com configuração tmux exata necessária
+  - Observador de arquivo independente para arquivo de painel tmux com limpeza automática ao sair
+  - Overlays automaticamente limpos ao alternar para fora do Windows Terminal ou ao desabilitar modo
+  - Arquitetura modular: `tmux_watcher` (análise), `tmux_overlay` (tradução de coordenadas), métodos overlay (renderização)
+
+- **Detecção automática de geometria de terminal** (`tmux-auto-config`): Configuração tmux sem fricção com configuração inteligente
+  - Lê automaticamente settings.json do Windows Terminal para extrair configuração de fonte e padding
+  - Usa API Windows GDI (`GetTextMetrics`) para calcular dimensões exatas de fonte em pixels
+  - Suporta formatos de configuração legados (`fontSize`, `fontFace`) e modernos (`font.size`, `font.face`)
+  - Seleção opcional de perfil: lê de perfil específico ou seção padrões
+  - Flag `--dry-run` para visualizar configurações detectadas antes de aplicar
+  - Mostra comparação antes/depois com configuração atual
+  - Trata todos os formatos de padding: valor único, dois valores (horizontal/vertical), quatro valores (esquerda/topo/direita/baixo)
+  - Detecção inteligente: só salva se a configuração realmente mudou
+  - Mensagens de erro abrangentes com passos de solução de problemas
+  - Elimina medição manual de tamanho de fonte - calcula métricas precisas automaticamente
+
+## [0.7.2] - 2025-10-19
 ### Fixed
 - **Winget validation DLL dependency error**: Fixed `STATUS_DLL_NOT_FOUND` (exit code -1073741515) error during Winget package validation
   - Root cause: Binaries were dynamically linked to Visual C++ Runtime DLLs (vcruntime140.dll, msvcp140.dll) not present in Winget validation sandbox

@@ -81,6 +81,32 @@ pub struct Config {
     pub is_partial_dimming_enabled: bool,
     #[serde(default)]
     pub profiles: HashMap<String, Profile>,
+    // tmux integration settings
+    #[serde(default)]
+    pub is_tmux_mode_enabled: bool,
+    #[serde(default)]
+    pub tmux_pane_file_path: Option<String>,
+    #[serde(default = "default_terminal_font_width")]
+    pub terminal_font_width: u32,
+    #[serde(default = "default_terminal_font_height")]
+    pub terminal_font_height: u32,
+    #[serde(default)]
+    pub terminal_padding_left: i32,
+    #[serde(default = "default_terminal_padding_top")]
+    pub terminal_padding_top: i32,
+}
+
+// Default values for terminal geometry
+fn default_terminal_font_width() -> u32 {
+    9 // Common monospace font width at 12pt
+}
+
+fn default_terminal_font_height() -> u32 {
+    20 // Common monospace font height at 12pt
+}
+
+fn default_terminal_padding_top() -> i32 {
+    35 // Common Windows Terminal title bar height
 }
 
 impl Default for Config {
@@ -134,11 +160,47 @@ impl Default for Config {
             is_paused: false,
             is_partial_dimming_enabled: false,
             profiles,
+            is_tmux_mode_enabled: false,
+            tmux_pane_file_path: None, // Will use default path if None
+            terminal_font_width: default_terminal_font_width(),
+            terminal_font_height: default_terminal_font_height(),
+            terminal_padding_left: 0,
+            terminal_padding_top: default_terminal_padding_top(),
         }
     }
 }
 
 impl Config {
+    /// Get the default path for the tmux pane file
+    /// Returns a path in the user's home directory that's accessible from both Windows and WSL
+    #[allow(dead_code)]
+    pub fn default_tmux_pane_file_path() -> Result<PathBuf, String> {
+        // Use USERPROFILE to get C:\Users\{username}
+        let user_profile = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .map_err(|_| "Failed to get user home directory".to_string())?;
+
+        let tmux_dir = PathBuf::from(user_profile).join(".spotlight-dimmer");
+
+        // Create directory if it doesn't exist
+        if !tmux_dir.exists() {
+            fs::create_dir_all(&tmux_dir)
+                .map_err(|e| format!("Failed to create tmux directory: {}", e))?;
+        }
+
+        Ok(tmux_dir.join("tmux-active-pane.txt"))
+    }
+
+    /// Get the tmux pane file path, using config value or default
+    #[allow(dead_code)]
+    pub fn get_tmux_pane_file_path(&self) -> Result<PathBuf, String> {
+        if let Some(ref path) = self.tmux_pane_file_path {
+            Ok(PathBuf::from(path))
+        } else {
+            Self::default_tmux_pane_file_path()
+        }
+    }
+
     /// Get the path to the config file in the user's AppData directory
     #[allow(dead_code)]
     pub fn config_path() -> Result<PathBuf, String> {
@@ -728,6 +790,12 @@ mod tests {
             is_paused: false,
             is_partial_dimming_enabled: false,
             profiles: HashMap::new(), // Empty profiles
+            is_tmux_mode_enabled: false,
+            tmux_pane_file_path: None,
+            terminal_font_width: 9,
+            terminal_font_height: 20,
+            terminal_padding_left: 0,
+            terminal_padding_top: 35,
         };
 
         assert_eq!(config.profiles.len(), 0);

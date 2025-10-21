@@ -169,6 +169,10 @@ impl WindowManager for WindowsWindowManager {
     fn is_window_maximized(&self, window_handle: u64) -> Result<bool, String> {
         is_window_maximized(window_handle)
     }
+
+    fn is_windows_terminal(&self, window_handle: u64) -> Result<bool, String> {
+        is_windows_terminal(window_handle)
+    }
 }
 
 // Helper function called by get_active_window() - appears unused due to inlining/analysis limitations
@@ -267,5 +271,28 @@ pub fn is_window_maximized(window_handle: u64) -> Result<bool, String> {
             // If we can't get monitor info, just use IsZoomed
             Ok(is_zoomed)
         }
+    }
+}
+
+// Helper function to check if a window is Windows Terminal
+// Called via WindowManager trait method - appears unused when compiling for config binary
+#[allow(dead_code)]
+pub fn is_windows_terminal(window_handle: u64) -> Result<bool, String> {
+    unsafe {
+        let hwnd = window_handle as HWND;
+
+        // Get process ID
+        let mut process_id = 0u32;
+        GetWindowThreadProcessId(hwnd, &mut process_id);
+
+        // Get process name
+        let process_name = get_process_name(process_id)?;
+
+        // Check if it's Windows Terminal
+        // Windows Terminal process names:
+        // - WindowsTerminal.exe (modern Windows Terminal)
+        // - wt.exe (Windows Terminal command-line launcher)
+        let process_name_lower = process_name.to_lowercase();
+        Ok(process_name_lower == "windowsterminal.exe" || process_name_lower == "wt.exe")
     }
 }

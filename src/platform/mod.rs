@@ -53,6 +53,9 @@ pub trait WindowManager {
 
     #[cfg(windows)]
     fn is_window_maximized(&self, window_handle: u64) -> Result<bool, String>;
+
+    #[cfg(windows)]
+    fn is_windows_terminal(&self, window_handle: u64) -> Result<bool, String>;
 }
 
 #[cfg(test)]

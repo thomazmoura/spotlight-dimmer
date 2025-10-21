@@ -240,6 +240,177 @@ if window_changed || display_changed {
 }
 ```
 
+## Tmux Pane Focusing (WSL Integration)
+
+Spotlight Dimmer can dim inactive tmux panes within Windows Terminal (via WSL) to help you focus on the active pane. This works even when Windows Terminal is in fullscreen mode.
+
+### How It Works
+
+1. **tmux hook** writes active pane boundaries to a shared file when you switch panes
+2. **Windows file watcher** detects changes instantly (event-driven, zero polling)
+3. **Coordinate translator** converts tmux character coordinates to Windows pixels
+4. **Overlay system** creates transparent dimming overlays over inactive pane areas
+
+### Setup Instructions
+
+#### Step 1: Enable tmux mode
+```bash
+spotlight-dimmer-config tmux-enable
+```
+
+#### Step 2: Configure tmux hook
+Add this to your `~/.tmux.conf` (in WSL):
+
+```bash
+set-hook -g pane-focus-in 'run-shell "tmux display -p \"#{pane_left},#{pane_top},#{pane_right},#{pane_bottom},#{window_width},#{window_height}\" > ~/.spotlight-dimmer/tmux-active-pane.txt"'
+```
+
+This hook writes pane boundaries to `~/.spotlight-dimmer/tmux-active-pane.txt` whenever you switch panes.
+
+#### Step 3: Reload tmux configuration
+```bash
+tmux source-file ~/.tmux.conf
+```
+
+#### Step 4: Configure terminal geometry
+
+**Option A: Automatic configuration (Recommended)**
+
+Let Spotlight Dimmer automatically detect settings from Windows Terminal:
+
+```bash
+# Auto-detect from default profile
+spotlight-dimmer-config tmux-auto-config
+
+# Auto-detect from specific profile
+spotlight-dimmer-config tmux-auto-config "Ubuntu-22.04"
+
+# Preview without saving
+spotlight-dimmer-config tmux-auto-config --dry-run
+```
+
+This command:
+- Reads your Windows Terminal settings.json
+- Detects font size and calculates exact pixel dimensions using Windows API
+- Extracts padding values
+- Applies configuration automatically
+
+**Option B: Manual configuration**
+
+If auto-detection doesn't work or you prefer manual setup:
+
+```bash
+# Example: 9px wide characters, 20px tall characters, 0px left padding, 35px top padding (title bar)
+spotlight-dimmer-config tmux-config 9 20 0 35
+```
+
+**How to find your terminal geometry:**
+1. **Font size**: Check Windows Terminal settings → Profiles → Appearance → Font face and size
+   - Typical monospace fonts at 12pt: ~9px wide, ~20px tall
+   - At 10pt: ~8px wide, ~17px tall
+2. **Padding**: Measure from window edge to first character
+   - Top padding includes title bar (typically 30-40px)
+   - Left/right padding is usually 0-5px
+
+#### Step 5: Check status
+```bash
+spotlight-dimmer-config tmux-status
+```
+
+### Shared File Location
+
+The pane boundary file must be accessible from both WSL and Windows:
+- **WSL path**: `~/.spotlight-dimmer/tmux-active-pane.txt`
+- **Windows path**: `C:\Users\{username}\.spotlight-dimmer\tmux-active-pane.txt`
+- The directory is created automatically on first use
+
+### Usage
+
+Once configured, tmux pane focusing activates automatically when:
+- ✅ Windows Terminal is the focused application
+- ✅ tmux mode is enabled (`tmux-enable`)
+- ✅ The pane boundary file exists and is up-to-date
+
+Overlays are automatically cleared when:
+- ❌ You switch away from Windows Terminal
+- ❌ You disable tmux mode (`tmux-disable`)
+- ❌ No active window detected
+
+### CLI Commands
+
+```bash
+# Enable/disable tmux mode
+spotlight-dimmer-config tmux-enable
+spotlight-dimmer-config tmux-disable
+
+# Configure terminal geometry
+spotlight-dimmer-config tmux-config <font_width> <font_height> <padding_left> <padding_top>
+
+# Check configuration
+spotlight-dimmer-config tmux-status
+
+# View full status including tmux settings
+spotlight-dimmer-config status
+```
+
+### Compatibility
+
+- **Terminal**: Windows Terminal only (detected via process name)
+- **WSL**: Any version (WSL1 or WSL2)
+- **tmux**: Version 2.1+ (requires pane_left/pane_top/pane_right/pane_bottom variables)
+- **Modes**: Works in both windowed and fullscreen Windows Terminal
+
+### Technical Details
+
+**Coordinate Translation:**
+- tmux uses character-based coordinates (columns and rows)
+- Windows uses pixel-based coordinates
+- Translation formula: `pixel = padding + (character * font_size)`
+
+**File Format:**
+The tmux hook writes comma-separated values:
+```
+pane_left,pane_top,pane_right,pane_bottom,window_width,window_height
+```
+Example: `0,0,119,29,240,60` (pane at columns 0-119, rows 0-29, in a 240x60 window)
+
+**Performance:**
+- Event-driven file watching (zero CPU overhead when idle)
+- Overlays update only when pane changes
+- Automatic cleanup on exit
+
+### Troubleshooting
+
+**Problem: Overlays don't appear**
+- Check that tmux mode is enabled: `spotlight-dimmer-config tmux-status`
+- Verify the pane file exists: `ls ~/.spotlight-dimmer/tmux-active-pane.txt` (in WSL)
+- Check Windows path: `C:\Users\{username}\.spotlight-dimmer\tmux-active-pane.txt`
+- Ensure Windows Terminal is the focused application
+
+**Problem: Overlays are misaligned**
+- Reconfigure terminal geometry with correct font size and padding
+- Use `spotlight-dimmer-config tmux-config` with measured values
+- Font size can be found in Windows Terminal settings
+
+**Problem: Overlays don't update when switching panes**
+- Verify tmux hook is active: `tmux show-hooks`
+- Reload tmux config: `tmux source-file ~/.tmux.conf`
+- Check file is being updated: `watch -n 0.5 cat ~/.spotlight-dimmer/tmux-active-pane.txt` (switch panes to test)
+
+**Problem: Works in windowed mode but not fullscreen**
+- This should work in both modes. If not, check that Windows Terminal process is detected
+- Verify with: `tasklist | findstr WindowsTerminal`
+
+**Problem: Auto-config fails to find settings.json**
+- Ensure Windows Terminal is installed from Microsoft Store or GitHub
+- Check settings file exists: `%LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json`
+- If using portable version, auto-config may not work (use manual `tmux-config` instead)
+
+**Problem: Auto-config calculates wrong font size**
+- Some fonts report inconsistent metrics - use `--dry-run` to preview before applying
+- If metrics are wrong, use manual `tmux-config` with measured values
+- Verify font is installed: Check Windows Settings → Fonts
+
 ## Troubleshooting
 
 ### Build Issues

@@ -2,6 +2,9 @@ mod autostart;
 mod config;
 mod overlay;
 mod platform;
+mod tmux_overlay;
+mod tmux_watcher;
+mod windows_terminal;
 
 use config::{Config, OverlayColor};
 use std::env;
@@ -24,6 +27,11 @@ fn main() {
         "active-color" => cmd_active_color(&args[2..]),
         "partial-enable" => cmd_partial_enable(),
         "partial-disable" => cmd_partial_disable(),
+        "tmux-enable" => cmd_tmux_enable(),
+        "tmux-disable" => cmd_tmux_disable(),
+        "tmux-config" => cmd_tmux_config(&args[2..]),
+        "tmux-auto-config" => cmd_tmux_auto_config(&args[2..]),
+        "tmux-status" => cmd_tmux_status(),
         "reset" => cmd_reset(),
         "list-profiles" => cmd_list_profiles(),
         "set-profile" => cmd_set_profile(&args[2..]),
@@ -64,6 +72,21 @@ fn print_usage() {
     println!("PARTIAL DIMMING COMMANDS (dims empty areas around focused window):");
     println!("    partial-enable              Enable partial dimming on active display");
     println!("    partial-disable             Disable partial dimming on active display");
+    println!();
+    println!("TMUX INTEGRATION COMMANDS (dims inactive tmux panes in Windows Terminal):");
+    println!("    tmux-enable                 Enable tmux pane focusing mode");
+    println!("    tmux-disable                Disable tmux pane focusing mode");
+    println!(
+        "    tmux-config <fw> <fh> <pl> <pt> Set terminal geometry (font width/height, padding left/top)"
+    );
+    println!("    tmux-auto-config [profile] [--dry-run]");
+    println!(
+        "                                Automatically detect geometry from Windows Terminal settings"
+    );
+    println!(
+        "                                Optional: profile name (default: uses defaults section)"
+    );
+    println!("    tmux-status                 Show tmux configuration");
     println!();
     println!("GENERAL COMMANDS:");
     println!("    status                      Show current configuration");
@@ -165,6 +188,26 @@ fn cmd_status() {
         }
     );
     println!("  Note:   Uses inactive overlay color for partial overlays");
+    println!();
+
+    println!("TMUX PANE FOCUSING (dims inactive tmux panes in Windows Terminal):");
+    println!(
+        "  Status: {}",
+        if config.is_tmux_mode_enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        }
+    );
+    println!("  Terminal Geometry:");
+    println!(
+        "    Font: {}x{} pixels",
+        config.terminal_font_width, config.terminal_font_height
+    );
+    println!(
+        "    Padding: left={}, top={}",
+        config.terminal_padding_left, config.terminal_padding_top
+    );
     println!();
 
     if let Ok(path) = Config::config_path() {
@@ -682,6 +725,316 @@ fn cmd_autostart_status() {
         }
         Err(e) => {
             eprintln!("✗ Failed to check auto-start status: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_tmux_enable() {
+    let mut cfg = Config::load();
+    cfg.is_tmux_mode_enabled = true;
+
+    match cfg.save() {
+        Ok(_) => {
+            println!("✓ Tmux pane focusing ENABLED");
+            println!("  Inactive tmux panes will be dimmed when Windows Terminal is focused");
+            println!();
+            println!("  Setup required:");
+            println!("    1. Add this to your ~/.tmux.conf:");
+            println!(
+                "       set-hook -g pane-focus-in 'run-shell \"tmux display -p \\\"#{{pane_left}},#{{pane_top}},#{{pane_right}},#{{pane_bottom}},#{{window_width}},#{{window_height}}\\\" > ~/.spotlight-dimmer/tmux-active-pane.txt\"'"
+            );
+            println!("    2. Reload tmux config: tmux source-file ~/.tmux.conf");
+            println!("    3. Configure terminal geometry with: tmux-config command");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_tmux_disable() {
+    let mut cfg = Config::load();
+    cfg.is_tmux_mode_enabled = false;
+
+    match cfg.save() {
+        Ok(_) => {
+            println!("✓ Tmux pane focusing DISABLED");
+            println!("  Inactive tmux panes will NOT be dimmed");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_tmux_config(args: &[String]) {
+    if args.len() != 4 {
+        eprintln!("✗ Invalid arguments");
+        eprintln!();
+        eprintln!("USAGE:");
+        eprintln!("    spotlight-dimmer-config tmux-config <font_width> <font_height> <padding_left> <padding_top>");
+        eprintln!();
+        eprintln!("PARAMETERS:");
+        eprintln!("    font_width    Character width in pixels (e.g., 9)");
+        eprintln!("    font_height   Character height in pixels (e.g., 20)");
+        eprintln!("    padding_left  Left padding in pixels (e.g., 0)");
+        eprintln!("    padding_top   Top padding including title bar in pixels (e.g., 35)");
+        eprintln!();
+        eprintln!("EXAMPLE:");
+        eprintln!("    # For a terminal with 9x20 font and 35px title bar:");
+        eprintln!("    spotlight-dimmer-config tmux-config 9 20 0 35");
+        std::process::exit(1);
+    }
+
+    let font_width: u32 = match args[0].parse() {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("✗ Invalid font width: must be a positive integer");
+            std::process::exit(1);
+        }
+    };
+
+    let font_height: u32 = match args[1].parse() {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("✗ Invalid font height: must be a positive integer");
+            std::process::exit(1);
+        }
+    };
+
+    let padding_left: i32 = match args[2].parse() {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("✗ Invalid padding left: must be an integer");
+            std::process::exit(1);
+        }
+    };
+
+    let padding_top: i32 = match args[3].parse() {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("✗ Invalid padding top: must be an integer");
+            std::process::exit(1);
+        }
+    };
+
+    let mut cfg = Config::load();
+    cfg.terminal_font_width = font_width;
+    cfg.terminal_font_height = font_height;
+    cfg.terminal_padding_left = padding_left;
+    cfg.terminal_padding_top = padding_top;
+
+    match cfg.save() {
+        Ok(_) => {
+            println!("✓ Terminal geometry configured");
+            println!("  Font: {}x{} pixels", font_width, font_height);
+            println!("  Padding: left={}, top={}", padding_left, padding_top);
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_tmux_status() {
+    let cfg = Config::load();
+
+    println!("TMUX PANE FOCUSING:");
+    if cfg.is_tmux_mode_enabled {
+        println!("  Status: ENABLED");
+    } else {
+        println!("  Status: DISABLED");
+    }
+    println!();
+
+    println!("TERMINAL GEOMETRY:");
+    println!(
+        "  Font: {}x{} pixels",
+        cfg.terminal_font_width, cfg.terminal_font_height
+    );
+    println!(
+        "  Padding: left={}, top={}",
+        cfg.terminal_padding_left, cfg.terminal_padding_top
+    );
+    println!();
+
+    println!("TMUX PANE FILE:");
+    match cfg.get_tmux_pane_file_path() {
+        Ok(path) => println!("  Path: {}", path.display()),
+        Err(e) => println!("  Path: Error - {}", e),
+    }
+}
+
+fn cmd_tmux_auto_config(args: &[String]) {
+    // Parse arguments
+    let mut profile_name: Option<&str> = None;
+    let mut dry_run = false;
+
+    for arg in args {
+        if arg == "--dry-run" {
+            dry_run = true;
+        } else if profile_name.is_none() {
+            profile_name = Some(arg.as_str());
+        } else {
+            eprintln!("✗ Too many arguments");
+            eprintln!();
+            eprintln!("USAGE:");
+            eprintln!("    spotlight-dimmer-config tmux-auto-config [profile] [--dry-run]");
+            eprintln!();
+            eprintln!("EXAMPLES:");
+            eprintln!("    # Auto-detect from defaults section");
+            eprintln!("    spotlight-dimmer-config tmux-auto-config");
+            eprintln!();
+            eprintln!("    # Auto-detect from specific profile");
+            eprintln!("    spotlight-dimmer-config tmux-auto-config \"Ubuntu-22.04\"");
+            eprintln!();
+            eprintln!("    # Preview without saving");
+            eprintln!("    spotlight-dimmer-config tmux-auto-config --dry-run");
+            std::process::exit(1);
+        }
+    }
+
+    println!("🔍 Auto-detecting Windows Terminal configuration...");
+    println!();
+
+    // Parse Windows Terminal settings
+    let settings = match windows_terminal::parse_settings(profile_name) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("✗ Failed to parse Windows Terminal settings: {}", e);
+            eprintln!();
+            eprintln!("TROUBLESHOOTING:");
+            eprintln!("  1. Make sure Windows Terminal is installed");
+            eprintln!("  2. Check that settings.json exists in:");
+            eprintln!("     %LOCALAPPDATA%\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\");
+            if let Some(profile) = profile_name {
+                eprintln!("  3. Verify profile '{}' exists in your settings", profile);
+            }
+            std::process::exit(1);
+        }
+    };
+
+    println!("📖 Found settings:");
+    if let Some(profile) = profile_name {
+        println!("  Source: Profile '{}'", profile);
+    } else {
+        println!("  Source: Defaults section");
+    }
+    println!(
+        "  Font: {} at {} pt",
+        settings.font_face, settings.font_size_pt
+    );
+    println!(
+        "  Padding: left={}, top={}, right={}, bottom={}",
+        settings.padding_left,
+        settings.padding_top,
+        settings.padding_right,
+        settings.padding_bottom
+    );
+    println!();
+
+    // Calculate font metrics
+    println!("📐 Calculating font metrics...");
+    let metrics = match windows_terminal::calculate_font_metrics(&settings) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("✗ Failed to calculate font metrics: {}", e);
+            eprintln!();
+            eprintln!("TROUBLESHOOTING:");
+            eprintln!(
+                "  1. Make sure the font '{}' is installed on your system",
+                settings.font_face
+            );
+            eprintln!("  2. Try running as administrator if font access is restricted");
+            std::process::exit(1);
+        }
+    };
+
+    println!("  Character width: {} pixels", metrics.width_px);
+    println!("  Character height: {} pixels", metrics.height_px);
+    println!();
+
+    // Show current configuration for comparison
+    let current_cfg = Config::load();
+    println!("📋 Current configuration:");
+    println!(
+        "  Font: {}x{} pixels",
+        current_cfg.terminal_font_width, current_cfg.terminal_font_height
+    );
+    println!(
+        "  Padding: left={}, top={}",
+        current_cfg.terminal_padding_left, current_cfg.terminal_padding_top
+    );
+    println!();
+
+    // Show what will be applied
+    println!("✨ New configuration:");
+    println!("  Font: {}x{} pixels", metrics.width_px, metrics.height_px);
+    println!(
+        "  Padding: left={}, top={}",
+        settings.padding_left, settings.padding_top
+    );
+    println!();
+
+    // Check if anything changed
+    let font_changed = current_cfg.terminal_font_width != metrics.width_px
+        || current_cfg.terminal_font_height != metrics.height_px;
+    let padding_changed = current_cfg.terminal_padding_left != settings.padding_left
+        || current_cfg.terminal_padding_top != settings.padding_top;
+
+    if !font_changed && !padding_changed {
+        println!("ℹ️  Configuration already matches Windows Terminal settings");
+        println!("   No changes needed");
+        return;
+    }
+
+    if dry_run {
+        println!("🔍 DRY RUN MODE - Configuration NOT saved");
+        println!("   Run without --dry-run to apply these settings");
+        return;
+    }
+
+    // Apply configuration
+    let mut cfg = Config::load();
+    cfg.terminal_font_width = metrics.width_px;
+    cfg.terminal_font_height = metrics.height_px;
+    cfg.terminal_padding_left = settings.padding_left;
+    cfg.terminal_padding_top = settings.padding_top;
+
+    match cfg.save() {
+        Ok(_) => {
+            println!("✅ Terminal geometry configured successfully!");
+            println!();
+            if font_changed {
+                println!(
+                    "   Font size: {}x{} → {}x{} pixels",
+                    current_cfg.terminal_font_width,
+                    current_cfg.terminal_font_height,
+                    metrics.width_px,
+                    metrics.height_px
+                );
+            }
+            if padding_changed {
+                println!(
+                    "   Padding: left={}, top={} → left={}, top={}",
+                    current_cfg.terminal_padding_left,
+                    current_cfg.terminal_padding_top,
+                    settings.padding_left,
+                    settings.padding_top
+                );
+            }
+            println!();
+            println!("💡 Next steps:");
+            println!("   1. Make sure tmux mode is enabled: spotlight-dimmer-config tmux-enable");
+            println!("   2. Configure tmux hook in ~/.tmux.conf (see tmux-enable output)");
+            println!("   3. Reload tmux: tmux source-file ~/.tmux.conf");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
             std::process::exit(1);
         }
     }

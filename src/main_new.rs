@@ -3,6 +3,8 @@ mod config;
 mod message_window;
 mod overlay;
 mod platform;
+mod tmux_overlay;
+mod tmux_watcher;
 mod tray;
 
 #[cfg(windows)]
@@ -24,6 +26,10 @@ use message_window::MessageWindow;
 use overlay::OverlayManager;
 #[cfg(windows)]
 use platform::{DisplayManager, WindowManager, WindowsDisplayManager, WindowsWindowManager};
+#[cfg(windows)]
+use tmux_overlay::TerminalGeometry;
+#[cfg(windows)]
+use tmux_watcher::TmuxPaneInfo;
 #[cfg(windows)]
 use tray::TrayIcon;
 
@@ -86,6 +92,45 @@ fn setup_config_file_watching() -> Option<HANDLE> {
         println!(
             "[FileWatch] Watching config directory for changes: {:?}",
             config_dir
+        );
+        Some(handle)
+    }
+}
+
+#[cfg(windows)]
+/// Sets up file watching for the tmux pane file using Windows FindFirstChangeNotificationW
+/// Returns a HANDLE that can be checked with WaitForSingleObject
+fn setup_tmux_file_watching(tmux_file_path: &std::path::Path) -> Option<HANDLE> {
+    // Get directory containing the tmux pane file
+    let tmux_dir = tmux_file_path.parent()?;
+
+    // Convert path to wide string for Windows API
+    let wide_path = match U16CString::from_os_str(tmux_dir.as_os_str()) {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!(
+                "[TmuxWatch] Failed to convert tmux path to wide string: {}",
+                e
+            );
+            return None;
+        }
+    };
+
+    unsafe {
+        let handle = FindFirstChangeNotificationW(
+            wide_path.as_ptr(),
+            0,                             // bWatchSubtree: FALSE - only watch the directory itself
+            FILE_NOTIFY_CHANGE_LAST_WRITE, // Watch for file modification events
+        );
+
+        if handle == INVALID_HANDLE_VALUE || handle.is_null() {
+            eprintln!("[TmuxWatch] Failed to create file change notification");
+            return None;
+        }
+
+        println!(
+            "[TmuxWatch] Watching tmux directory for changes: {:?}",
+            tmux_dir
         );
         Some(handle)
     }
@@ -276,6 +321,24 @@ fn main() {
         eprintln!("[Main] Warning: Config file watching failed to initialize - config changes may not be detected");
     }
 
+    // Set up file watching for tmux pane file (if tmux mode enabled)
+    let tmux_file_path = {
+        let cfg = config.lock().unwrap();
+        cfg.get_tmux_pane_file_path().ok()
+    };
+
+    let tmux_watch_handle = if let Some(ref path) = tmux_file_path {
+        let handle = setup_tmux_file_watching(path);
+        if handle.is_some() {
+            println!("[Main] Tmux file watching enabled for: {:?}", path);
+        } else {
+            eprintln!("[Main] Warning: Tmux file watching failed to initialize");
+        }
+        handle
+    } else {
+        None
+    };
+
     // Initialize display and window managers
     let display_manager = WindowsDisplayManager;
     let window_manager = WindowsWindowManager;
@@ -345,6 +408,9 @@ fn main() {
 
     // Track config file modification time for reloading when file watcher triggers
     let mut last_config_modified = Config::last_modified();
+
+    // Track tmux state
+    let mut last_tmux_pane_info: Option<TmuxPaneInfo> = None;
 
     // Phase 1: Message loop optimization metrics
     let mut total_messages_processed: u64 = 0;
@@ -874,6 +940,122 @@ fn main() {
                         }
                     }
                 }
+
+                // Handle tmux mode (only when Windows Terminal is focused)
+                let is_tmux_mode_enabled = {
+                    let cfg = config.lock().unwrap();
+                    cfg.is_tmux_mode_enabled
+                };
+
+                if is_tmux_mode_enabled {
+                    // Check if the active window is Windows Terminal
+                    if let Ok(is_wt) = window_manager.is_windows_terminal(active_window.handle) {
+                        if is_wt {
+                            // Check for tmux file changes
+                            let tmux_file_changed = if let Some(handle) = tmux_watch_handle {
+                                unsafe {
+                                    let wait_result = WaitForSingleObject(handle, 0);
+                                    if wait_result == WAIT_OBJECT_0 {
+                                        // Re-arm the notification
+                                        if FindNextChangeNotification(handle) == 0 {
+                                            eprintln!(
+                                                "[TmuxWatch] Failed to re-arm file change notification"
+                                            );
+                                        }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                            } else {
+                                false
+                            };
+
+                            // Read tmux pane info if file changed or first time
+                            if tmux_file_changed || last_tmux_pane_info.is_none() {
+                                if let Some(ref path) = tmux_file_path {
+                                    match TmuxPaneInfo::read_from_file(path) {
+                                        Ok(pane_info) => {
+                                            if pane_info.is_valid() {
+                                                // Check if pane changed
+                                                let pane_changed = last_tmux_pane_info
+                                                    .as_ref()
+                                                    .map(|last| last != &pane_info)
+                                                    .unwrap_or(true);
+
+                                                if pane_changed {
+                                                    println!(
+                                                        "[Tmux] Pane changed: ({},{}) to ({},{}) in {}x{} window",
+                                                        pane_info.pane_left,
+                                                        pane_info.pane_top,
+                                                        pane_info.pane_right,
+                                                        pane_info.pane_bottom,
+                                                        pane_info.window_width,
+                                                        pane_info.window_height
+                                                    );
+
+                                                    // Get Windows Terminal window rect
+                                                    if let Ok(terminal_rect) = window_manager
+                                                        .get_window_rect(active_window.handle)
+                                                    {
+                                                        // Get terminal geometry from config
+                                                        let terminal_geometry = {
+                                                            let cfg = config.lock().unwrap();
+                                                            TerminalGeometry::new(
+                                                                cfg.terminal_font_width,
+                                                                cfg.terminal_font_height,
+                                                                cfg.terminal_padding_left,
+                                                                cfg.terminal_padding_top,
+                                                            )
+                                                        };
+
+                                                        // Create tmux overlays
+                                                        let mut manager =
+                                                            overlay_manager.lock().unwrap();
+                                                        if let Err(e) = manager
+                                                            .create_tmux_overlays(
+                                                                &pane_info,
+                                                                &terminal_rect,
+                                                                &terminal_geometry,
+                                                            )
+                                                        {
+                                                            eprintln!(
+                                                                "[Tmux] Failed to create overlays: {}",
+                                                                e
+                                                            );
+                                                        }
+                                                    }
+
+                                                    last_tmux_pane_info = Some(pane_info);
+                                                }
+                                            } else {
+                                                eprintln!("[Tmux] Invalid pane info in file");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            if last_tmux_pane_info.is_some() {
+                                                eprintln!("[Tmux] Failed to read pane file: {}", e);
+                                            }
+                                            // Don't clear overlays on read error - file might be temporarily unavailable
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Not Windows Terminal - clear tmux overlays if we have any
+                            if last_tmux_pane_info.is_some() {
+                                let mut manager = overlay_manager.lock().unwrap();
+                                manager.clear_tmux_overlays();
+                                last_tmux_pane_info = None;
+                            }
+                        }
+                    }
+                } else if last_tmux_pane_info.is_some() {
+                    // Tmux mode disabled - clear overlays
+                    let mut manager = overlay_manager.lock().unwrap();
+                    manager.clear_tmux_overlays();
+                    last_tmux_pane_info = None;
+                }
             }
             Err(_) => {
                 // Silently ignore errors to avoid spam
@@ -886,6 +1068,12 @@ fn main() {
                         let mut manager = overlay_manager.lock().unwrap();
                         manager.clear_all_partial_overlays();
                     }
+                    // Clear tmux overlays when no active window
+                    if last_tmux_pane_info.is_some() {
+                        let mut manager = overlay_manager.lock().unwrap();
+                        manager.clear_tmux_overlays();
+                        last_tmux_pane_info = None;
+                    }
                 }
             }
         }
@@ -894,12 +1082,19 @@ fn main() {
     // Cleanup on exit
     println!("[Main] Performing cleanup...");
 
-    // Close file watching handle
+    // Close file watching handles
     if let Some(handle) = config_watch_handle {
         unsafe {
             CloseHandle(handle);
         }
-        println!("[FileWatch] File watching handle closed");
+        println!("[FileWatch] Config file watching handle closed");
+    }
+
+    if let Some(handle) = tmux_watch_handle {
+        unsafe {
+            CloseHandle(handle);
+        }
+        println!("[TmuxWatch] Tmux file watching handle closed");
     }
 
     drop(overlay_manager);

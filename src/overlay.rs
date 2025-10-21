@@ -3,6 +3,8 @@
 
 use crate::config::OverlayColor;
 use crate::platform::DisplayInfo;
+use crate::tmux_overlay::TerminalGeometry;
+use crate::tmux_watcher::TmuxPaneInfo;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::mem;
@@ -33,6 +35,7 @@ pub struct OverlayManager {
     inactive_overlays: HashMap<String, HWND>,
     active_overlays: HashMap<String, HWND>,
     partial_overlays: HashMap<String, Vec<HWND>>,
+    tmux_overlays: Vec<HWND>, // Overlays for tmux pane dimming
     inactive_color: OverlayColor,
     active_color: Option<OverlayColor>,
 }
@@ -140,6 +143,7 @@ impl OverlayManager {
             inactive_overlays: HashMap::new(),
             active_overlays: HashMap::new(),
             partial_overlays: HashMap::new(),
+            tmux_overlays: Vec::new(),
             inactive_color,
             active_color,
         })
@@ -313,10 +317,14 @@ impl OverlayManager {
                     DestroyWindow(hwnd);
                 }
             }
+            for &hwnd in &self.tmux_overlays {
+                DestroyWindow(hwnd);
+            }
         }
         self.inactive_overlays.clear();
         self.active_overlays.clear();
         self.partial_overlays.clear();
+        self.tmux_overlays.clear();
         println!("[Overlay] Closed all overlays");
     }
 
@@ -1012,6 +1020,108 @@ impl OverlayManager {
         }
 
         Ok(true) // Successfully updated
+    }
+
+    /// Create overlays for tmux inactive panes
+    /// Uses tmux pane info and terminal geometry to calculate overlay positions
+    pub fn create_tmux_overlays(
+        &mut self,
+        pane_info: &TmuxPaneInfo,
+        terminal_window_rect: &RECT,
+        terminal_geometry: &TerminalGeometry,
+    ) -> Result<(), String> {
+        // Clear existing tmux overlays first
+        self.clear_tmux_overlays();
+
+        // Calculate overlay rectangles for inactive pane areas
+        let overlay_rects = crate::tmux_overlay::calculate_tmux_overlay_rects(
+            pane_info,
+            terminal_window_rect,
+            terminal_geometry,
+        );
+
+        println!(
+            "[Overlay] Creating {} tmux overlays for pane at ({},{}) to ({},{})",
+            overlay_rects.len(),
+            pane_info.pane_left,
+            pane_info.pane_top,
+            pane_info.pane_right,
+            pane_info.pane_bottom
+        );
+
+        // Create overlay windows for each rectangle
+        unsafe {
+            let class_name = to_wstring(PARTIAL_CLASS_NAME);
+            let window_name = to_wstring("Tmux Overlay");
+
+            for (i, overlay_rect) in overlay_rects.iter().enumerate() {
+                let hwnd = CreateWindowExW(
+                    WS_EX_LAYERED
+                        | WS_EX_TRANSPARENT
+                        | WS_EX_TOPMOST
+                        | WS_EX_TOOLWINDOW
+                        | WS_EX_NOACTIVATE,
+                    class_name.as_ptr(),
+                    window_name.as_ptr(),
+                    WS_POPUP,
+                    overlay_rect.left,
+                    overlay_rect.top,
+                    overlay_rect.width(),
+                    overlay_rect.height(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    GetModuleHandleW(ptr::null()),
+                    ptr::null_mut(),
+                );
+
+                if hwnd.is_null() {
+                    return Err(format!("Failed to create tmux overlay window {}", i));
+                }
+
+                // Set transparency
+                let colorref = ((self.inactive_color.b as u32) << 16)
+                    | ((self.inactive_color.g as u32) << 8)
+                    | (self.inactive_color.r as u32);
+                let alpha = (self.inactive_color.a * 255.0) as u8;
+
+                SetLayeredWindowAttributes(hwnd, colorref, alpha, LWA_ALPHA);
+
+                // Show the overlay
+                ShowWindow(hwnd, SW_SHOW);
+
+                self.tmux_overlays.push(hwnd);
+
+                println!(
+                    "[Overlay] Created tmux overlay {} at ({},{}) size {}x{}",
+                    i,
+                    overlay_rect.left,
+                    overlay_rect.top,
+                    overlay_rect.width(),
+                    overlay_rect.height()
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Clear all tmux overlays
+    pub fn clear_tmux_overlays(&mut self) {
+        if self.tmux_overlays.is_empty() {
+            return;
+        }
+
+        unsafe {
+            for &hwnd in &self.tmux_overlays {
+                DestroyWindow(hwnd);
+            }
+        }
+
+        println!(
+            "[Overlay] Cleared {} tmux overlays",
+            self.tmux_overlays.len()
+        );
+        self.tmux_overlays.clear();
     }
 }
 
