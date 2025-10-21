@@ -54,6 +54,47 @@ set-hook -g pane-focus-in 'run-shell "tmux display -p \"#{pane_left},#{pane_top}
 
 Save the file (`Ctrl+O`, `Enter`, `Ctrl+X` in nano).
 
+### Step 2.5: Configure Tmux Terminal Titles (Recommended)
+
+To ensure tmux overlays only appear when you're actually in a tmux tab (not other Windows Terminal tabs), configure tmux to set recognizable window titles:
+
+```bash
+nano ~/.tmux.conf
+```
+
+Add these lines:
+
+```tmux
+# Enable terminal title updates
+set-option -g set-titles on
+
+# Set title format to include "tmux" for easy detection
+set-option -g set-titles-string "tmux:#S/#W"
+```
+
+**What this does:**
+- Makes tmux update your terminal's title bar
+- Includes "tmux:" prefix for reliable detection
+- Shows session name (`#S`) and window name (`#W`)
+- Example title: `tmux:my-session/bash`
+
+**Why this matters:**
+- Without this, overlays may show on non-tmux tabs when Windows Terminal is focused
+- With this, overlays only appear when the active tab is actually running tmux
+- Works perfectly in both windowed and fullscreen modes
+
+**Customize the detection pattern (optional):**
+
+If you use a custom title format, update the detection pattern:
+
+```powershell
+# Match your custom pattern
+spotlight-dimmer-config tmux-title-pattern "your-custom-pattern"
+
+# Check current pattern
+spotlight-dimmer-config tmux-status
+```
+
 ### Step 3: Create Shared Directory
 
 Create the directory where tmux will write pane information:
@@ -160,6 +201,10 @@ TERMINAL GEOMETRY:
   Font: 9x20 pixels
   Padding: left=8, top=35
 
+WINDOW TITLE DETECTION:
+  Pattern: "tmux"
+  (Overlays only show when Windows Terminal title contains this pattern)
+
 TMUX PANE FILE:
   Path: C:\Users\{YourUsername}\.spotlight-dimmer\tmux-active-pane.txt
 ```
@@ -188,6 +233,29 @@ File should exist and timestamp should update when you switch panes.
 
 **Check 4: Is Windows Terminal focused?**
 The feature only works when Windows Terminal is the active application on Windows.
+
+**Check 5: Is tmux detected in the window title?**
+```powershell
+# Check current pattern
+spotlight-dimmer-config tmux-status
+```
+Look at "WINDOW TITLE DETECTION" section. The window title must contain the pattern shown.
+
+If you're in a tmux tab but overlays don't appear:
+1. Configure tmux to set titles (see Step 2.5)
+2. Or update the pattern to match your current title:
+   ```powershell
+   spotlight-dimmer-config tmux-title-pattern "your-pattern"
+   ```
+
+### Problem: Overlays show on non-tmux tabs
+
+**Solution: Configure tmux titles**
+
+If overlays appear even when you're NOT in a tmux tab:
+1. Follow Step 2.5 to configure tmux terminal titles
+2. This ensures the window title only contains "tmux" when tmux is running
+3. The detection is instant (<100ms) when switching tabs
 
 ### Problem: Overlays are misaligned
 
@@ -286,6 +354,7 @@ spotlight-dimmer-config tmux-enable
 ```
 ┌─────────────────────────────────────────────────┐
 │ tmux (in WSL)                                   │
+│  ├─ Sets terminal title: "tmux:session/window"  │
 │  ├─ Detects pane focus change                   │
 │  ├─ Runs hook: captures pane boundaries         │
 │  └─ Writes to: ~/.spotlight-dimmer/...txt       │
@@ -295,12 +364,21 @@ spotlight-dimmer-config tmux-enable
                   │
 ┌─────────────────▼───────────────────────────────┐
 │ Spotlight Dimmer (on Windows)                   │
+│  ├─ Checks Windows Terminal window title        │
+│  ├─ ✓ Contains "tmux"? → Continue               │
+│  ├─ ✗ No "tmux"? → Clear overlays & exit        │
 │  ├─ Watches file for changes (event-driven)     │
 │  ├─ Reads pane coordinates (character units)    │
 │  ├─ Converts to pixel coordinates               │
 │  └─ Creates overlay windows over inactive panes │
 └─────────────────────────────────────────────────┘
 ```
+
+**Key Detection Mechanism:**
+- Window title check happens every 100ms in the main monitoring loop
+- When you switch to a non-tmux tab, title changes instantly
+- Spotlight Dimmer detects the change and clears overlays immediately
+- This works in both windowed and fullscreen modes (uses Windows API GetWindowText)
 
 ### Coordinate Translation
 

@@ -32,6 +32,7 @@ fn main() {
         "tmux-config" => cmd_tmux_config(&args[2..]),
         "tmux-auto-config" => cmd_tmux_auto_config(&args[2..]),
         "tmux-status" => cmd_tmux_status(),
+        "tmux-title-pattern" => cmd_tmux_title_pattern(&args[2..]),
         "reset" => cmd_reset(),
         "list-profiles" => cmd_list_profiles(),
         "set-profile" => cmd_set_profile(&args[2..]),
@@ -87,6 +88,7 @@ fn print_usage() {
         "                                Optional: profile name (default: uses defaults section)"
     );
     println!("    tmux-status                 Show tmux configuration");
+    println!("    tmux-title-pattern <pattern> Set window title pattern for tmux detection");
     println!();
     println!("GENERAL COMMANDS:");
     println!("    status                      Show current configuration");
@@ -862,6 +864,11 @@ fn cmd_tmux_status() {
     );
     println!();
 
+    println!("WINDOW TITLE DETECTION:");
+    println!("  Pattern: \"{}\"", cfg.tmux_title_pattern);
+    println!("  (Overlays only show when Windows Terminal title contains this pattern)");
+    println!();
+
     println!("TMUX PANE FILE:");
     match cfg.get_tmux_pane_file_path() {
         Ok(path) => println!("  Path: {}", path.display()),
@@ -1032,6 +1039,49 @@ fn cmd_tmux_auto_config(args: &[String]) {
             println!("   1. Make sure tmux mode is enabled: spotlight-dimmer-config tmux-enable");
             println!("   2. Configure tmux hook in ~/.tmux.conf (see tmux-enable output)");
             println!("   3. Reload tmux: tmux source-file ~/.tmux.conf");
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to save configuration: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn cmd_tmux_title_pattern(args: &[String]) {
+    if args.is_empty() {
+        eprintln!("Usage: spotlight-dimmer-config tmux-title-pattern <pattern>");
+        eprintln!();
+        eprintln!("Examples:");
+        eprintln!("  spotlight-dimmer-config tmux-title-pattern tmux");
+        eprintln!("  spotlight-dimmer-config tmux-title-pattern \"my-session\"");
+        eprintln!("  spotlight-dimmer-config tmux-title-pattern \"tmux:\"");
+        eprintln!();
+        eprintln!("💡 Configure tmux to include a detectable pattern in the title:");
+        eprintln!("   Add to ~/.tmux.conf:");
+        eprintln!("     set-option -g set-titles on");
+        eprintln!("     set-option -g set-titles-string \"tmux:#S/#W\"");
+        std::process::exit(1);
+    }
+
+    let pattern = args.join(" ");
+
+    let mut cfg = Config::load();
+    let old_pattern = cfg.tmux_title_pattern.clone();
+    cfg.tmux_title_pattern = pattern.clone();
+
+    match cfg.save() {
+        Ok(_) => {
+            println!("✅ TMUX title pattern updated!");
+            println!();
+            println!("   Old pattern: \"{}\"", old_pattern);
+            println!("   New pattern: \"{}\"", pattern);
+            println!();
+            println!("💡 The tmux overlays will now only appear when the Windows Terminal");
+            println!("   title contains: \"{}\"", pattern);
+            println!();
+            println!("   Make sure your tmux is configured to set terminal titles:");
+            println!("     set-option -g set-titles on");
+            println!("     set-option -g set-titles-string \"tmux:#S/#W\"");
         }
         Err(e) => {
             eprintln!("✗ Failed to save configuration: {}", e);

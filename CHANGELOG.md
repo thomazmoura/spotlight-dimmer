@@ -36,6 +36,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive error messages with troubleshooting steps
   - Eliminates manual font size measurement - calculates precise metrics automatically
 
+- **Intelligent tmux tab detection** (`tmux-title-pattern`): Prevents false positives by detecting active Windows Terminal tab
+  - Overlays only appear when the active tab is actually running tmux (not just when Windows Terminal is focused)
+  - Uses Windows Terminal window title to detect tmux sessions (instant detection, <100ms)
+  - Works perfectly in both windowed and fullscreen modes (no UI visibility required)
+  - Configurable pattern matching: customize detection for any tmux title format
+  - Default pattern: "tmux" (matches standard tmux title format)
+  - Recommended tmux configuration: `set-option -g set-titles-string "tmux:#S/#W"`
+  - CLI command: `tmux-title-pattern <pattern>` to customize detection
+  - Integrated into `tmux-status` output for visibility
+  - Zero performance overhead: uses already-cached window title from main monitoring loop
+  - Automatic overlay cleanup when switching to non-tmux tabs (instant response)
+  - No new dependencies required: uses existing Windows API `GetWindowText`
+
 ---
 
 ### Adicionado
@@ -64,6 +77,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detecção inteligente: só salva se a configuração realmente mudou
   - Mensagens de erro abrangentes com passos de solução de problemas
   - Elimina medição manual de tamanho de fonte - calcula métricas precisas automaticamente
+
+- **Detecção inteligente de aba tmux** (`tmux-title-pattern`): Previne falsos positivos detectando a aba ativa do Windows Terminal
+  - Overlays aparecem apenas quando a aba ativa está realmente executando tmux (não apenas quando Windows Terminal está focado)
+  - Usa título da janela do Windows Terminal para detectar sessões tmux (detecção instantânea, <100ms)
+  - Funciona perfeitamente em modos janela e tela cheia (não requer visibilidade da UI)
+  - Correspondência de padrão configurável: personalize detecção para qualquer formato de título tmux
+  - Padrão padrão: "tmux" (corresponde ao formato de título tmux padrão)
+  - Configuração tmux recomendada: `set-option -g set-titles-string "tmux:#S/#W"`
+  - Comando CLI: `tmux-title-pattern <padrão>` para personalizar detecção
+  - Integrado na saída de `tmux-status` para visibilidade
+  - Zero sobrecarga de performance: usa título de janela já em cache do loop principal de monitoramento
+  - Limpeza automática de overlay ao alternar para abas não-tmux (resposta instantânea)
+  - Nenhuma dependência nova necessária: usa API Windows existente `GetWindowText`
 
 ## [0.7.2] - 2025-10-19
 ### Fixed

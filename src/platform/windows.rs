@@ -180,10 +180,15 @@ impl WindowManager for WindowsWindowManager {
 fn get_process_name(process_id: u32) -> Result<String, String> {
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::processthreadsapi::OpenProcess;
-    use winapi::um::winnt::PROCESS_QUERY_INFORMATION;
+    use winapi::um::winnt::{PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_VM_READ};
 
     unsafe {
-        let process_handle = OpenProcess(PROCESS_QUERY_INFORMATION, 0, process_id);
+        // Try with both flags for GetModuleBaseNameW to work
+        let process_handle = OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ,
+            0,
+            process_id,
+        );
         if process_handle.is_null() {
             return Err("Failed to open process".to_string());
         }

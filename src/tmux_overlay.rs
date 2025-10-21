@@ -121,8 +121,10 @@ pub fn calculate_tmux_overlay_rects(
     // Calculate active pane bounds in window-relative pixel coordinates
     let pane_left_px = geometry.col_to_x(pane_info.pane_left);
     let pane_top_px = geometry.row_to_y(pane_info.pane_top);
-    let pane_right_px = geometry.col_to_x(pane_info.pane_right + 1); // +1 because right edge is inclusive
-    let pane_bottom_px = geometry.row_to_y(pane_info.pane_bottom + 1); // +1 because bottom edge is inclusive
+    // Note: tmux pane_right/bottom are INCLUSIVE (last col/row in pane)
+    // So we need to add 1 to get the pixel position after the pane
+    let pane_right_px = geometry.col_to_x(pane_info.pane_right + 1);
+    let pane_bottom_px = geometry.row_to_y(pane_info.pane_bottom + 1);
 
     // Convert to absolute screen coordinates
     let pane_abs_left = window_left + pane_left_px;

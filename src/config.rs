@@ -94,6 +94,8 @@ pub struct Config {
     pub terminal_padding_left: i32,
     #[serde(default = "default_terminal_padding_top")]
     pub terminal_padding_top: i32,
+    #[serde(default = "default_tmux_title_pattern")]
+    pub tmux_title_pattern: String,
 }
 
 // Default values for terminal geometry
@@ -107,6 +109,10 @@ fn default_terminal_font_height() -> u32 {
 
 fn default_terminal_padding_top() -> i32 {
     35 // Common Windows Terminal title bar height
+}
+
+fn default_tmux_title_pattern() -> String {
+    "tmux".to_string() // Default pattern to detect tmux in window title
 }
 
 impl Default for Config {
@@ -166,6 +172,7 @@ impl Default for Config {
             terminal_font_height: default_terminal_font_height(),
             terminal_padding_left: 0,
             terminal_padding_top: default_terminal_padding_top(),
+            tmux_title_pattern: default_tmux_title_pattern(),
         }
     }
 }
@@ -796,6 +803,7 @@ mod tests {
             terminal_font_height: 20,
             terminal_padding_left: 0,
             terminal_padding_top: 35,
+            tmux_title_pattern: default_tmux_title_pattern(),
         };
 
         assert_eq!(config.profiles.len(), 0);

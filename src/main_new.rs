@@ -950,7 +950,15 @@ fn main() {
                 if is_tmux_mode_enabled {
                     // Check if the active window is Windows Terminal
                     if let Ok(is_wt) = window_manager.is_windows_terminal(active_window.handle) {
-                        if is_wt {
+                        // Check if window title indicates tmux is running
+                        let tmux_pattern = {
+                            let cfg = config.lock().unwrap();
+                            cfg.tmux_title_pattern.clone()
+                        };
+                        let is_tmux_active =
+                            is_wt && active_window.window_title.contains(&tmux_pattern);
+
+                        if is_tmux_active {
                             // Check for tmux file changes
                             let tmux_file_changed = if let Some(handle) = tmux_watch_handle {
                                 unsafe {
@@ -1042,11 +1050,14 @@ fn main() {
                                 }
                             }
                         } else {
-                            // Not Windows Terminal - clear tmux overlays if we have any
+                            // Windows Terminal but tmux not active (or not Windows Terminal) - clear overlays
                             if last_tmux_pane_info.is_some() {
                                 let mut manager = overlay_manager.lock().unwrap();
                                 manager.clear_tmux_overlays();
                                 last_tmux_pane_info = None;
+                                println!(
+                                    "[Tmux] Cleared overlays - tmux not detected in active tab"
+                                );
                             }
                         }
                     }

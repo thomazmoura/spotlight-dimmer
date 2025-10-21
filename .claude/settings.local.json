@@ -32,7 +32,8 @@
       "Read(//c/Users/thomaz.moura/Pictures/Prints/**)",
       "Bash(export:*)",
       "Bash(tee:*)",
-      "WebFetch(domain:api.github.com)"
+      "WebFetch(domain:api.github.com)",
+      "Read(//c/Users/thomaz.moura/AppData/Roaming/spotlight-dimmer/**)"
     ],
     "deny": [],
     "ask": []
