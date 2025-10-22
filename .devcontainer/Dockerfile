@@ -2,26 +2,15 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 # Set environment variables
-ENV RUST_VERSION=1.83.0
+ENV DOTNET_VERSION=10.0
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Enable 32-bit architecture for Wine
-RUN dpkg --add-architecture i386
-
-# Install system dependencies for pure Rust development
+# Install system dependencies for .NET development
 RUN apt-get update && apt-get install -y \
     # Core build tools
-    build-essential \
     curl \
     wget \
     git \
-    pkg-config \
-    libssl-dev \
-    # Cross-compilation tools for Windows
-    mingw-w64 \
-    # Wine for running Windows binaries (enables running tests locally)
-    wine64 \
-    wine32 \
     # Node.js dependencies (required for Claude Code)
     ca-certificates \
     gnupg \
@@ -45,27 +34,20 @@ RUN mkdir -p /etc/apt/keyrings && \
 # Binary name: claude (NOT claude-code!)
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install OpenAI Codex CLI
-RUN npm install -g @openai/codex
+# Install .NET SDK
+RUN wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh && \
+    chmod +x dotnet-install.sh && \
+    ./dotnet-install.sh --channel 10.0 --install-dir /usr/share/dotnet && \
+    ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet && \
+    rm dotnet-install.sh
 
 # Switch to vscode user
 USER vscode
 WORKDIR /home/vscode
 
-# Install Rust via rustup with latest stable version
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${RUST_VERSION}
-ENV PATH="/home/vscode/.cargo/bin:${PATH}"
-
-# Install additional Rust components useful for development
-RUN rustup component add rustfmt clippy rust-analyzer
-
 # Create workspace directory
 WORKDIR /workspaces/spotlight-dimmer
 
-# Set up shell configuration
-RUN echo 'export PATH="/home/vscode/.cargo/bin:${PATH}"' >> /home/vscode/.bashrc
-RUN echo 'export PATH="/home/vscode/.cargo/bin:${PATH}"' >> /home/vscode/.zshrc
-
 # Verify installations (will show in build logs)
-RUN rustc --version && cargo --version && cargo clippy --version && cargo fmt --version
+RUN dotnet --version
 RUN claude --version || echo "Claude Code will be verified in post-create script"

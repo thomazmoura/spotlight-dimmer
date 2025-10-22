@@ -19,25 +19,22 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "rust-lang.rust-analyzer",
-        "vadimcn.vscode-lldb",
-        "serayuzgur.crates",
-        "tamasfe.even-better-toml",
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.vscode-dotnet-runtime",
         "ms-vscode.vscode-json"
       ],
       "settings": {
-        "rust-analyzer.cargo.features": "all",
-        "rust-analyzer.checkOnSave.command": "clippy",
-        "rust-analyzer.cargo.target": null,
         "terminal.integrated.defaultProfile.linux": "zsh",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
           "source.fixAll": "explicit"
         },
-        "[rust]": {
-          "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csharp",
           "editor.formatOnSave": true
-        }
+        },
+        "dotnet.defaultSolution": "dotnet/SpotlightDimmer.csproj"
       }
     }
   },
@@ -45,7 +42,7 @@
     "source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind"
   ],
   "containerEnv": {
-    "RUST_BACKTRACE": "1"
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
   },
   "forwardPorts": [
     22

@@ -1,29 +1,25 @@
-# Spotlight Dimmer - Dev Container Development Environment
+# Spotlight Dimmer .NET PoC - Dev Container Development Environment
 
-This repository includes a complete dev container configuration that provides a development environment capable of compiling the Spotlight Dimmer project and running Claude Code.
+This repository includes a complete dev container configuration that provides a .NET development environment for the SpotlightDimmer .NET 10 PoC.
 
 ## What's Included
 
 ### Development Tools
-- **Rust 1.83.0** - Complete Rust toolchain with cargo, rustfmt, clippy, and rust-analyzer
+- **.NET 10.0 SDK** - Complete .NET SDK for C# development
 - **Node.js 20.x LTS** - Required for Claude Code CLI
 - **Claude Code** - AI-powered development assistant
 - **GitHub CLI** - For managing issues, PRs, and releases
 - **Git** - Version control with Oh My Zsh integration
 
 ### VS Code Extensions
-- `rust-lang.rust-analyzer` - Rust language support and code completion
-- `vadimcn.vscode-lldb` - Debugging support for Rust
-- `serayuzgur.crates` - Cargo.toml dependencies management
-- `tamasfe.even-better-toml` - Enhanced TOML syntax highlighting
+- `ms-dotnettools.csharp` - C# language support and IntelliSense
+- `ms-dotnettools.csdevkit` - C# Dev Kit for enhanced development
+- `ms-dotnettools.vscode-dotnet-runtime` - .NET runtime support
 - `ms-vscode.vscode-json` - JSON language support
 
 ### System Dependencies
-- Build tools (GCC, make, etc.)
-- **MinGW-w64** - Cross-compiler for building Windows binaries from Linux
-- **Windows target** - x86_64-pc-windows-gnu Rust target
-- OpenSSL development libraries
 - Essential utilities (curl, wget, jq, zip/unzip)
+- tmux for terminal multiplexing
 
 ## Getting Started
 
@@ -38,235 +34,146 @@ This repository includes a complete dev container configuration that provides a 
 1. Navigate to the repository on GitHub
 2. Click the green "Code" button
 3. Select "Codespaces" tab
-4. Click "Create codespace on main"
+4. Click "Create codespace on dotnet-10"
 
 ### 2. Wait for Setup
-The initial setup takes 2-4 minutes and includes:
-- Container build with all dependencies
-- Rust toolchain installation (including Windows cross-compilation target)
-- MinGW-w64 cross-compiler installation
+The initial setup takes 2-3 minutes and includes:
+- Container build with .NET SDK
 - Node.js and Claude Code setup
+- NuGet package restoration
 - Project dependency caching
 
-### 3. Start Developing
-Once the container is ready, you can:
+### 3. Start Developing!
+Once setup completes, you'll see:
+```
+✅ Development environment setup complete!
+
+🛠️  Available commands:
+  build                    - Build .NET project (Debug)
+  build-release            - Build .NET project (Release)
+  run                      - Run the application
+  test                     - Run tests
+  publish                  - Publish AOT-compiled binary for Windows
+```
+
+## Development Workflow
+
+### Building the Project
 
 ```bash
-# Build Windows binaries using cross-compilation (recommended)
-cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config
-
-# Or use the convenient alias
+# Quick debug build
 build
 
-# Run tests (with Windows target)
-cargo test --lib --target x86_64-pc-windows-gnu
+# Release build (optimized)
+build-release
 
-# Format code
-cargo fmt
+# Full restore and build
+cd dotnet
+dotnet restore
+dotnet build
+```
 
-# Run linter (with Windows target)
-cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code
+### Running the Application
 
-# Or use the convenient alias
-lint
+```bash
+# Run using the alias
+run
 
-# Start Claude Code
-claude
+# Or manually
+cd dotnet
+dotnet run
+```
+
+### Publishing AOT Binary
+
+```bash
+# Publish with Native AOT (requires VS C++ tools on Windows)
+publish
+
+# Or manually
+cd dotnet
+dotnet publish -c Release -r win-x64
+```
+
+## Project Structure
+
+```
+/workspaces/spotlight-dimmer/
+├── dotnet/                    # .NET 10 PoC implementation
+│   ├── WinApi.cs             # Windows API P/Invoke declarations
+│   ├── FocusTracker.cs       # Event-driven focus tracking
+│   ├── MonitorManager.cs     # Multi-monitor detection
+│   ├── OverlayWindow.cs      # Semi-transparent overlays
+│   ├── Program.cs            # Main application
+│   └── SpotlightDimmer.csproj
+├── rust/                      # Original Rust implementation (reference)
+└── .devcontainer/            # This dev container configuration
 ```
 
 ## Available Aliases
 
-The environment includes convenient aliases for common tasks (all use Windows cross-compilation target):
-- `build` → `cargo build --release --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config`
-- `build-debug` → `cargo build --target x86_64-pc-windows-gnu --bin spotlight-dimmer --bin spotlight-dimmer-config`
-- `test` → `cargo test --lib --target x86_64-pc-windows-gnu`
-- `lint` → `cargo clippy --all-targets --all-features --target x86_64-pc-windows-gnu -- -W clippy::all -A dead_code`
-- `fmt` → `cargo fmt`
+The post-create script sets up convenient aliases:
 
-## Architecture Overview
-
-Spotlight Dimmer is a **pure Windows API application** built with Rust - no web frameworks, no browser engines, just native code.
-
-**Key Components:**
-- **Main Application**: Pure Windows API overlays for dimming inactive displays
-- **Config Tool**: CLI tool for managing application settings
-- **No GUI in Dev Container**: The app requires Windows to run, but you can build and test in the container
-
-## Development Workflow
-
-### Typical Development Session
-1. Open dev container (VS Code or Codespaces)
-2. Make code changes using VS Code
-3. Use Claude Code for assistance: `claude`
-4. Build and test:
-   ```bash
-   cargo build --release
-   cargo test
-   cargo clippy
-   ```
-5. Commit and push changes
-6. Download binaries for Windows testing (if needed)
-
-### Claude Code Integration
-The environment includes Claude Code CLI, allowing you to:
-- Get coding assistance directly in the terminal
-- Ask questions about the codebase
-- Get help with Rust and Windows API development
-- Receive suggestions for debugging and optimization
-
-**Using Claude Code:**
-```bash
-# Start Claude Code
-# IMPORTANT: The binary is called 'claude', not 'claude-code'!
-# Package name: @anthropic-ai/claude-code
-# Binary name: claude
-claude
-
-# Verify installation
-claude --version
-
-# Check PATH includes Node.js and Claude Code
-echo $PATH
-```
-
-## Cross-Compilation Support
-
-### What You Can Do in the Dev Container
-Since this dev container includes MinGW-w64 cross-compilation support:
-- ✅ **Build Windows binaries** from Linux (`.exe` files)
-- ✅ **Validate ALL code** including `#[cfg(windows)]` sections
-- ✅ **Run tests** against Windows target
-- ✅ **Run linters** on Windows-specific code
-- ✅ **Use Claude Code CLI** for AI assistance
-- ✅ **Full CI/CD parity** - exactly matches GitHub Actions
-- ❌ **Cannot run** the GUI application (requires actual Windows)
-
-### How Cross-Compilation Works
-1. **Target**: `x86_64-pc-windows-gnu` (MinGW-based)
-2. **Toolchain**: MinGW-w64 cross-compiler
-3. **Output**: Windows `.exe` files in `target/x86_64-pc-windows-gnu/release/`
-4. **Testing**: Built binaries can be transferred to Windows for execution
-
-### Verification Workflow
-1. **Local Validation**: Use `/check` or `lint` alias to validate Windows code
-2. **Build Binaries**: Use `build` alias to create Windows `.exe` files
-3. **CI Verification**: Push to GitHub - CI uses same cross-compilation process
-4. **Windows Testing**: Transfer built binaries to Windows for final testing
+| Alias | Command | Description |
+|-------|---------|-------------|
+| `build` | `cd dotnet && dotnet build` | Build Debug configuration |
+| `build-release` | `cd dotnet && dotnet build -c Release` | Build Release configuration |
+| `run` | `cd dotnet && dotnet run` | Run the application |
+| `test` | `cd dotnet && dotnet test` | Run tests |
+| `publish` | `cd dotnet && dotnet publish -c Release -r win-x64` | Publish AOT binary |
 
 ## Troubleshooting
 
-### Claude Code Not Found
-**Symptoms**: `command not found: claude`
+### Container Won't Build
+- Ensure Docker is running
+- Check Docker has enough disk space (container needs ~2GB)
+- Try: "Dev Containers: Rebuild Container"
 
-**IMPORTANT**: The npm package is `@anthropic-ai/claude-code`, but the executable binary is named `claude` (not `claude-code`).
-
-**Solution**:
+### Claude Code Not Working
+Claude Code should be automatically installed. If not:
 ```bash
-# Check if Node.js is installed
-node --version
-npm --version
-
-# Reinstall Claude Code
-npm install -g @anthropic-ai/claude-code
-
-# Verify installation
+sudo npm install -g @anthropic-ai/claude-code
 claude --version
-
-# Check PATH
-echo $PATH  # Should include /usr/local/bin or Node.js global bin
 ```
 
-### Slow Initial Startup
-- First-time container creation takes 2-4 minutes
-- Subsequent starts are much faster (cached layers)
-- Rust dependency compilation runs during post-create script
-
-### Build Failures
+### .NET SDK Issues
+Verify .NET is installed correctly:
 ```bash
-# Clean build cache
-cargo clean
-
-# Update dependencies
-cargo update
-
-# Check Rust version
-rustc --version  # Should be 1.83.0
-
-# Review build logs for specific errors
-cargo build --verbose
+dotnet --version
+dotnet --list-sdks
 ```
 
-### Path Issues
-If tools aren't found, ensure PATH is configured:
-```bash
-# Should be in your PATH:
-export PATH="/home/vscode/.cargo/bin:/home/vscode/.local/bin:${PATH}"
+Expected output: `10.0.x` or similar
 
-# Verify tools are accessible
-which cargo
-which node
-which claude
-```
+### IntelliSense Not Working
+- Wait for initial project indexing (can take 30-60 seconds)
+- Restart OmniSharp: `F1` → "OmniSharp: Restart OmniSharp"
+- Check Output panel: "View" → "Output" → Select "OmniSharp Log"
 
-## File Structure
+## Features vs Production Rust Version
 
-```
-.devcontainer/
-├── devcontainer.json    # Main configuration
-├── Dockerfile          # Container definition with Rust + Node.js
-├── post-create.sh      # Setup script (runs after container creation)
-└── README.md           # This file
-```
+This dev container is configured for the .NET 10 PoC:
+- ✅ Fully event-driven window tracking (no polling)
+- ✅ Dual event hooks (EVENT_SYSTEM_FOREGROUND + EVENT_OBJECT_LOCATIONCHANGE)
+- ✅ Cleaner P/Invoke vs Rust FFI
+- ✅ Faster development iteration
+- ⚠️ PoC only - production version is Rust (see `/rust` folder)
 
-## Development Tools Included
+## SSH Access
 
-### Rust Toolchain
-- **rustc 1.83.0** - Rust compiler
-- **cargo** - Package manager and build tool
-- **rustfmt** - Code formatter
-- **clippy** - Linter for catching common mistakes
-- **rust-analyzer** - LSP server for IDE support
+The container exposes SSH on port 22 for remote development:
+- User: `vscode`
+- Authentication: SSH key (configured by container runtime)
 
-### Node.js Ecosystem
-- **Node.js 20.x** - JavaScript runtime (required for Claude Code)
-- **npm** - Package manager for installing Claude Code
+## Environment Variables
 
-### Shell & Terminal
-- **Zsh** - Default shell with Oh My Zsh
-- **Git** - Version control
-- **GitHub CLI** - GitHub operations from terminal
+The container sets:
+- `DOTNET_CLI_TELEMETRY_OPTOUT=1` - Disable .NET telemetry
+- Development shell defaults to zsh with Oh My Zsh
 
-## Support
+## Resources
 
-For issues with:
-- **Spotlight Dimmer**: Check the main README.md and AGENTS.md in the repository root
-- **Dev Containers**: Visit [VS Code Dev Containers documentation](https://code.visualstudio.com/docs/devcontainers/containers)
-- **GitHub Codespaces**: Visit [GitHub Codespaces documentation](https://docs.github.com/en/codespaces)
-- **Claude Code**: Run `claude --help` or check the [Claude Code documentation](https://docs.claude.com/claude)
-
-## Quick Reference
-
-```bash
-# Build commands (via aliases)
-build              # Build release binaries
-build-debug        # Build debug binaries
-test              # Run all tests
-lint              # Run clippy linter
-fmt               # Format code with rustfmt
-
-# Claude Code
-claude        # Start Claude Code CLI
-claude --version  # Check installation
-
-# Cargo commands
-cargo build --release  # Build optimized binaries
-cargo run --bin spotlight-dimmer-config status  # Run config tool
-cargo install --path .  # Install to ~/.cargo/bin/
-
-# Development utilities
-cargo doc --open    # Generate and open documentation
-cargo tree         # Show dependency tree
-cargo outdated     # Check for outdated dependencies (requires cargo-outdated)
-```
-
-Happy coding! 🚀
+- [.NET Documentation](https://learn.microsoft.com/en-us/dotnet/)
+- [C# Programming Guide](https://learn.microsoft.com/en-us/dotnet/csharp/)
+- [Native AOT Deployment](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+- [Dev Containers](https://containers.dev/)

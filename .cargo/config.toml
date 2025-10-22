@@ -1,7 +1,0 @@
-[target.x86_64-pc-windows-msvc]
-# Static linking to avoid dependency on vcruntime DLLs (vcruntime140.dll, msvcp140.dll)
-# This ensures the binaries work on any Windows system without requiring
-# Visual C++ Redistributables to be installed.
-# Trade-off: Slightly larger binaries (~200-400 KB increase per executable)
-# but much better portability and Winget compatibility.
-rustflags = ["-C", "target-feature=+crt-static"]
