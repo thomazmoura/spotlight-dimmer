@@ -54,6 +54,17 @@ if [ -f ~/.zshrc ]; then
     echo "alias run='cd dotnet && dotnet run'" >> ~/.zshrc
     echo "alias test='cd dotnet && dotnet test'" >> ~/.zshrc
     echo "alias publish='cd dotnet && dotnet publish -c Release -r win-x64'" >> ~/.zshrc
+
+    # Add tmux auto-start logic with Claude integration
+    echo "" >> ~/.zshrc
+    echo "# Check if we're already inside tmux" >> ~/.zshrc
+    echo 'if [ -z "$TMUX" ]; then' >> ~/.zshrc
+    echo "  # Not inside tmux, try to attach or create new session" >> ~/.zshrc
+    echo "  tmux a || tmux" >> ~/.zshrc
+    echo "else" >> ~/.zshrc
+    echo "  # Already inside tmux, run claude" >> ~/.zshrc
+    echo "  claude --continue || claude" >> ~/.zshrc
+    echo "fi" >> ~/.zshrc
 fi
 
 # Set up git configuration for Codespaces if not already set
