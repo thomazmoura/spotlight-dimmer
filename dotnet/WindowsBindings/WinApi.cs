@@ -24,6 +24,7 @@ internal static class WinApi
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_PAINT = 0x000F;
     public const uint WM_ERASEBKGND = 0x0014;
+    public const uint WM_QUIT = 0x0012;
 
     // SetWindowLong/GetWindowLong constants
     public const int GWL_EXSTYLE = -20;
@@ -248,6 +249,12 @@ internal static class WinApi
 
     [DllImport("user32.dll")]
     public static extern void PostQuitMessage(int nExitCode);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
 
     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);

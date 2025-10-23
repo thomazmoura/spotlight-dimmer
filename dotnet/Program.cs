@@ -9,14 +9,17 @@ Console.WriteLine("\nPress Ctrl+C to exit\n");
 
 // Set up graceful shutdown
 using var cts = new CancellationTokenSource();
+var mainThreadId = WinApi.GetCurrentThreadId();
+
 Console.CancelKeyPress += (sender, e) =>
 {
     e.Cancel = true;
     cts.Cancel();
     Console.WriteLine("\nShutting down...");
 
-    // Post a quit message to immediately unblock the message loop
-    WinApi.PostQuitMessage(0);
+    // Post a quit message to the main thread's message queue
+    // This immediately unblocks GetMessage() which runs on the main thread
+    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 };
 
 // ========================================================================
