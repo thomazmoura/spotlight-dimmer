@@ -30,6 +30,7 @@ internal class FocusTracker : IDisposable
 
     public int CurrentFocusedDisplayIndex => _lastFocusedDisplayIndex;
     public Core.Rectangle? CurrentWindowRect => _lastWindowRect;
+    public bool HasFocus => _lastFocusedDisplayIndex >= 0 && _lastWindowRect.HasValue;
 
     public FocusTracker(MonitorManager monitorManager)
     {

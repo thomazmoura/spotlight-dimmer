@@ -43,16 +43,12 @@ var renderer = new OverlayRenderer();
 
 var calculator = new OverlayCalculator();
 
-// Configuration: Start with FullScreen mode, can be changed at runtime
-var config = new OverlayCalculationConfig(
-    Mode: DimmingMode.PartialWithActive,  // Try: FullScreen, Partial, PartialWithActive
-    InactiveColor: Color.Black,
-    InactiveOpacity: 153,  // ~60% opacity
-    ActiveColor: Color.Black,
-    ActiveOpacity: 102  // ~40% opacity
-);
+// Configuration: Load from file with hot-reload support
+var configManager = new ConfigurationManager();
+var config = configManager.Current.ToOverlayConfig();
 
 Console.WriteLine($"\nOverlay Configuration:");
+Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
 Console.WriteLine($"  Mode: {config.Mode}");
 Console.WriteLine($"  Inactive: {config.InactiveColor.R},{config.InactiveColor.G},{config.InactiveColor.B} @ {config.InactiveOpacity}/255 opacity");
 Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{config.ActiveColor.B} @ {config.ActiveOpacity}/255 opacity");
@@ -65,9 +61,24 @@ Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{con
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
     var displays = monitorManager.GetDisplayInfo();
-    var states = calculator.Calculate(displays, windowBounds, displayIndex, config);
+    var currentConfig = configManager.Current.ToOverlayConfig();
+    var states = calculator.Calculate(displays, windowBounds, displayIndex, currentConfig);
     renderer.UpdateOverlays(states);
 }
+
+// Handle configuration changes - recalculate and render overlays
+configManager.ConfigurationChanged += (newAppConfig) =>
+{
+    var newConfig = newAppConfig.ToOverlayConfig();
+
+    // If we have a focused window, trigger an update with the new config
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+
+    Console.WriteLine("[Config] Overlays updated with new configuration\n");
+};
 
 // Handle display changes - recalculate and render overlays
 focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
@@ -82,7 +93,8 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
     // This event fires frequently during window movement
     // In FullScreen mode, we don't need to update (only display changes matter)
     // In Partial/PartialWithActive modes, we need to update on every movement
-    if (config.Mode != DimmingMode.FullScreen)
+    var currentConfig = configManager.Current.ToOverlayConfig();
+    if (currentConfig.Mode != DimmingMode.FullScreen)
     {
         UpdateOverlays(displayIndex, windowBounds);
     }
@@ -94,7 +106,9 @@ focusTracker.Start();
 Console.WriteLine("\nSpotlightDimmer is running.");
 Console.WriteLine($"Current mode: {config.Mode}");
 Console.WriteLine("The focused display will remain bright.");
-Console.WriteLine("Move windows between monitors to see the effect.\n");
+Console.WriteLine("Move windows between monitors to see the effect.");
+Console.WriteLine($"\nConfiguration updates will be automatically applied.");
+Console.WriteLine($"Edit the config file to change settings in real-time.\n");
 
 // ========================================================================
 // Windows Message Loop
@@ -133,6 +147,7 @@ finally
     // Clean up
     focusTracker.Dispose();
     renderer.Dispose();
+    configManager.Dispose();
 }
 
 Console.WriteLine("Goodbye!");
