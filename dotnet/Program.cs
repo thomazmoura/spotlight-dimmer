@@ -14,6 +14,9 @@ Console.CancelKeyPress += (sender, e) =>
     e.Cancel = true;
     cts.Cancel();
     Console.WriteLine("\nShutting down...");
+
+    // Post a quit message to immediately unblock the message loop
+    WinApi.PostQuitMessage(0);
 };
 
 // ========================================================================
