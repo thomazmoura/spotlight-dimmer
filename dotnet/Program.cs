@@ -41,11 +41,13 @@ var renderer = new OverlayRenderer();
 // Core Layer - Pure calculation logic
 // ========================================================================
 
-var calculator = new OverlayCalculator();
-
 // Configuration: Load from file with hot-reload support
 var configManager = new ConfigurationManager();
 var config = configManager.Current.ToOverlayConfig();
+
+// Create app state with pre-allocated overlay definitions
+var displays = monitorManager.GetDisplayInfo();
+var appState = new AppState(displays);
 
 Console.WriteLine($"\nOverlay Configuration:");
 Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
@@ -62,8 +64,8 @@ void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
     var displays = monitorManager.GetDisplayInfo();
     var currentConfig = configManager.Current.ToOverlayConfig();
-    var states = calculator.Calculate(displays, windowBounds, displayIndex, currentConfig);
-    renderer.UpdateOverlays(states);
+    appState.Calculate(displays, windowBounds, displayIndex, currentConfig);
+    renderer.UpdateOverlays(appState.DisplayStates);
 }
 
 // Handle configuration changes - recalculate and render overlays

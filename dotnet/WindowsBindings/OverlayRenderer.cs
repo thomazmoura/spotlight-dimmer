@@ -375,7 +375,7 @@ internal class OverlayRenderer : IDisposable
             if (_hwnd != IntPtr.Zero)
             {
                 WinApi.ShowWindow(_hwnd, 0); // SW_HIDE
-                _currentState = _currentState with { IsVisible = false };
+                _currentState.IsVisible = false;
             }
         }
 

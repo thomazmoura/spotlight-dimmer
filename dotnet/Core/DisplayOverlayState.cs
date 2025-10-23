@@ -36,7 +36,7 @@ public class DisplayOverlayState
         // Initialize all as hidden
         for (int i = 0; i < Overlays.Length; i++)
         {
-            Overlays[i] = OverlayDefinition.CreateHidden((OverlayRegion)i);
+            Overlays[i] = new OverlayDefinition((OverlayRegion)i);
         }
     }
 

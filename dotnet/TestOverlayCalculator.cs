@@ -3,15 +3,13 @@ using SpotlightDimmer.Core;
 namespace SpotlightDimmer;
 
 /// <summary>
-/// Test program to verify OverlayCalculator object reuse optimization
+/// Test program to verify AppState in-place update optimization
 /// </summary>
 internal class TestOverlayCalculator
 {
     public static void Run()
     {
-        Console.WriteLine("=== Testing OverlayCalculator Optimizations ===\n");
-
-        var calculator = new OverlayCalculator();
+        Console.WriteLine("=== Testing AppState In-Place Updates ===\n");
 
         // Create test displays
         var displays = new[]
@@ -19,6 +17,9 @@ internal class TestOverlayCalculator
             new DisplayInfo(0, new Rectangle(0, 0, 1920, 1080)),
             new DisplayInfo(1, new Rectangle(1920, 0, 1920, 1080))
         };
+
+        // Create AppState with pre-allocated overlay definitions
+        var appState = new AppState(displays);
 
         var config = new OverlayCalculationConfig(
             DimmingMode.Partial,
@@ -28,17 +29,21 @@ internal class TestOverlayCalculator
             102
         );
 
-        Console.WriteLine("Test 1: First calculation (should create new state objects)");
-        var states1 = calculator.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, config);
+        Console.WriteLine("Test 1: First calculation (updates pre-allocated state objects)");
+        appState.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, config);
+        var states1 = appState.DisplayStates;
         PrintStates(states1);
 
-        Console.WriteLine("\nTest 2: Second calculation with different window position (should reuse state objects)");
-        var states2 = calculator.Calculate(displays, new Rectangle(200, 200, 800, 600), 0, config);
+        Console.WriteLine("\nTest 2: Second calculation with different window position (reuses same state objects)");
+        appState.Calculate(displays, new Rectangle(200, 200, 800, 600), 0, config);
+        var states2 = appState.DisplayStates;
         PrintStates(states2);
 
-        Console.WriteLine("\nTest 3: Verify object reuse (states should be the same instances)");
+        Console.WriteLine("\nTest 3: Verify object reuse (states array should be the same instance)");
+        Console.WriteLine($"DisplayStates array reused: {ReferenceEquals(states1, states2)}");
         Console.WriteLine($"Display 0 reused: {ReferenceEquals(states1[0], states2[0])}");
         Console.WriteLine($"Display 1 reused: {ReferenceEquals(states1[1], states2[1])}");
+        Console.WriteLine($"Display 0 Overlay 0 reused: {ReferenceEquals(states1[0].Overlays[0], states2[0].Overlays[0])}");
 
         Console.WriteLine("\nTest 4: Full-screen mode (no overlays on focused display)");
         var configFullScreen = new OverlayCalculationConfig(
@@ -48,8 +53,8 @@ internal class TestOverlayCalculator
             new Color(255, 0, 0), // Red
             102
         );
-        var states3 = calculator.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, configFullScreen);
-        PrintStates(states3);
+        appState.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, configFullScreen);
+        PrintStates(appState.DisplayStates);
 
         Console.WriteLine("\nTest 5: PartialWithActive mode");
         var configWithActive = new OverlayCalculationConfig(
@@ -59,8 +64,8 @@ internal class TestOverlayCalculator
             new Color(255, 0, 0), // Red
             102
         );
-        var states4 = calculator.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, configWithActive);
-        PrintStates(states4);
+        appState.Calculate(displays, new Rectangle(100, 100, 800, 600), 0, configWithActive);
+        PrintStates(appState.DisplayStates);
 
         Console.WriteLine("\n=== All tests completed successfully! ===");
     }
