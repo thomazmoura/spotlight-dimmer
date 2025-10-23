@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using SpotlightDimmer.WindowsBindings;
 
 namespace SpotlightDimmer;
 

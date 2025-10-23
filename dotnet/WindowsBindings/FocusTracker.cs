@@ -1,4 +1,6 @@
-namespace SpotlightDimmer;
+using SpotlightDimmer.Core;
+
+namespace SpotlightDimmer.WindowsBindings;
 
 /// <summary>
 /// Tracks window focus and movement changes using Windows event hooks (no polling!)
@@ -8,25 +10,26 @@ internal class FocusTracker : IDisposable
     private readonly MonitorManager _monitorManager;
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _locationHook = IntPtr.Zero;
-    private MonitorInfo? _lastFocusedMonitor;
-    private WinApi.RECT? _lastWindowRect;
+    private int _lastFocusedDisplayIndex = -1;
+    private Core.Rectangle? _lastWindowRect;
 
     // Must keep a reference to prevent garbage collection
     private readonly WinApi.WinEventDelegate _hookDelegate;
 
     /// <summary>
-    /// Fired when the focused monitor changes (window moved to different monitor)
+    /// Fired when the focused display changes (window moved to different monitor).
+    /// Provides: (displayIndex, windowRect)
     /// </summary>
-    public event Action<MonitorInfo?>? FocusedMonitorChanged;
+    public event Action<int, Core.Rectangle>? FocusedDisplayChanged;
 
     /// <summary>
-    /// Fired when the focused window's position/size changes (even on same monitor)
-    /// Provides: (monitor, windowRect)
+    /// Fired when the focused window's position/size changes (even on same display).
+    /// Provides: (displayIndex, windowRect)
     /// </summary>
-    public event Action<MonitorInfo?, WinApi.RECT>? WindowPositionChanged;
+    public event Action<int, Core.Rectangle>? WindowPositionChanged;
 
-    public MonitorInfo? CurrentFocusedMonitor => _lastFocusedMonitor;
-    public WinApi.RECT? CurrentWindowRect => _lastWindowRect;
+    public int CurrentFocusedDisplayIndex => _lastFocusedDisplayIndex;
+    public Core.Rectangle? CurrentWindowRect => _lastWindowRect;
 
     public FocusTracker(MonitorManager monitorManager)
     {
@@ -35,7 +38,7 @@ internal class FocusTracker : IDisposable
     }
 
     /// <summary>
-    /// Starts tracking focus and window movement changes
+    /// Starts tracking focus and window movement changes.
     /// </summary>
     public void Start()
     {
@@ -80,12 +83,12 @@ internal class FocusTracker : IDisposable
         Console.WriteLine("  - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
         Console.WriteLine("  - Fully event-driven, no polling!");
 
-        // Get the initial focused monitor
-        UpdateFocusedMonitor();
+        // Get the initial focused display
+        UpdateFocusedDisplay();
     }
 
     /// <summary>
-    /// Callback invoked when a window gains focus or moves
+    /// Callback invoked when a window gains focus or moves.
     /// </summary>
     private void OnWinEvent(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
@@ -94,7 +97,7 @@ internal class FocusTracker : IDisposable
             // Process foreground changes for windows (not child objects)
             if (idObject == WinApi.OBJID_WINDOW)
             {
-                UpdateFocusedMonitor("Focus change");
+                UpdateFocusedDisplay("Focus change");
             }
         }
         else if (eventType == WinApi.EVENT_OBJECT_LOCATIONCHANGE)
@@ -107,62 +110,61 @@ internal class FocusTracker : IDisposable
                 var foregroundWindow = WinApi.GetForegroundWindow();
                 if (hwnd == foregroundWindow)
                 {
-                    UpdateFocusedMonitor("Window moved");
+                    UpdateFocusedDisplay("Window moved");
                 }
             }
         }
     }
 
     /// <summary>
-    /// Updates which monitor currently has the focused window and tracks position/size changes
+    /// Updates which display currently has the focused window and tracks position/size changes.
     /// </summary>
-    private void UpdateFocusedMonitor(string? reason = null)
+    private void UpdateFocusedDisplay(string? reason = null)
     {
         var foregroundWindow = WinApi.GetForegroundWindow();
         if (foregroundWindow == IntPtr.Zero)
             return;
 
-        var focusedMonitor = _monitorManager.GetMonitorForWindow(foregroundWindow);
+        var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
 
-        // Get window rectangle
-        WinApi.RECT? currentRect = null;
-        if (WinApi.GetWindowRect(foregroundWindow, out var rect))
+        // Get window rectangle and convert to Core.Rectangle
+        Core.Rectangle? currentRect = null;
+        if (WinApi.GetWindowRect(foregroundWindow, out var winRect))
         {
-            currentRect = rect;
+            currentRect = WinApi.ToRectangle(winRect);
         }
 
-        bool monitorChanged = !Equals(focusedMonitor, _lastFocusedMonitor);
+        bool displayChanged = focusedDisplayIndex != _lastFocusedDisplayIndex;
         bool rectChanged = currentRect.HasValue && _lastWindowRect != currentRect;
 
-        // Fire monitor change event if monitor actually changed
-        if (monitorChanged)
+        // Fire display change event if display actually changed
+        if (displayChanged && currentRect.HasValue)
         {
-            _lastFocusedMonitor = focusedMonitor;
+            _lastFocusedDisplayIndex = focusedDisplayIndex;
 
-            if (focusedMonitor != null)
+            if (focusedDisplayIndex >= 0)
             {
-                var monitorIndex = Array.IndexOf(_monitorManager.Monitors.ToArray(), focusedMonitor) + 1;
                 var reasonText = reason != null ? $" ({reason})" : "";
-                Console.WriteLine($"Monitor {monitorIndex} is now active{reasonText}");
+                Console.WriteLine($"Display {focusedDisplayIndex} is now active{reasonText}");
             }
 
-            FocusedMonitorChanged?.Invoke(focusedMonitor);
+            FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
         }
 
-        // Fire position change event if window moved/resized (even on same monitor)
+        // Fire position change event if window moved/resized (even on same display)
         if (rectChanged && currentRect.HasValue)
         {
             _lastWindowRect = currentRect;
 
-            if (!monitorChanged && reason != null)
+            if (!displayChanged && reason != null)
             {
-                // Only log if monitor didn't change (to avoid double logging)
-                Console.WriteLine($"Window position/size changed: {currentRect} ({reason})");
+                // Only log if display didn't change (to avoid double logging)
+                Console.WriteLine($"Window position/size changed: ({currentRect.Value.X},{currentRect.Value.Y}) {currentRect.Value.Width}x{currentRect.Value.Height} ({reason})");
             }
 
-            WindowPositionChanged?.Invoke(focusedMonitor, currentRect.Value);
+            WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
         }
-        else if (monitorChanged && currentRect.HasValue)
+        else if (displayChanged && currentRect.HasValue)
         {
             // Update rect even if it didn't trigger an event (for initial state)
             _lastWindowRect = currentRect;

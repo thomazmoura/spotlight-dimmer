@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
+using SpotlightDimmer.Core;
 
-namespace SpotlightDimmer;
+namespace SpotlightDimmer.WindowsBindings;
 
 /// <summary>
 /// Windows API interop declarations for window management, monitoring, and event hooks
@@ -235,5 +236,47 @@ internal static class WinApi
     public static uint RGB(byte r, byte g, byte b)
     {
         return (uint)(r | (g << 8) | (b << 16));
+    }
+
+    // ========================================================================
+    // Type Conversion Helpers (Core <-> Windows)
+    // ========================================================================
+
+    /// <summary>
+    /// Converts a Windows RECT to a Core Rectangle.
+    /// </summary>
+    public static Core.Rectangle ToRectangle(RECT rect)
+    {
+        return new Core.Rectangle(rect.Left, rect.Top, rect.Width, rect.Height);
+    }
+
+    /// <summary>
+    /// Converts a Core Rectangle to a Windows RECT.
+    /// </summary>
+    public static RECT ToRECT(Core.Rectangle rect)
+    {
+        return new RECT
+        {
+            Left = rect.Left,
+            Top = rect.Top,
+            Right = rect.Right,
+            Bottom = rect.Bottom
+        };
+    }
+
+    /// <summary>
+    /// Converts a Core Color to a Windows RGB uint.
+    /// </summary>
+    public static uint ToWindowsRgb(Core.Color color)
+    {
+        return RGB(color.R, color.G, color.B);
+    }
+
+    /// <summary>
+    /// Converts a Windows RGB uint to a Core Color.
+    /// </summary>
+    public static Core.Color FromWindowsRgb(uint rgb)
+    {
+        return Core.Color.FromRgb(rgb);
     }
 }

@@ -1,8 +1,11 @@
-﻿using SpotlightDimmer;
+using SpotlightDimmer.Core;
+using SpotlightDimmer.WindowsBindings;
 
-Console.WriteLine("SpotlightDimmer .NET PoC");
-Console.WriteLine("========================");
-Console.WriteLine("Press Ctrl+C to exit\n");
+Console.WriteLine("SpotlightDimmer .NET - Refactored Architecture");
+Console.WriteLine("===============================================");
+Console.WriteLine("Core: Pure overlay calculation logic");
+Console.WriteLine("WindowsBindings: Windows-specific rendering");
+Console.WriteLine("\nPress Ctrl+C to exit\n");
 
 // Set up graceful shutdown
 using var cts = new CancellationTokenSource();
@@ -13,7 +16,10 @@ Console.CancelKeyPress += (sender, e) =>
     Console.WriteLine("\nShutting down...");
 };
 
-// Initialize monitor management
+// ========================================================================
+// WindowsBindings Layer - Platform-specific components
+// ========================================================================
+
 var monitorManager = new MonitorManager();
 
 if (monitorManager.Monitors.Count == 0)
@@ -22,50 +28,72 @@ if (monitorManager.Monitors.Count == 0)
     return 1;
 }
 
-// Create overlays for each monitor
-var overlays = monitorManager.Monitors
-    .Select(monitor => new OverlayWindow(monitor))
-    .ToList();
+var focusTracker = new FocusTracker(monitorManager);
+var renderer = new OverlayRenderer();
 
-Console.WriteLine($"\nCreated {overlays.Count} overlay window(s)");
+// ========================================================================
+// Core Layer - Pure calculation logic
+// ========================================================================
 
-// Set up focus tracking
-using var focusTracker = new FocusTracker(monitorManager);
+var calculator = new OverlayCalculator();
 
-// Handle monitor changes - update which overlays are visible
-focusTracker.FocusedMonitorChanged += (focusedMonitor) =>
+// Configuration: Start with FullScreen mode, can be changed at runtime
+var config = new OverlayCalculationConfig(
+    Mode: DimmingMode.PartialWithActive,  // Try: FullScreen, Partial, PartialWithActive
+    InactiveColor: Color.Black,
+    InactiveOpacity: 153,  // ~60% opacity
+    ActiveColor: Color.Black,
+    ActiveOpacity: 102  // ~40% opacity
+);
+
+Console.WriteLine($"\nOverlay Configuration:");
+Console.WriteLine($"  Mode: {config.Mode}");
+Console.WriteLine($"  Inactive: {config.InactiveColor.R},{config.InactiveColor.G},{config.InactiveColor.B} @ {config.InactiveOpacity}/255 opacity");
+Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{config.ActiveColor.B} @ {config.ActiveOpacity}/255 opacity");
+
+// ========================================================================
+// Wire Core and WindowsBindings together
+// ========================================================================
+
+// Helper function to update overlays
+void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
-    foreach (var overlay in overlays)
-    {
-        if (focusedMonitor != null && overlay.Monitor.Equals(focusedMonitor))
-        {
-            // Hide overlay on the focused monitor
-            overlay.Hide();
-        }
-        else
-        {
-            // Show overlay on all other monitors
-            overlay.Show();
-        }
-    }
+    var displays = monitorManager.GetDisplayInfo();
+    var states = calculator.Calculate(displays, windowBounds, displayIndex, config);
+    renderer.UpdateOverlays(states);
+}
+
+// Handle display changes - recalculate and render overlays
+focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
+{
+    Console.WriteLine($"Display {displayIndex} gained focus");
+    UpdateOverlays(displayIndex, windowBounds);
 };
 
-// Handle window position/size changes (for partial dimming support)
-focusTracker.WindowPositionChanged += (monitor, rect) =>
+// Handle window position/size changes - recalculate and render overlays
+focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
 {
-    // This event fires even when window moves/resizes on the same monitor
-    // Perfect for implementing partial dimming in the future!
-    // For now, we just log it to demonstrate detection works
+    // This event fires frequently during window movement
+    // In FullScreen mode, we don't need to update (only display changes matter)
+    // In Partial/PartialWithActive modes, we need to update on every movement
+    if (config.Mode != DimmingMode.FullScreen)
+    {
+        UpdateOverlays(displayIndex, windowBounds);
+    }
 };
 
 // Start tracking
 focusTracker.Start();
 
-Console.WriteLine("\nSpotlightDimmer is running. The focused monitor will remain bright.");
+Console.WriteLine("\nSpotlightDimmer is running.");
+Console.WriteLine($"Current mode: {config.Mode}");
+Console.WriteLine("The focused display will remain bright.");
 Console.WriteLine("Move windows between monitors to see the effect.\n");
 
-// Run the Windows message loop to process events
-// This is necessary for the event hooks to work
+// ========================================================================
+// Windows Message Loop
+// ========================================================================
+
 try
 {
     while (!cts.Token.IsCancellationRequested)
@@ -91,15 +119,14 @@ try
 catch (Exception ex)
 {
     Console.WriteLine($"Error: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
     return 1;
 }
 finally
 {
     // Clean up
-    foreach (var overlay in overlays)
-    {
-        overlay.Dispose();
-    }
+    focusTracker.Dispose();
+    renderer.Dispose();
 }
 
 Console.WriteLine("Goodbye!");
