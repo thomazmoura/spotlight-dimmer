@@ -27,7 +27,7 @@ internal class OverlayRenderer : IDisposable
     /// </summary>
     public void UpdateOverlays(DisplayOverlayState[] states)
     {
-        // Track which overlays are currently being used
+        // Track which overlays are currently visible
         var activeKeys = new HashSet<(int, OverlayRegion)>();
 
         // Update or create overlays for each state
@@ -35,6 +35,10 @@ internal class OverlayRenderer : IDisposable
         {
             foreach (var overlayDef in state.Overlays)
             {
+                // Skip overlays that aren't visible to avoid unnecessary window operations
+                if (!overlayDef.IsVisible)
+                    continue;
+
                 var key = (state.DisplayIndex, overlayDef.Region);
                 activeKeys.Add(key);
 
@@ -52,7 +56,7 @@ internal class OverlayRenderer : IDisposable
             }
         }
 
-        // Hide any overlays that aren't in the current state
+        // Hide any overlays that aren't in the current active set
         foreach (var kvp in _overlayPool)
         {
             if (!activeKeys.Contains(kvp.Key))

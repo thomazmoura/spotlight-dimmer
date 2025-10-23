@@ -2,16 +2,18 @@ namespace SpotlightDimmer.Core;
 
 /// <summary>
 /// Calculates overlay positions and states based on display configuration and focused window.
-/// Uses instance-based design with collection reuse to minimize GC pressure.
+/// Uses instance-based design with object reuse to minimize GC pressure.
+/// Maintains a pool of DisplayOverlayState objects that are updated in place.
 /// </summary>
 public class OverlayCalculator
 {
-    // Reusable collections to avoid allocations on every calculation
-    private readonly List<DisplayOverlayState> _resultCache = new();
-    private readonly List<OverlayDefinition> _overlayCache = new();
+    // Pool of DisplayOverlayState objects indexed by display index
+    // These are reused across calculations to avoid allocations
+    private readonly Dictionary<int, DisplayOverlayState> _statePool = new();
 
     /// <summary>
     /// Calculates the overlay states for all displays based on current focus and configuration.
+    /// Reuses existing DisplayOverlayState objects and updates them in place.
     /// </summary>
     /// <param name="displays">All connected displays.</param>
     /// <param name="focusedWindowBounds">Bounds of the currently focused window (null if no focus).</param>
@@ -24,83 +26,100 @@ public class OverlayCalculator
         int focusedDisplayIndex,
         OverlayCalculationConfig config)
     {
-        _resultCache.Clear();
+        var results = new DisplayOverlayState[displays.Length];
 
         for (int i = 0; i < displays.Length; i++)
         {
             var display = displays[i];
-            bool isFocusedDisplay = (i == focusedDisplayIndex);
 
-            OverlayDefinition[] overlays;
+            // Get or create the state object for this display
+            if (!_statePool.TryGetValue(display.Index, out var state))
+            {
+                state = new DisplayOverlayState(display.Index, display.Bounds);
+                _statePool[display.Index] = state;
+            }
+
+            // Reset all overlays to hidden before calculating new state
+            HideAllOverlays(state);
+
+            bool isFocusedDisplay = (i == focusedDisplayIndex);
 
             if (isFocusedDisplay && focusedWindowBounds.HasValue)
             {
                 // This display has the focused window
-                overlays = config.Mode switch
+                switch (config.Mode)
                 {
-                    DimmingMode.FullScreen => CreateNoOverlays(),
-                    DimmingMode.Partial => CreatePartialOverlays(display, focusedWindowBounds.Value, config),
-                    DimmingMode.PartialWithActive => CreatePartialWithActiveOverlays(display, focusedWindowBounds.Value, config),
-                    _ => CreateNoOverlays()
-                };
+                    case DimmingMode.FullScreen:
+                        // No overlays - keep all hidden
+                        break;
+                    case DimmingMode.Partial:
+                        UpdatePartialOverlays(state, display, focusedWindowBounds.Value, config);
+                        break;
+                    case DimmingMode.PartialWithActive:
+                        UpdatePartialWithActiveOverlays(state, display, focusedWindowBounds.Value, config);
+                        break;
+                }
             }
             else
             {
                 // This display does not have the focused window - dim the entire display
-                overlays = CreateFullScreenOverlay(display, config);
+                UpdateFullScreenOverlay(state, display, config);
             }
 
-            _resultCache.Add(new DisplayOverlayState(display.Index, display.Bounds, overlays));
+            results[i] = state;
         }
 
-        return _resultCache.ToArray();
+        return results;
     }
 
     /// <summary>
-    /// Creates an empty array (no overlays visible).
+    /// Hides all overlays in the state by setting IsVisible to false.
+    /// This is more efficient than recreating the array.
     /// </summary>
-    private OverlayDefinition[] CreateNoOverlays()
+    private void HideAllOverlays(DisplayOverlayState state)
     {
-        return Array.Empty<OverlayDefinition>();
+        for (int i = 0; i < state.Overlays.Length; i++)
+        {
+            state.Overlays[i] = state.Overlays[i] with { IsVisible = false };
+        }
     }
 
     /// <summary>
-    /// Creates a single full-screen overlay for the entire display.
+    /// Updates the state to show a single full-screen overlay for the entire display.
     /// Used in FullScreen mode for non-focused displays.
     /// </summary>
-    private OverlayDefinition[] CreateFullScreenOverlay(DisplayInfo display, OverlayCalculationConfig config)
+    private void UpdateFullScreenOverlay(DisplayOverlayState state, DisplayInfo display, OverlayCalculationConfig config)
     {
-        return new[]
+        int index = (int)OverlayRegion.FullScreen;
+        state.Overlays[index] = new OverlayDefinition
         {
-            new OverlayDefinition
-            {
-                Region = OverlayRegion.FullScreen,
-                Bounds = display.Bounds,
-                Color = config.InactiveColor,
-                Opacity = config.InactiveOpacity,
-                IsVisible = true
-            }
+            Region = OverlayRegion.FullScreen,
+            Bounds = display.Bounds,
+            Color = config.InactiveColor,
+            Opacity = config.InactiveOpacity,
+            IsVisible = true
         };
     }
 
     /// <summary>
-    /// Creates 4-sided overlays around the focused window (Partial mode).
+    /// Updates the state with 4-sided overlays around the focused window (Partial mode).
     /// Top, Bottom, Left, Right overlays with inactive color.
+    /// Updates existing overlay definitions in place.
     /// </summary>
-    private OverlayDefinition[] CreatePartialOverlays(
+    private void UpdatePartialOverlays(
+        DisplayOverlayState state,
         DisplayInfo display,
         Rectangle windowBounds,
         OverlayCalculationConfig config)
     {
-        _overlayCache.Clear();
-
         // Clamp window bounds to display bounds (in case window extends beyond display)
         var clampedWindow = ClampToDisplay(windowBounds, display.Bounds);
 
         // Top overlay: full width, from display top to window top
         if (clampedWindow.Top > display.Bounds.Top)
         {
-            _overlayCache.Add(new OverlayDefinition
+            int index = (int)OverlayRegion.Top;
+            state.Overlays[index] = new OverlayDefinition
             {
                 Region = OverlayRegion.Top,
                 Bounds = new Rectangle(
@@ -112,13 +131,14 @@ public class OverlayCalculator
                 Color = config.InactiveColor,
                 Opacity = config.InactiveOpacity,
                 IsVisible = true
-            });
+            };
         }
 
         // Bottom overlay: full width, from window bottom to display bottom
         if (clampedWindow.Bottom < display.Bounds.Bottom)
         {
-            _overlayCache.Add(new OverlayDefinition
+            int index = (int)OverlayRegion.Bottom;
+            state.Overlays[index] = new OverlayDefinition
             {
                 Region = OverlayRegion.Bottom,
                 Bounds = new Rectangle(
@@ -130,13 +150,14 @@ public class OverlayCalculator
                 Color = config.InactiveColor,
                 Opacity = config.InactiveOpacity,
                 IsVisible = true
-            });
+            };
         }
 
         // Left overlay: from window top to window bottom, from display left to window left
         if (clampedWindow.Left > display.Bounds.Left)
         {
-            _overlayCache.Add(new OverlayDefinition
+            int index = (int)OverlayRegion.Left;
+            state.Overlays[index] = new OverlayDefinition
             {
                 Region = OverlayRegion.Left,
                 Bounds = new Rectangle(
@@ -148,13 +169,14 @@ public class OverlayCalculator
                 Color = config.InactiveColor,
                 Opacity = config.InactiveOpacity,
                 IsVisible = true
-            });
+            };
         }
 
         // Right overlay: from window top to window bottom, from window right to display right
         if (clampedWindow.Right < display.Bounds.Right)
         {
-            _overlayCache.Add(new OverlayDefinition
+            int index = (int)OverlayRegion.Right;
+            state.Overlays[index] = new OverlayDefinition
             {
                 Region = OverlayRegion.Right,
                 Bounds = new Rectangle(
@@ -166,39 +188,36 @@ public class OverlayCalculator
                 Color = config.InactiveColor,
                 Opacity = config.InactiveOpacity,
                 IsVisible = true
-            });
+            };
         }
-
-        return _overlayCache.ToArray();
     }
 
     /// <summary>
-    /// Creates 4-sided overlays plus center highlight (PartialWithActive mode).
+    /// Updates the state with 4-sided overlays plus center highlight (PartialWithActive mode).
     /// Top, Bottom, Left, Right overlays with inactive color.
     /// Center overlay with active color to highlight the focused window.
+    /// Updates existing overlay definitions in place.
     /// </summary>
-    private OverlayDefinition[] CreatePartialWithActiveOverlays(
+    private void UpdatePartialWithActiveOverlays(
+        DisplayOverlayState state,
         DisplayInfo display,
         Rectangle windowBounds,
         OverlayCalculationConfig config)
     {
         // Start with the 4-sided overlays
-        var partialOverlays = CreatePartialOverlays(display, windowBounds, config);
-        _overlayCache.Clear();
-        _overlayCache.AddRange(partialOverlays);
+        UpdatePartialOverlays(state, display, windowBounds, config);
 
         // Add center overlay with active color
         var clampedWindow = ClampToDisplay(windowBounds, display.Bounds);
-        _overlayCache.Add(new OverlayDefinition
+        int index = (int)OverlayRegion.Center;
+        state.Overlays[index] = new OverlayDefinition
         {
             Region = OverlayRegion.Center,
             Bounds = clampedWindow,
             Color = config.ActiveColor,
             Opacity = config.ActiveOpacity,
             IsVisible = true
-        });
-
-        return _overlayCache.ToArray();
+        };
     }
 
     /// <summary>

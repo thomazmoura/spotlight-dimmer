@@ -2,33 +2,73 @@ namespace SpotlightDimmer.Core;
 
 /// <summary>
 /// Represents the complete overlay state for a single display.
-/// Contains all overlays (0-6) that should be rendered on this display.
+/// Contains a fixed array of 6 overlays (one per region), with visibility flags.
+/// This design minimizes allocations by reusing the same array structure.
 /// </summary>
-public readonly record struct DisplayOverlayState(
+public class DisplayOverlayState
+{
     /// <summary>
     /// The display index this state applies to.
     /// </summary>
-    int DisplayIndex,
+    public int DisplayIndex { get; }
 
     /// <summary>
     /// The bounds of the display.
     /// Provided for convenience so the renderer doesn't need to look it up.
     /// </summary>
-    Rectangle DisplayBounds,
+    public Rectangle DisplayBounds { get; }
 
     /// <summary>
-    /// The overlay definitions for this display.
-    /// - 0 overlays: Display is focused and no partial dimming is active
-    /// - 1 overlay: Full-screen dimming on non-focused display
-    /// - 4 overlays: Partial dimming (Top, Bottom, Left, Right)
-    /// - 5 overlays: Partial with active (Top, Bottom, Left, Right, Center)
-    /// - 6 overlays: All regions (rare, mainly for testing)
+    /// Fixed array of overlay definitions, one per region.
+    /// Array is indexed by OverlayRegion enum value.
+    /// Use IsVisible property to determine if overlay should be shown.
     /// </summary>
-    OverlayDefinition[] Overlays
-)
-{
+    public OverlayDefinition[] Overlays { get; }
+
+    public DisplayOverlayState(int displayIndex, Rectangle displayBounds)
+    {
+        DisplayIndex = displayIndex;
+        DisplayBounds = displayBounds;
+
+        // Pre-allocate all 6 overlay slots (one per OverlayRegion)
+        Overlays = new OverlayDefinition[6];
+
+        // Initialize all as hidden
+        for (int i = 0; i < Overlays.Length; i++)
+        {
+            Overlays[i] = OverlayDefinition.CreateHidden((OverlayRegion)i);
+        }
+    }
+
     /// <summary>
     /// Gets the number of visible overlays on this display.
     /// </summary>
-    public int VisibleOverlayCount => Overlays.Count(o => o.IsVisible);
+    public int VisibleOverlayCount
+    {
+        get
+        {
+            int count = 0;
+            for (int i = 0; i < Overlays.Length; i++)
+            {
+                if (Overlays[i].IsVisible)
+                    count++;
+            }
+            return count;
+        }
+    }
+
+    /// <summary>
+    /// Gets all visible overlays (avoids allocation in most use cases).
+    /// </summary>
+    public IEnumerable<OverlayDefinition> VisibleOverlays
+    {
+        get
+        {
+            for (int i = 0; i < Overlays.Length; i++)
+            {
+                if (Overlays[i].IsVisible)
+                    yield return Overlays[i];
+            }
+        }
+    }
 }
