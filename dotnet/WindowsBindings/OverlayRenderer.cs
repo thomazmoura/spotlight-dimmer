@@ -19,72 +19,70 @@ internal class OverlayRenderer : IDisposable
     // Map window handles to their overlay windows for WM_PAINT handling
     private static readonly Dictionary<IntPtr, OverlayWindow> _windowMap = new();
 
+    // Pre-allocated list for batching updates (reused every frame to avoid allocations)
+    private readonly List<(OverlayWindow window, OverlayDefinition definition)> _updateBatch = new();
+
     public OverlayRenderer()
     {
         EnsureWindowClassRegistered();
     }
 
     /// <summary>
+    /// Pre-creates all overlay windows for the given displays.
+    /// Creates 6 windows per display (one for each OverlayRegion), all initially hidden.
+    /// This eliminates window creation overhead during updates.
+    /// Call this once at startup after getting display information.
+    /// </summary>
+    public void CreateOverlays(Core.DisplayInfo[] displays)
+    {
+        foreach (var display in displays)
+        {
+            // Create one window for each region (6 total per display)
+            for (int i = 0; i < 6; i++)
+            {
+                var region = (OverlayRegion)i;
+                var key = (display.Index, region);
+
+                // Create window with its own local OverlayDefinition (initially hidden)
+                var window = new OverlayWindow(region, display.Bounds);
+                _overlayPool[key] = window;
+            }
+        }
+    }
+
+    /// <summary>
     /// Updates all overlay windows based on the calculated overlay states.
-    /// Creates, updates, or hides windows as needed.
+    /// All windows are pre-created, so this only updates their state.
     /// Uses deferred window positioning for atomic, flicker-free batch updates.
+    /// ZERO allocations - reuses pre-allocated batch list.
     /// </summary>
     public void UpdateOverlays(DisplayOverlayState[] states)
     {
-        // Track which overlays are currently visible
-        var activeKeys = new HashSet<(int, OverlayRegion)>();
+        // Clear the pre-allocated batch list (no allocation)
+        _updateBatch.Clear();
 
-        // Lists to collect updates for batching
-        var windowsToUpdate = new List<(OverlayWindow window, OverlayDefinition definition)>();
-        var windowsToCreate = new List<(int displayIndex, OverlayRegion region, OverlayDefinition definition)>();
-
-        // First pass: collect all updates
+        // Collect all windows that need updates
+        // Process ALL overlays (visible and invisible) to properly update state
         foreach (var state in states)
         {
-            foreach (var overlayDef in state.Overlays)
+            foreach (var sourceOverlay in state.Overlays)
             {
-                // Skip overlays that aren't visible to avoid unnecessary window operations
-                if (!overlayDef.IsVisible)
-                    continue;
-
-                var key = (state.DisplayIndex, overlayDef.Region);
-                activeKeys.Add(key);
+                var key = (state.DisplayIndex, sourceOverlay.Region);
 
                 if (_overlayPool.TryGetValue(key, out var window))
                 {
-                    // Queue existing window for update
-                    windowsToUpdate.Add((window, overlayDef));
+                    // Add to batch - window will copy values from sourceOverlay
+                    _updateBatch.Add((window, sourceOverlay));
                 }
-                else
-                {
-                    // Queue window for creation
-                    windowsToCreate.Add((state.DisplayIndex, overlayDef.Region, overlayDef));
-                }
+                // Note: If window doesn't exist, it means CreateOverlays wasn't called
+                // or display configuration changed. We silently skip it.
             }
-        }
-
-        // Create new windows (these need to be created before batching)
-        foreach (var (displayIndex, region, definition) in windowsToCreate)
-        {
-            var window = new OverlayWindow(definition);
-            _overlayPool[(displayIndex, region)] = window;
-            // Add to update list so it gets included in the batch positioning
-            windowsToUpdate.Add((window, definition));
         }
 
         // Batch update all windows using DeferWindowPos
-        if (windowsToUpdate.Count > 0)
+        if (_updateBatch.Count > 0)
         {
-            BatchUpdateWindows(windowsToUpdate);
-        }
-
-        // Hide any overlays that aren't in the current active set
-        foreach (var kvp in _overlayPool)
-        {
-            if (!activeKeys.Contains(kvp.Key))
-            {
-                kvp.Value.Hide();
-            }
+            BatchUpdateWindows(_updateBatch);
         }
     }
 
@@ -196,37 +194,45 @@ internal class OverlayRenderer : IDisposable
 
     /// <summary>
     /// Represents a single overlay window (wrapper around Windows HWND).
+    /// Each window owns its local OverlayDefinition to prevent reference aliasing bugs.
     /// </summary>
     private class OverlayWindow : IDisposable
     {
         private IntPtr _hwnd = IntPtr.Zero;
-        private OverlayDefinition _currentState;
+        private OverlayDefinition _localState; // Our own copy - never shared with source
 
-        public OverlayWindow(OverlayDefinition definition)
+        /// <summary>
+        /// Creates a new overlay window with its own local state.
+        /// The window is created hidden with minimal initial bounds.
+        /// </summary>
+        public OverlayWindow(OverlayRegion region, Core.Rectangle displayBounds)
         {
-            CreateWindow(definition);
-            _currentState = definition;
+            // Create our own local OverlayDefinition (initially hidden)
+            _localState = new OverlayDefinition(region);
+
+            // Create the window HWND (initially hidden with minimal size)
+            CreateWindow(region, displayBounds);
             _windowMap[_hwnd] = this;
         }
 
         /// <summary>
-        /// Updates this window's state (position, color, opacity, visibility).
+        /// Updates this window's state from a source OverlayDefinition.
+        /// Copies values from source to local state without creating new objects.
         /// </summary>
-        public void Update(OverlayDefinition definition)
+        public void Update(OverlayDefinition source)
         {
             if (_hwnd == IntPtr.Zero)
             {
-                CreateWindow(definition);
-                _currentState = definition;
+                // Window should already exist - this shouldn't happen
                 return;
             }
 
-            // Check what changed to minimize Windows API calls
-            bool boundsChanged = definition.Bounds != _currentState.Bounds;
+            // Check what changed by comparing source with our local state
+            bool boundsChanged = source.Bounds != _localState.Bounds;
             bool colorOrOpacityChanged =
-                definition.Color != _currentState.Color ||
-                definition.Opacity != _currentState.Opacity;
-            bool visibilityChanged = definition.IsVisible != _currentState.IsVisible;
+                source.Color != _localState.Color ||
+                source.Opacity != _localState.Opacity;
+            bool visibilityChanged = source.IsVisible != _localState.IsVisible;
 
             // Update position/size if needed
             if (boundsChanged)
@@ -241,10 +247,10 @@ internal class OverlayRenderer : IDisposable
                 WinApi.SetWindowPos(
                     _hwnd,
                     IntPtr.Zero,
-                    definition.Bounds.X,
-                    definition.Bounds.Y,
-                    definition.Bounds.Width,
-                    definition.Bounds.Height,
+                    source.Bounds.X,
+                    source.Bounds.Y,
+                    source.Bounds.Width,
+                    source.Bounds.Height,
                     WinApi.SWP_NOACTIVATE | WinApi.SWP_NOZORDER
                 );
             }
@@ -256,17 +262,17 @@ internal class OverlayRenderer : IDisposable
                 WinApi.SetLayeredWindowAttributes(
                     _hwnd,
                     0,
-                    definition.Opacity,
+                    source.Opacity,
                     WinApi.LWA_ALPHA
                 );
 
                 // Trigger repaint for color change
-                if (definition.Color != _currentState.Color)
+                if (source.Color != _localState.Color)
                 {
                     var hdc = WinApi.GetDC(_hwnd);
                     if (hdc != IntPtr.Zero)
                     {
-                        PaintWindow(hdc, definition.Color);
+                        PaintWindow(hdc, source.Color, source.Bounds);
                         WinApi.ReleaseDC(_hwnd, hdc);
                     }
                 }
@@ -275,7 +281,7 @@ internal class OverlayRenderer : IDisposable
             // Update visibility if needed
             if (visibilityChanged)
             {
-                if (definition.IsVisible)
+                if (source.IsVisible)
                 {
                     WinApi.ShowWindow(_hwnd, 5); // SW_SHOW
                 }
@@ -285,21 +291,23 @@ internal class OverlayRenderer : IDisposable
                 }
             }
 
-            _currentState = definition;
+            // Copy source values to our local state (NO allocation)
+            _localState.CopyFrom(source);
         }
 
         /// <summary>
         /// Queues a deferred window position update (for batching).
         /// Only handles position, size, and visibility. Returns updated HDWP handle.
+        /// Does NOT update local state yet - call UpdateNonPositionProperties after batching.
         /// </summary>
-        public IntPtr DeferUpdate(IntPtr hdwp, OverlayDefinition definition)
+        public IntPtr DeferUpdate(IntPtr hdwp, OverlayDefinition source)
         {
             if (_hwnd == IntPtr.Zero)
                 return hdwp;
 
-            // Check what changed
-            bool boundsChanged = definition.Bounds != _currentState.Bounds;
-            bool visibilityChanged = definition.IsVisible != _currentState.IsVisible;
+            // Check what changed by comparing source with our local state
+            bool boundsChanged = source.Bounds != _localState.Bounds;
+            bool visibilityChanged = source.IsVisible != _localState.IsVisible;
 
             // Only defer position/size/visibility changes
             if (!boundsChanged && !visibilityChanged)
@@ -310,7 +318,7 @@ internal class OverlayRenderer : IDisposable
             // Handle visibility changes
             if (visibilityChanged)
             {
-                flags |= definition.IsVisible ? WinApi.SWP_SHOWWINDOW : WinApi.SWP_HIDEWINDOW;
+                flags |= source.IsVisible ? WinApi.SWP_SHOWWINDOW : WinApi.SWP_HIDEWINDOW;
             }
 
             // Queue the deferred position update
@@ -318,10 +326,10 @@ internal class OverlayRenderer : IDisposable
                 hdwp,
                 _hwnd,
                 IntPtr.Zero,
-                definition.Bounds.X,
-                definition.Bounds.Y,
-                definition.Bounds.Width,
-                definition.Bounds.Height,
+                source.Bounds.X,
+                source.Bounds.Y,
+                source.Bounds.Width,
+                source.Bounds.Height,
                 flags
             );
         }
@@ -329,70 +337,76 @@ internal class OverlayRenderer : IDisposable
         /// <summary>
         /// Updates non-position properties (color, opacity) that can't be deferred.
         /// Call this after EndDeferWindowPos to handle color/opacity changes.
+        /// Copies source values to local state after applying changes.
         /// </summary>
-        public void UpdateNonPositionProperties(OverlayDefinition definition)
+        public void UpdateNonPositionProperties(OverlayDefinition source)
         {
             if (_hwnd == IntPtr.Zero)
                 return;
 
             bool colorOrOpacityChanged =
-                definition.Color != _currentState.Color ||
-                definition.Opacity != _currentState.Opacity;
+                source.Color != _localState.Color ||
+                source.Opacity != _localState.Opacity;
 
             if (colorOrOpacityChanged)
             {
                 // Update opacity
-                if (definition.Opacity != _currentState.Opacity)
+                if (source.Opacity != _localState.Opacity)
                 {
                     WinApi.SetLayeredWindowAttributes(
                         _hwnd,
                         0,
-                        definition.Opacity,
+                        source.Opacity,
                         WinApi.LWA_ALPHA
                     );
                 }
 
                 // Trigger repaint for color change
-                if (definition.Color != _currentState.Color)
+                if (source.Color != _localState.Color)
                 {
                     var hdc = WinApi.GetDC(_hwnd);
                     if (hdc != IntPtr.Zero)
                     {
-                        PaintWindow(hdc, definition.Color);
+                        PaintWindow(hdc, source.Color, source.Bounds);
                         WinApi.ReleaseDC(_hwnd, hdc);
                     }
                 }
             }
 
-            _currentState = definition;
+            // Copy source values to our local state (NO allocation)
+            _localState.CopyFrom(source);
         }
 
         /// <summary>
-        /// Hides this overlay window.
+        /// Hides this overlay window by updating both the HWND and local state.
+        /// Safe to call - only mutates our local state, not the source.
         /// </summary>
         public void Hide()
         {
             if (_hwnd != IntPtr.Zero)
             {
                 WinApi.ShowWindow(_hwnd, 0); // SW_HIDE
-                _currentState.IsVisible = false;
+                _localState.IsVisible = false; // Update our local state
             }
         }
 
         /// <summary>
-        /// Creates the actual overlay window.
+        /// Creates the actual overlay window HWND.
+        /// Window is created hidden with minimal initial size.
         /// </summary>
-        private void CreateWindow(OverlayDefinition definition)
+        private void CreateWindow(OverlayRegion region, Core.Rectangle displayBounds)
         {
+            // Create window hidden at display origin with minimal size
+            // It will be properly positioned/sized on first Update call
             _hwnd = WinApi.CreateWindowEx(
                 WinApi.WS_EX_TOPMOST | WinApi.WS_EX_LAYERED | WinApi.WS_EX_TRANSPARENT | WinApi.WS_EX_TOOLWINDOW | WinApi.WS_EX_NOACTIVATE,
                 WINDOW_CLASS_NAME,
-                $"SpotlightDimmer Overlay - {definition.Region}",
-                WinApi.WS_POPUP | WinApi.WS_VISIBLE,
-                definition.Bounds.X,
-                definition.Bounds.Y,
-                definition.Bounds.Width,
-                definition.Bounds.Height,
+                $"SpotlightDimmer Overlay - {region}",
+                WinApi.WS_POPUP, // Initially hidden
+                displayBounds.X,
+                displayBounds.Y,
+                1, // Minimal initial size
+                1,
                 IntPtr.Zero,
                 IntPtr.Zero,
                 WinApi.GetModuleHandle(null),
@@ -403,26 +417,11 @@ internal class OverlayRenderer : IDisposable
                 throw new InvalidOperationException($"Failed to create overlay window. Error: {Marshal.GetLastWin32Error()}");
             }
 
-            // Set the overlay opacity
-            WinApi.SetLayeredWindowAttributes(_hwnd, 0, definition.Opacity, WinApi.LWA_ALPHA);
+            // Set initial opacity to 0 (will be updated on first Update call)
+            WinApi.SetLayeredWindowAttributes(_hwnd, 0, 0, WinApi.LWA_ALPHA);
 
-            // Paint the window with the overlay color
-            var hdc = WinApi.GetDC(_hwnd);
-            if (hdc != IntPtr.Zero)
-            {
-                PaintWindow(hdc, definition.Color);
-                WinApi.ReleaseDC(_hwnd, hdc);
-            }
-
-            // Show or hide based on initial state
-            if (definition.IsVisible)
-            {
-                WinApi.ShowWindow(_hwnd, 5); // SW_SHOW
-            }
-            else
-            {
-                WinApi.ShowWindow(_hwnd, 0); // SW_HIDE
-            }
+            // Keep window hidden initially
+            WinApi.ShowWindow(_hwnd, 0); // SW_HIDE
         }
 
         /// <summary>
@@ -433,7 +432,7 @@ internal class OverlayRenderer : IDisposable
             var hdc = WinApi.BeginPaint(_hwnd, out var ps);
             if (hdc != IntPtr.Zero)
             {
-                PaintWindow(hdc, _currentState.Color);
+                PaintWindow(hdc, _localState.Color, _localState.Bounds);
                 WinApi.EndPaint(_hwnd, ref ps);
             }
         }
@@ -441,14 +440,14 @@ internal class OverlayRenderer : IDisposable
         /// <summary>
         /// Paints the entire window with the specified color.
         /// </summary>
-        private void PaintWindow(IntPtr hdc, Core.Color color)
+        private void PaintWindow(IntPtr hdc, Core.Color color, Core.Rectangle bounds)
         {
             var rect = new WinApi.RECT
             {
                 Left = 0,
                 Top = 0,
-                Right = _currentState.Bounds.Width,
-                Bottom = _currentState.Bounds.Height
+                Right = bounds.Width,
+                Bottom = bounds.Height
             };
 
             var brush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(color));

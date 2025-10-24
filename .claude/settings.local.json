@@ -18,7 +18,8 @@
       "WebFetch(domain:api.github.com)",
       "Bash(dotnet:*)",
       "WebFetch(domain:stackoverflow.com)",
-      "WebFetch(domain:learn.microsoft.com)"
+      "WebFetch(domain:learn.microsoft.com)",
+      "Bash(./SpotlightDimmer.exe)"
     ],
     "deny": [],
     "ask": []

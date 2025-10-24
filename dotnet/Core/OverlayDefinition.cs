@@ -79,4 +79,18 @@ public class OverlayDefinition
         Opacity = opacity;
         IsVisible = isVisible;
     }
+
+    /// <summary>
+    /// Copies all values from another OverlayDefinition to this one.
+    /// Used for zero-allocation updates where we need to transfer state
+    /// without creating new objects or storing references.
+    /// </summary>
+    public void CopyFrom(OverlayDefinition source)
+    {
+        Region = source.Region;
+        Bounds = source.Bounds;
+        Color = source.Color;
+        Opacity = source.Opacity;
+        IsVisible = source.IsVisible;
+    }
 }

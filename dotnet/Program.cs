@@ -49,6 +49,10 @@ var config = configManager.Current.ToOverlayConfig();
 var displays = monitorManager.GetDisplayInfo();
 var appState = new AppState(displays);
 
+// Pre-create all overlay windows (6 per display, all initially hidden)
+// This eliminates window creation overhead during updates
+renderer.CreateOverlays(displays);
+
 Console.WriteLine($"\nOverlay Configuration:");
 Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
 Console.WriteLine($"  Mode: {config.Mode}");
