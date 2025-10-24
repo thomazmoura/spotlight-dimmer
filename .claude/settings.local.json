@@ -1,28 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:claude.ai)",
-      "WebSearch",
-      "WebFetch(domain:github.com)",
-      "Bash(git tag:*)",
-      "Bash(awk:*)",
-      "Bash(cat:*)",
-      "Bash(git log:*)",
-      "Bash(git fetch:*)",
-      "Bash(gh run list:*)",
-      "Bash(gh run view:*)",
-      "Bash(chmod:*)",
-      "Read(//c/Users/thomaz.moura/Pictures/Prints/**)",
-      "Bash(export:*)",
-      "Bash(tee:*)",
-      "WebFetch(domain:api.github.com)",
-      "Bash(dotnet:*)",
-      "WebFetch(domain:stackoverflow.com)",
-      "WebFetch(domain:learn.microsoft.com)",
-      "Bash(./SpotlightDimmer.exe)"
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
-  },
-  "outputStyle": "Explanatory"
+  }
 }
