@@ -116,19 +116,30 @@ internal class OverlayRenderer : IDisposable
             return;
         }
 
+        // Track the last valid handle to prevent leaks on failure
+        var lastValidHdwp = hdwp;
+
         // Queue all position/size updates
         foreach (var (window, definition) in updates)
         {
             hdwp = window.DeferUpdate(hdwp, definition);
             if (hdwp == IntPtr.Zero)
             {
-                // If defer fails, fall back to remaining individual updates
+                // CRITICAL: Clean up the last valid handle to prevent leak
+                // While Microsoft docs suggest not calling EndDeferWindowPos on failure,
+                // failing to do so causes a handle leak. This is a well-documented issue:
+                // "Simply returning without calling EndDeferWindowPos will leak a handle"
+                WinApi.EndDeferWindowPos(lastValidHdwp);
+
+                // Fall back to remaining individual updates
                 foreach (var (w, d) in updates)
                 {
                     w.Update(d);
                 }
                 return;
             }
+            // Update last valid handle for next iteration
+            lastValidHdwp = hdwp;
         }
 
         // Apply all updates atomically
@@ -155,7 +166,7 @@ internal class OverlayRenderer : IDisposable
             hInstance = WinApi.GetModuleHandle(null),
             lpszClassName = WINDOW_CLASS_NAME,
             hbrBackground = IntPtr.Zero, // No background brush - we'll paint manually
-            hCursor = WinApi.LoadCursor(IntPtr.Zero, 32512) // IDC_ARROW
+            hCursor = WinApi.LoadCursor(IntPtr.Zero, new IntPtr(32512)) // IDC_ARROW
         };
 
         var atom = WinApi.RegisterClassEx(wndClass);

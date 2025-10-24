@@ -133,6 +133,18 @@ Console.WriteLine("Move windows between monitors to see the effect.");
 Console.WriteLine($"\nConfiguration updates will be automatically applied.");
 Console.WriteLine($"Edit the config file to change settings in real-time.\n");
 
+// GDI object monitoring for leak detection (verbose mode only)
+var initialGdiCount = 0;
+var lastGdiCount = 0;
+var gdiCheckTimer = System.Diagnostics.Stopwatch.StartNew();
+if (verboseLogging)
+{
+    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+    initialGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
+    lastGdiCount = initialGdiCount;
+    Console.WriteLine($"[VERBOSE] Initial GDI objects: {initialGdiCount}");
+}
+
 // ========================================================================
 // Windows Message Loop
 // ========================================================================
@@ -150,6 +162,21 @@ try
             // Check for cancellation periodically
             if (cts.Token.IsCancellationRequested)
                 break;
+
+            // Periodic GDI object monitoring (verbose mode only, every 5 seconds)
+            if (verboseLogging && gdiCheckTimer.Elapsed.TotalSeconds >= 5)
+            {
+                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var currentGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
+                if (currentGdiCount != lastGdiCount)
+                {
+                    var delta = currentGdiCount - initialGdiCount;
+                    var deltaSign = delta >= 0 ? "+" : "";
+                    Console.WriteLine($"[VERBOSE] GDI objects: {currentGdiCount} ({deltaSign}{delta} from start)");
+                    lastGdiCount = currentGdiCount;
+                }
+                gdiCheckTimer.Restart();
+            }
         }
 
         // If we exit the message loop, wait a bit before checking again
