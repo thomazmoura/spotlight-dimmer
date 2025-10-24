@@ -10,15 +10,26 @@ namespace SpotlightDimmer.WindowsBindings;
 internal class MonitorManager
 {
     private readonly List<MonitorHandle> _monitors = new();
+    private DisplayInfo[]? _cachedDisplayInfo = null; // Cache to avoid LINQ allocations
 
     /// <summary>
     /// Gets information about all connected monitors as Core DisplayInfo array.
+    /// Returns a cached array to avoid allocations on every call.
     /// </summary>
     public DisplayInfo[] GetDisplayInfo()
     {
-        return _monitors
-            .Select((m, index) => new DisplayInfo(index, m.Bounds))
-            .ToArray();
+        // Return cached array if available (zero allocation)
+        if (_cachedDisplayInfo != null)
+            return _cachedDisplayInfo;
+
+        // Build cache (only happens once or after RefreshMonitors)
+        _cachedDisplayInfo = new DisplayInfo[_monitors.Count];
+        for (int i = 0; i < _monitors.Count; i++)
+        {
+            _cachedDisplayInfo[i] = new DisplayInfo(i, _monitors[i].Bounds);
+        }
+
+        return _cachedDisplayInfo;
     }
 
     /// <summary>
@@ -37,6 +48,7 @@ internal class MonitorManager
     public void RefreshMonitors()
     {
         _monitors.Clear();
+        _cachedDisplayInfo = null; // Invalidate cache on refresh
 
         // Enumerate all monitors - the callback will be called for each one
         WinApi.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, MonitorEnumCallback, IntPtr.Zero);

@@ -30,10 +30,10 @@ internal class OverlayRenderer : IDisposable
     /// <summary>
     /// Pre-creates all overlay windows for the given displays.
     /// Creates 6 windows per display (one for each OverlayRegion), all initially hidden.
-    /// This eliminates window creation overhead during updates.
+    /// Pre-allocates brushes for the configured colors to eliminate any allocations during updates.
     /// Call this once at startup after getting display information.
     /// </summary>
-    public void CreateOverlays(Core.DisplayInfo[] displays)
+    public void CreateOverlays(Core.DisplayInfo[] displays, OverlayCalculationConfig config)
     {
         foreach (var display in displays)
         {
@@ -43,10 +43,22 @@ internal class OverlayRenderer : IDisposable
                 var region = (OverlayRegion)i;
                 var key = (display.Index, region);
 
-                // Create window with its own local OverlayDefinition (initially hidden)
-                var window = new OverlayWindow(region, display.Bounds);
+                // Create window with pre-allocated brushes for both active and inactive colors
+                var window = new OverlayWindow(region, display.Bounds, config);
                 _overlayPool[key] = window;
             }
+        }
+    }
+
+    /// <summary>
+    /// Updates all brush colors when configuration changes.
+    /// Recreates brushes with new colors to reflect updated config.
+    /// </summary>
+    public void UpdateBrushColors(OverlayCalculationConfig config)
+    {
+        foreach (var window in _overlayPool.Values)
+        {
+            window.UpdateBrushColors(config);
         }
     }
 
@@ -200,19 +212,68 @@ internal class OverlayRenderer : IDisposable
     {
         private IntPtr _hwnd = IntPtr.Zero;
         private OverlayDefinition _localState; // Our own copy - never shared with source
+        private IntPtr _activeBrush = IntPtr.Zero;   // Pre-allocated brush for active color
+        private IntPtr _inactiveBrush = IntPtr.Zero; // Pre-allocated brush for inactive color
+        private Core.Color _activeColor;   // Track active color for brush selection
+        private Core.Color _inactiveColor; // Track inactive color for brush selection
 
         /// <summary>
         /// Creates a new overlay window with its own local state.
+        /// Pre-allocates brushes for both active and inactive colors.
         /// The window is created hidden with minimal initial bounds.
         /// </summary>
-        public OverlayWindow(OverlayRegion region, Core.Rectangle displayBounds)
+        public OverlayWindow(OverlayRegion region, Core.Rectangle displayBounds, OverlayCalculationConfig config)
         {
             // Create our own local OverlayDefinition (initially hidden)
             _localState = new OverlayDefinition(region);
 
+            // Store colors for brush selection
+            _activeColor = config.ActiveColor;
+            _inactiveColor = config.InactiveColor;
+
+            // Pre-create brushes for both active and inactive colors
+            _activeBrush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(config.ActiveColor));
+            _inactiveBrush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(config.InactiveColor));
+
             // Create the window HWND (initially hidden with minimal size)
             CreateWindow(region, displayBounds);
             _windowMap[_hwnd] = this;
+        }
+
+        /// <summary>
+        /// Updates brushes when configuration colors change.
+        /// Deletes old brushes and creates new ones.
+        /// </summary>
+        public void UpdateBrushColors(OverlayCalculationConfig config)
+        {
+            // Delete old brushes
+            if (_activeBrush != IntPtr.Zero)
+            {
+                WinApi.DeleteObject(_activeBrush);
+            }
+            if (_inactiveBrush != IntPtr.Zero)
+            {
+                WinApi.DeleteObject(_inactiveBrush);
+            }
+
+            // Update stored colors
+            _activeColor = config.ActiveColor;
+            _inactiveColor = config.InactiveColor;
+
+            // Create new brushes with updated colors
+            _activeBrush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(config.ActiveColor));
+            _inactiveBrush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(config.InactiveColor));
+
+            // Trigger repaint if window is visible to show new colors
+            if (_localState.IsVisible)
+            {
+                var hdc = WinApi.GetDC(_hwnd);
+                if (hdc != IntPtr.Zero)
+                {
+                    PaintWindow(hdc, _localState.Color, _localState.Bounds);
+                    WinApi.ReleaseDC(_hwnd, hdc);
+                }
+            }
         }
 
         /// <summary>
@@ -259,15 +320,18 @@ internal class OverlayRenderer : IDisposable
             if (colorOrOpacityChanged)
             {
                 // Update opacity
-                WinApi.SetLayeredWindowAttributes(
-                    _hwnd,
-                    0,
-                    source.Opacity,
-                    WinApi.LWA_ALPHA
-                );
+                if (source.Opacity != _localState.Opacity)
+                {
+                    WinApi.SetLayeredWindowAttributes(
+                        _hwnd,
+                        0,
+                        source.Opacity,
+                        WinApi.LWA_ALPHA
+                    );
+                }
 
-                // Trigger repaint for color change
-                if (source.Color != _localState.Color)
+                // Trigger repaint for color change (only if visible)
+                if (source.Color != _localState.Color && source.IsVisible)
                 {
                     var hdc = WinApi.GetDC(_hwnd);
                     if (hdc != IntPtr.Zero)
@@ -361,8 +425,8 @@ internal class OverlayRenderer : IDisposable
                     );
                 }
 
-                // Trigger repaint for color change
-                if (source.Color != _localState.Color)
+                // Trigger repaint for color change (only if visible)
+                if (source.Color != _localState.Color && source.IsVisible)
                 {
                     var hdc = WinApi.GetDC(_hwnd);
                     if (hdc != IntPtr.Zero)
@@ -439,6 +503,7 @@ internal class OverlayRenderer : IDisposable
 
         /// <summary>
         /// Paints the entire window with the specified color.
+        /// Uses pre-allocated brushes - zero allocations.
         /// </summary>
         private void PaintWindow(IntPtr hdc, Core.Color color, Core.Rectangle bounds)
         {
@@ -450,13 +515,45 @@ internal class OverlayRenderer : IDisposable
                 Bottom = bounds.Height
             };
 
-            var brush = WinApi.CreateSolidBrush(WinApi.ToWindowsRgb(color));
+            // Use pre-allocated brush based on color
+            // This is just a fast struct comparison (3 bytes), no allocations
+            IntPtr brush = GetBrushForColor(color);
+
             WinApi.FillRect(hdc, ref rect, brush);
-            WinApi.DeleteObject(brush);
+        }
+
+        /// <summary>
+        /// Gets the pre-allocated brush for the specified color.
+        /// Fast struct comparison (3 bytes) - zero allocations.
+        /// </summary>
+        private IntPtr GetBrushForColor(Core.Color color)
+        {
+            // Fast equality check - Color is a readonly record struct
+            // This compiles to a simple 3-byte comparison
+            if (color == _activeColor)
+            {
+                return _activeBrush;
+            }
+
+            // Default to inactive brush (most overlays use this)
+            return _inactiveBrush;
         }
 
         public void Dispose()
         {
+            // Clean up pre-allocated brushes
+            if (_activeBrush != IntPtr.Zero)
+            {
+                WinApi.DeleteObject(_activeBrush);
+                _activeBrush = IntPtr.Zero;
+            }
+            if (_inactiveBrush != IntPtr.Zero)
+            {
+                WinApi.DeleteObject(_inactiveBrush);
+                _inactiveBrush = IntPtr.Zero;
+            }
+
+            // Clean up window
             if (_hwnd != IntPtr.Zero)
             {
                 _windowMap.Remove(_hwnd);

@@ -53,7 +53,7 @@ public class OverlayDefinition
     public OverlayDefinition(OverlayRegion region)
     {
         Region = region;
-        Bounds = new Rectangle(0, 0, 0, 0);
+        Bounds = default; // More efficient than new Rectangle(0, 0, 0, 0)
         Color = Color.Black;
         Opacity = 0;
         IsVisible = false;
@@ -65,7 +65,7 @@ public class OverlayDefinition
     public void Hide()
     {
         IsVisible = false;
-        Bounds = new Rectangle(0, 0, 0, 0);
+        Bounds = default; // More efficient than new Rectangle(0, 0, 0, 0)
         Opacity = 0;
     }
 

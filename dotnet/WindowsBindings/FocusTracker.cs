@@ -8,6 +8,7 @@ namespace SpotlightDimmer.WindowsBindings;
 internal class FocusTracker : IDisposable
 {
     private readonly MonitorManager _monitorManager;
+    private readonly bool _verboseLogging;
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _locationHook = IntPtr.Zero;
     private int _lastFocusedDisplayIndex = -1;
@@ -32,9 +33,10 @@ internal class FocusTracker : IDisposable
     public Core.Rectangle? CurrentWindowRect => _lastWindowRect;
     public bool HasFocus => _lastFocusedDisplayIndex >= 0 && _lastWindowRect.HasValue;
 
-    public FocusTracker(MonitorManager monitorManager)
+    public FocusTracker(MonitorManager monitorManager, bool verboseLogging = false)
     {
         _monitorManager = monitorManager;
+        _verboseLogging = verboseLogging;
         _hookDelegate = OnWinEvent;
     }
 
@@ -79,10 +81,13 @@ internal class FocusTracker : IDisposable
             throw new InvalidOperationException("Failed to set EVENT_OBJECT_LOCATIONCHANGE hook");
         }
 
-        Console.WriteLine("Focus tracking started:");
-        Console.WriteLine("  - EVENT_SYSTEM_FOREGROUND: Instant app switching");
-        Console.WriteLine("  - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
-        Console.WriteLine("  - Fully event-driven, no polling!");
+        if (_verboseLogging)
+        {
+            Console.WriteLine("[VERBOSE] Focus tracking started:");
+            Console.WriteLine("[VERBOSE]   - EVENT_SYSTEM_FOREGROUND: Instant app switching");
+            Console.WriteLine("[VERBOSE]   - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
+            Console.WriteLine("[VERBOSE]   - Fully event-driven, no polling!");
+        }
 
         // Get the initial focused display
         UpdateFocusedDisplay();
@@ -143,10 +148,10 @@ internal class FocusTracker : IDisposable
         {
             _lastFocusedDisplayIndex = focusedDisplayIndex;
 
-            if (focusedDisplayIndex >= 0)
+            if (_verboseLogging && focusedDisplayIndex >= 0)
             {
                 var reasonText = reason != null ? $" ({reason})" : "";
-                Console.WriteLine($"Display {focusedDisplayIndex} is now active{reasonText}");
+                Console.WriteLine($"[VERBOSE] Display {focusedDisplayIndex} is now active{reasonText}");
             }
 
             FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
@@ -157,10 +162,10 @@ internal class FocusTracker : IDisposable
         {
             _lastWindowRect = currentRect;
 
-            if (!displayChanged && reason != null)
+            if (_verboseLogging && !displayChanged && reason != null)
             {
                 // Only log if display didn't change (to avoid double logging)
-                Console.WriteLine($"Window position/size changed: ({currentRect.Value.X},{currentRect.Value.Y}) {currentRect.Value.Width}x{currentRect.Value.Height} ({reason})");
+                Console.WriteLine($"[VERBOSE] Window position/size changed: ({currentRect.Value.X},{currentRect.Value.Y}) {currentRect.Value.Width}x{currentRect.Value.Height} ({reason})");
             }
 
             WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
@@ -186,6 +191,9 @@ internal class FocusTracker : IDisposable
             _locationHook = IntPtr.Zero;
         }
 
-        Console.WriteLine("Focus tracking stopped");
+        if (_verboseLogging)
+        {
+            Console.WriteLine("[VERBOSE] Focus tracking stopped");
+        }
     }
 }

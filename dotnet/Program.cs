@@ -1,10 +1,17 @@
 using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
+// Parse command-line arguments
+bool verboseLogging = args.Contains("--verbose");
+
 Console.WriteLine("SpotlightDimmer .NET - Refactored Architecture");
 Console.WriteLine("===============================================");
 Console.WriteLine("Core: Pure overlay calculation logic");
 Console.WriteLine("WindowsBindings: Windows-specific rendering");
+if (verboseLogging)
+{
+    Console.WriteLine("Verbose logging: ENABLED");
+}
 Console.WriteLine("\nPress Ctrl+C to exit\n");
 
 // Set up graceful shutdown
@@ -34,7 +41,7 @@ if (monitorManager.Monitors.Count == 0)
     return 1;
 }
 
-var focusTracker = new FocusTracker(monitorManager);
+var focusTracker = new FocusTracker(monitorManager, verboseLogging);
 var renderer = new OverlayRenderer();
 
 // ========================================================================
@@ -50,8 +57,8 @@ var displays = monitorManager.GetDisplayInfo();
 var appState = new AppState(displays);
 
 // Pre-create all overlay windows (6 per display, all initially hidden)
-// This eliminates window creation overhead during updates
-renderer.CreateOverlays(displays);
+// Pre-allocate brushes for configured colors - zero allocations during updates
+renderer.CreateOverlays(displays, config);
 
 Console.WriteLine($"\nOverlay Configuration:");
 Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
@@ -63,19 +70,26 @@ Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{con
 // Wire Core and WindowsBindings together
 // ========================================================================
 
-// Helper function to update overlays
+// Cache displays and config to avoid allocations in hot path
+// These are only updated when monitors change or config changes
+var cachedDisplays = monitorManager.GetDisplayInfo();
+var cachedConfig = configManager.Current.ToOverlayConfig();
+
+// Helper function to update overlays (zero allocations - uses cached values)
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
-    var displays = monitorManager.GetDisplayInfo();
-    var currentConfig = configManager.Current.ToOverlayConfig();
-    appState.Calculate(displays, windowBounds, displayIndex, currentConfig);
+    appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
     renderer.UpdateOverlays(appState.DisplayStates);
 }
 
 // Handle configuration changes - recalculate and render overlays
 configManager.ConfigurationChanged += (newAppConfig) =>
 {
-    var newConfig = newAppConfig.ToOverlayConfig();
+    // Update cached config when configuration changes
+    cachedConfig = newAppConfig.ToOverlayConfig();
+
+    // Update brush colors for all windows
+    renderer.UpdateBrushColors(cachedConfig);
 
     // If we have a focused window, trigger an update with the new config
     if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
@@ -89,7 +103,10 @@ configManager.ConfigurationChanged += (newAppConfig) =>
 // Handle display changes - recalculate and render overlays
 focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
 {
-    Console.WriteLine($"Display {displayIndex} gained focus");
+    if (verboseLogging)
+    {
+        Console.WriteLine($"[VERBOSE] Display {displayIndex} gained focus");
+    }
     UpdateOverlays(displayIndex, windowBounds);
 };
 

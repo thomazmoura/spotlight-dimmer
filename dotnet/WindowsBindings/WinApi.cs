@@ -125,15 +125,14 @@ internal static class WinApi
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct PAINTSTRUCT
+    public unsafe struct PAINTSTRUCT
     {
         public IntPtr hdc;
         public bool fErase;
         public RECT rcPaint;
         public bool fRestore;
         public bool fIncUpdate;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
-        public byte[] rgbReserved;
+        public fixed byte rgbReserved[32]; // Fixed-size buffer to avoid managed array allocation
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
