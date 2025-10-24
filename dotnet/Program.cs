@@ -116,8 +116,8 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
     // This event fires frequently during window movement
     // In FullScreen mode, we don't need to update (only display changes matter)
     // In Partial/PartialWithActive modes, we need to update on every movement
-    var currentConfig = configManager.Current.ToOverlayConfig();
-    if (currentConfig.Mode != DimmingMode.FullScreen)
+    // CRITICAL: Use cachedConfig to avoid allocating on every event!
+    if (cachedConfig.Mode != DimmingMode.FullScreen)
     {
         UpdateOverlays(displayIndex, windowBounds);
     }
