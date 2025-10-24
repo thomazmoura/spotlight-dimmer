@@ -8,19 +8,6 @@ namespace SpotlightDimmer;
 /// </summary>
 internal class TestWindowMovement
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-        public override string ToString() => $"({Left},{Top})-({Right},{Bottom}) [{Right-Left}x{Bottom-Top}]";
-    }
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
     private static void WinEventCallback(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (eventType == WinApi.EVENT_OBJECT_LOCATIONCHANGE && idObject == WinApi.OBJID_WINDOW)
@@ -28,7 +15,7 @@ internal class TestWindowMovement
             var foreground = WinApi.GetForegroundWindow();
             if (hwnd == foreground)
             {
-                if (GetWindowRect(hwnd, out var rect))
+                if (WinApi.GetExtendedWindowRect(hwnd, out var rect))
                 {
                     Console.WriteLine($"[LOCATION] Window moved/resized: {rect}");
                 }

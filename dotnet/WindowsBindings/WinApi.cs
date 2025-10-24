@@ -62,6 +62,9 @@ internal static class WinApi
     public const int OBJID_WINDOW = 0;
     public const int OBJID_CURSOR = -9;
 
+    // DWM (Desktop Window Manager) constants
+    public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
     // Structures
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
@@ -296,6 +299,10 @@ internal static class WinApi
     [DllImport("gdi32.dll")]
     public static extern bool DeleteObject(IntPtr hObject);
 
+    // Dwmapi.dll imports
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
     // Helper method to create RGB color
     public static uint RGB(byte r, byte g, byte b)
     {
@@ -342,5 +349,28 @@ internal static class WinApi
     public static Core.Color FromWindowsRgb(uint rgb)
     {
         return Core.Color.FromRgb(rgb);
+    }
+
+    /// <summary>
+    /// Gets the extended window rectangle (excludes invisible borders/drop shadow).
+    /// Falls back to GetWindowRect if DWM call fails.
+    /// </summary>
+    public static bool GetExtendedWindowRect(IntPtr hWnd, out RECT rect)
+    {
+        // Try to get extended frame bounds (excludes drop shadow and invisible borders)
+        int result = DwmGetWindowAttribute(
+            hWnd,
+            DWMWA_EXTENDED_FRAME_BOUNDS,
+            out rect,
+            Marshal.SizeOf<RECT>());
+
+        if (result == 0)
+        {
+            // Success - got extended frame bounds
+            return true;
+        }
+
+        // Fallback to GetWindowRect if DWM call fails
+        return GetWindowRect(hWnd, out rect);
     }
 }

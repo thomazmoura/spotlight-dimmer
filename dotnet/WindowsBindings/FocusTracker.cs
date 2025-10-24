@@ -128,9 +128,9 @@ internal class FocusTracker : IDisposable
 
         var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
 
-        // Get window rectangle and convert to Core.Rectangle
+        // Get window rectangle (excluding invisible borders) and convert to Core.Rectangle
         Core.Rectangle? currentRect = null;
-        if (WinApi.GetWindowRect(foregroundWindow, out var winRect))
+        if (WinApi.GetExtendedWindowRect(foregroundWindow, out var winRect))
         {
             currentRect = WinApi.ToRectangle(winRect);
         }
