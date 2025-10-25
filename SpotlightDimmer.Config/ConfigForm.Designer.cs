@@ -48,7 +48,7 @@ partial class ConfigForm
             Size = new Size(50, 50),
             BorderStyle = BorderStyle.FixedSingle
         };
-        inactiveColorPanel.Click += (s, e) => SelectColor(inactiveColorPanel, inactiveOpacityNumeric);
+        inactiveColorPanel.Click += (s, e) => SelectColor(inactiveColorPanel, inactiveOpacityTrackBar);
 
         var inactiveOpacityLabel = new Label
         {
@@ -58,15 +58,24 @@ partial class ConfigForm
             AutoSize = true
         };
 
-        inactiveOpacityNumeric = new NumericUpDown
+        inactiveOpacityTrackBar = new TrackBar
         {
             Location = new Point(80, 138),
-            Size = new Size(100, 27),
+            Size = new Size(180, 45),
             Minimum = 0,
             Maximum = 255,
+            TickFrequency = 25,
             Value = 153
         };
-        inactiveOpacityNumeric.ValueChanged += OnConfigChanged;
+        inactiveOpacityTrackBar.ValueChanged += OnOpacityChanged;
+
+        inactiveOpacityValueLabel = new Label
+        {
+            Text = "153",
+            Location = new Point(270, 138),
+            Size = new Size(50, 23),
+            AutoSize = true
+        };
 
         // Active Color Section
         var activeColorLabel = new Label
@@ -83,7 +92,7 @@ partial class ConfigForm
             Size = new Size(50, 50),
             BorderStyle = BorderStyle.FixedSingle
         };
-        activeColorPanel.Click += (s, e) => SelectColor(activeColorPanel, activeOpacityNumeric);
+        activeColorPanel.Click += (s, e) => SelectColor(activeColorPanel, activeOpacityTrackBar);
 
         var activeOpacityLabel = new Label
         {
@@ -93,15 +102,24 @@ partial class ConfigForm
             AutoSize = true
         };
 
-        activeOpacityNumeric = new NumericUpDown
+        activeOpacityTrackBar = new TrackBar
         {
             Location = new Point(80, 238),
-            Size = new Size(100, 27),
+            Size = new Size(180, 45),
             Minimum = 0,
             Maximum = 255,
+            TickFrequency = 25,
             Value = 102
         };
-        activeOpacityNumeric.ValueChanged += OnConfigChanged;
+        activeOpacityTrackBar.ValueChanged += OnOpacityChanged;
+
+        activeOpacityValueLabel = new Label
+        {
+            Text = "102",
+            Location = new Point(270, 238),
+            Size = new Size(50, 23),
+            AutoSize = true
+        };
 
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
@@ -118,18 +136,22 @@ partial class ConfigForm
         Controls.Add(inactiveColorLabel);
         Controls.Add(inactiveColorPanel);
         Controls.Add(inactiveOpacityLabel);
-        Controls.Add(inactiveOpacityNumeric);
+        Controls.Add(inactiveOpacityTrackBar);
+        Controls.Add(inactiveOpacityValueLabel);
         Controls.Add(activeColorLabel);
         Controls.Add(activeColorPanel);
         Controls.Add(activeOpacityLabel);
-        Controls.Add(activeOpacityNumeric);
+        Controls.Add(activeOpacityTrackBar);
+        Controls.Add(activeOpacityValueLabel);
     }
 
     #endregion
 
     private ComboBox modeComboBox = null!;
     private Panel inactiveColorPanel = null!;
-    private NumericUpDown inactiveOpacityNumeric = null!;
+    private TrackBar inactiveOpacityTrackBar = null!;
+    private Label inactiveOpacityValueLabel = null!;
     private Panel activeColorPanel = null!;
-    private NumericUpDown activeOpacityNumeric = null!;
+    private TrackBar activeOpacityTrackBar = null!;
+    private Label activeOpacityValueLabel = null!;
 }

@@ -12,6 +12,10 @@ public partial class ConfigForm : Form
     {
         InitializeComponent();
         _configManager = new ConfigurationManager();
+
+        // Subscribe to configuration changes for two-way binding
+        _configManager.ConfigurationChanged += OnConfigurationFileChanged;
+
         LoadConfiguration();
     }
 
@@ -28,12 +32,14 @@ public partial class ConfigForm : Form
             // Set inactive color and opacity
             var inactiveColor = ParseHexColor(config.Overlay.InactiveColor);
             inactiveColorPanel.BackColor = inactiveColor;
-            inactiveOpacityNumeric.Value = config.Overlay.InactiveOpacity;
+            inactiveOpacityTrackBar.Value = config.Overlay.InactiveOpacity;
+            inactiveOpacityValueLabel.Text = config.Overlay.InactiveOpacity.ToString();
 
             // Set active color and opacity
             var activeColor = ParseHexColor(config.Overlay.ActiveColor);
             activeColorPanel.BackColor = activeColor;
-            activeOpacityNumeric.Value = config.Overlay.ActiveOpacity;
+            activeOpacityTrackBar.Value = config.Overlay.ActiveOpacity;
+            activeOpacityValueLabel.Text = config.Overlay.ActiveOpacity.ToString();
         }
         finally
         {
@@ -41,7 +47,7 @@ public partial class ConfigForm : Form
         }
     }
 
-    private void SelectColor(Panel panel, NumericUpDown opacityControl)
+    private void SelectColor(Panel panel, TrackBar opacityControl)
     {
         using var colorDialog = new ColorDialog
         {
@@ -64,6 +70,32 @@ public partial class ConfigForm : Form
         }
     }
 
+    private void OnOpacityChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            // Update the value labels
+            inactiveOpacityValueLabel.Text = inactiveOpacityTrackBar.Value.ToString();
+            activeOpacityValueLabel.Text = activeOpacityTrackBar.Value.ToString();
+
+            SaveConfiguration();
+        }
+    }
+
+    private void OnConfigurationFileChanged(AppConfig config)
+    {
+        // ConfigurationChanged is fired from FileSystemWatcher on a background thread
+        // We need to invoke on the UI thread to update controls
+        if (InvokeRequired)
+        {
+            Invoke(new Action<AppConfig>(OnConfigurationFileChanged), config);
+            return;
+        }
+
+        // Reload the UI with the new configuration
+        LoadConfiguration();
+    }
+
     private void SaveConfiguration()
     {
         try
@@ -73,9 +105,9 @@ public partial class ConfigForm : Form
             // Update overlay config
             config.Overlay.Mode = modeComboBox.SelectedItem?.ToString() ?? "FullScreen";
             config.Overlay.InactiveColor = ColorToHex(inactiveColorPanel.BackColor);
-            config.Overlay.InactiveOpacity = (int)inactiveOpacityNumeric.Value;
+            config.Overlay.InactiveOpacity = inactiveOpacityTrackBar.Value;
             config.Overlay.ActiveColor = ColorToHex(activeColorPanel.BackColor);
-            config.Overlay.ActiveOpacity = (int)activeOpacityNumeric.Value;
+            config.Overlay.ActiveOpacity = activeOpacityTrackBar.Value;
 
             _configManager.SaveConfiguration(config);
         }
@@ -112,7 +144,11 @@ public partial class ConfigForm : Form
     {
         if (disposing)
         {
-            _configManager?.Dispose();
+            if (_configManager != null)
+            {
+                _configManager.ConfigurationChanged -= OnConfigurationFileChanged;
+                _configManager.Dispose();
+            }
             components?.Dispose();
         }
         base.Dispose(disposing);

@@ -88,7 +88,10 @@ public class ConfigurationManager : IDisposable
         _watcher.Changed += OnConfigFileChanged;
         _watcher.Created += OnConfigFileChanged;
 
-        Console.WriteLine($"Watching config file: {_configFilePath}");
+        if (_currentConfig.System.VerboseLoggingEnabled)
+        {
+            Console.WriteLine($"Watching config file: {_configFilePath}");
+        }
     }
 
     /// <summary>
@@ -126,7 +129,10 @@ public class ConfigurationManager : IDisposable
                 return AppConfig.Default;
             }
 
-            Console.WriteLine($"Loaded configuration from: {_configFilePath}");
+            if (config.System.VerboseLoggingEnabled)
+            {
+                Console.WriteLine($"Loaded configuration from: {_configFilePath}");
+            }
             return config;
         }
         catch (Exception ex)
@@ -146,7 +152,11 @@ public class ConfigurationManager : IDisposable
         {
             var json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
             File.WriteAllText(_configFilePath, json);
-            Console.WriteLine($"Saved configuration to: {_configFilePath}");
+
+            if (config.System.VerboseLoggingEnabled)
+            {
+                Console.WriteLine($"Saved configuration to: {_configFilePath}");
+            }
         }
         catch (Exception ex)
         {
@@ -218,17 +228,20 @@ public class ConfigurationManager : IDisposable
                 _currentConfig = newConfig;
             }
 
-            Console.WriteLine($"\n[Config] Configuration reloaded from file");
-            Console.WriteLine($"[Config]   Mode: {newConfig.Overlay.Mode}");
-            Console.WriteLine($"[Config]   Inactive: {newConfig.Overlay.InactiveColor} @ {newConfig.Overlay.InactiveOpacity}/255");
-            Console.WriteLine($"[Config]   Active: {newConfig.Overlay.ActiveColor} @ {newConfig.Overlay.ActiveOpacity}/255");
-            Console.WriteLine($"[Config]   Verbose logging: {newConfig.System.VerboseLoggingEnabled}");
-
-            // Show current profile status
-            if (!string.IsNullOrEmpty(newConfig.CurrentProfile))
+            // Only log configuration details if verbose logging is enabled
+            if (newConfig.System.VerboseLoggingEnabled)
             {
-                bool matches = newConfig.DoesOverlayMatchProfile(newConfig.CurrentProfile);
-                Console.WriteLine($"[Config]   Current profile: {newConfig.CurrentProfile}{(matches ? "" : " *")}");
+                Console.WriteLine($"\n[Config] Configuration reloaded from file");
+                Console.WriteLine($"[Config]   Mode: {newConfig.Overlay.Mode}");
+                Console.WriteLine($"[Config]   Inactive: {newConfig.Overlay.InactiveColor} @ {newConfig.Overlay.InactiveOpacity}/255");
+                Console.WriteLine($"[Config]   Active: {newConfig.Overlay.ActiveColor} @ {newConfig.Overlay.ActiveOpacity}/255");
+
+                // Show current profile status
+                if (!string.IsNullOrEmpty(newConfig.CurrentProfile))
+                {
+                    bool matches = newConfig.DoesOverlayMatchProfile(newConfig.CurrentProfile);
+                    Console.WriteLine($"[Config]   Current profile: {newConfig.CurrentProfile}{(matches ? "" : " *")}");
+                }
             }
 
             // Notify subscribers
