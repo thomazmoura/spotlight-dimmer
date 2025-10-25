@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet:*)"
     ],
     "deny": [],
     "ask": []
