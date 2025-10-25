@@ -10,6 +10,7 @@ namespace SpotlightDimmer.Core;
 [JsonSerializable(typeof(AppConfig))]
 [JsonSerializable(typeof(OverlayConfig))]
 [JsonSerializable(typeof(SystemConfig))]
+[JsonSerializable(typeof(Profile))]
 internal partial class AppConfigJsonContext : JsonSerializerContext
 {
 }
@@ -154,6 +155,20 @@ public class ConfigurationManager : IDisposable
     }
 
     /// <summary>
+    /// Saves the current configuration to disk and updates the internal state.
+    /// This method should be used when modifying the configuration from external code.
+    /// </summary>
+    /// <param name="config">The configuration to save.</param>
+    public void SaveConfiguration(AppConfig config)
+    {
+        lock (_lock)
+        {
+            _currentConfig = config;
+        }
+        SaveConfig(config);
+    }
+
+    /// <summary>
     /// Handles file system change events for the configuration file.
     /// </summary>
     private void OnConfigFileChanged(object sender, FileSystemEventArgs e)
@@ -208,6 +223,13 @@ public class ConfigurationManager : IDisposable
             Console.WriteLine($"[Config]   Inactive: {newConfig.Overlay.InactiveColor} @ {newConfig.Overlay.InactiveOpacity}/255");
             Console.WriteLine($"[Config]   Active: {newConfig.Overlay.ActiveColor} @ {newConfig.Overlay.ActiveOpacity}/255");
             Console.WriteLine($"[Config]   Verbose logging: {newConfig.System.VerboseLoggingEnabled}");
+
+            // Show current profile status
+            if (!string.IsNullOrEmpty(newConfig.CurrentProfile))
+            {
+                bool matches = newConfig.DoesOverlayMatchProfile(newConfig.CurrentProfile);
+                Console.WriteLine($"[Config]   Current profile: {newConfig.CurrentProfile}{(matches ? "" : " *")}");
+            }
 
             // Notify subscribers
             ConfigurationChanged?.Invoke(newConfig);

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using SpotlightDimmer.Core;
 
 namespace SpotlightDimmer.WindowsBindings;
 
@@ -15,6 +16,11 @@ internal class SystemTrayManager : IDisposable
     private const uint MENU_PAUSE_RESUME = 1001;
     private const uint MENU_AUTOSTART = 1002;
     private const uint MENU_QUIT = 1003;
+    private const uint MENU_OPEN_CONFIG = 1004;
+
+    // Profile menu IDs (2000-2999)
+    private const uint MENU_PROFILE_START = 2000;
+    private const uint MENU_PROFILE_END = 2999;
 
     private static readonly WinApi.WndProc _wndProcDelegate = WndProc;
     private static SystemTrayManager? _instance;
@@ -25,23 +31,35 @@ internal class SystemTrayManager : IDisposable
     private bool _isPaused = false;
     private string _activeIconPath;
     private string _pausedIconPath;
+    private AppConfig _currentConfig;
 
     // Events
     public event Action<bool>? PauseStateChanged;
     public event Action? QuitRequested;
+    public event Action<string>? ProfileSelected;
+    public event Action? OpenConfigRequested;
 
     public bool IsPaused => _isPaused;
 
-    public SystemTrayManager(string activeIconPath, string pausedIconPath)
+    public SystemTrayManager(string activeIconPath, string pausedIconPath, AppConfig config)
     {
         _activeIconPath = Path.GetFullPath(activeIconPath);
         _pausedIconPath = Path.GetFullPath(pausedIconPath);
+        _currentConfig = config;
         _instance = this;
 
         RegisterWindowClass();
         CreateMessageWindow();
         LoadIcons();
         AddTrayIcon();
+    }
+
+    /// <summary>
+    /// Updates the current configuration (used to refresh profile list state).
+    /// </summary>
+    public void UpdateConfig(AppConfig config)
+    {
+        _currentConfig = config;
     }
 
     /// <summary>
@@ -237,10 +255,44 @@ internal class SystemTrayManager : IDisposable
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_PAUSE_RESUME, pauseResumeText);
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
 
+            // Add Profiles submenu
+            var hProfilesMenu = WinApi.CreatePopupMenu();
+            if (hProfilesMenu != IntPtr.Zero)
+            {
+                // Add profile items
+                for (int i = 0; i < _currentConfig.Profiles.Count; i++)
+                {
+                    var profile = _currentConfig.Profiles[i];
+                    uint profileId = MENU_PROFILE_START + (uint)i;
+
+                    // Check if this is the current profile
+                    bool isCurrentProfile = profile.Name == _currentConfig.CurrentProfile;
+
+                    // Check if current profile has been modified
+                    bool isModified = isCurrentProfile && !_currentConfig.DoesOverlayMatchProfile(profile.Name);
+
+                    // Build menu text
+                    string profileText = profile.Name;
+                    if (isModified)
+                        profileText += " *";
+
+                    // Add checkbox if this is the current profile
+                    uint profileFlags = WinApi.MF_STRING | (isCurrentProfile ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
+                    WinApi.AppendMenu(hProfilesMenu, profileFlags, profileId, profileText);
+                }
+
+                // Add Profiles submenu to main menu
+                WinApi.AppendMenu(hMenu, WinApi.MF_POPUP, (uint)hProfilesMenu, "Profiles");
+                WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+            }
+
             // Add "Start at Login" menu item with checkbox
             bool isAutoStartEnabled = AutoStartManager.IsEnabled();
             uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
             WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
+
+            // Add "Open Config File" menu item
+            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_OPEN_CONFIG, "Open Config File");
 
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_QUIT, "Quit");
@@ -266,6 +318,20 @@ internal class SystemTrayManager : IDisposable
             else if (cmd == MENU_AUTOSTART)
             {
                 ToggleAutoStart();
+            }
+            else if (cmd == MENU_OPEN_CONFIG)
+            {
+                OpenConfigRequested?.Invoke();
+            }
+            else if (cmd >= MENU_PROFILE_START && cmd <= MENU_PROFILE_END)
+            {
+                // Handle profile selection
+                int profileIndex = (int)(cmd - MENU_PROFILE_START);
+                if (profileIndex >= 0 && profileIndex < _currentConfig.Profiles.Count)
+                {
+                    string profileName = _currentConfig.Profiles[profileIndex].Name;
+                    ProfileSelected?.Invoke(profileName);
+                }
             }
             else if (cmd == MENU_QUIT)
             {

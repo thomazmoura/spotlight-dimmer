@@ -43,7 +43,8 @@ if (verboseLogging)
 // System Tray
 var systemTray = new SystemTrayManager(
     "spotlight-dimmer-icon.ico",
-    "spotlight-dimmer-icon-paused.ico");
+    "spotlight-dimmer-icon-paused.ico",
+    configManager.Current);
 
 var monitorManager = new MonitorManager();
 
@@ -121,6 +122,65 @@ systemTray.QuitRequested += () =>
     WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 };
 
+// Handle profile selection from system tray
+systemTray.ProfileSelected += (profileName) =>
+{
+    Console.WriteLine($"\n[Profile] Applying profile: {profileName}");
+
+    // Get current config
+    var currentConfig = configManager.Current;
+
+    // Apply the profile
+    if (currentConfig.ApplyProfile(profileName))
+    {
+        // Save the updated configuration
+        configManager.SaveConfiguration(currentConfig);
+
+        // Update cached config
+        cachedConfig = currentConfig.ToOverlayConfig();
+
+        // Update brush colors for all windows
+        renderer.UpdateBrushColors(cachedConfig);
+
+        // Update system tray with new config
+        systemTray.UpdateConfig(currentConfig);
+
+        // Trigger overlay update if we have a focused window
+        if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+        {
+            UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+        }
+
+        Console.WriteLine($"[Profile] Profile '{profileName}' applied successfully");
+    }
+    else
+    {
+        Console.WriteLine($"[Profile] Failed to apply profile: {profileName}");
+    }
+};
+
+// Handle open config file request from system tray
+systemTray.OpenConfigRequested += () =>
+{
+    try
+    {
+        var configPath = ConfigurationManager.GetDefaultConfigPath();
+        Console.WriteLine($"\n[Config] Opening config file: {configPath}");
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = configPath,
+            UseShellExecute = true
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Config] Failed to open config file: {ex.Message}");
+    }
+};
+
 // ========================================================================
 // Configuration and Focus Event Handlers
 // ========================================================================
@@ -133,6 +193,9 @@ configManager.ConfigurationChanged += (newAppConfig) =>
 
     // Update verbose logging setting
     verboseLogging = newAppConfig.System.VerboseLoggingEnabled;
+
+    // Update system tray with new config (refreshes profile list)
+    systemTray.UpdateConfig(newAppConfig);
 
     // Update brush colors for all windows
     renderer.UpdateBrushColors(cachedConfig);
