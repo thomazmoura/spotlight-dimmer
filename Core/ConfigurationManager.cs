@@ -8,6 +8,8 @@ namespace SpotlightDimmer.Core;
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(AppConfig))]
+[JsonSerializable(typeof(OverlayConfig))]
+[JsonSerializable(typeof(SystemConfig))]
 internal partial class AppConfigJsonContext : JsonSerializerContext
 {
 }
@@ -202,9 +204,10 @@ public class ConfigurationManager : IDisposable
             }
 
             Console.WriteLine($"\n[Config] Configuration reloaded from file");
-            Console.WriteLine($"[Config]   Mode: {newConfig.Mode}");
-            Console.WriteLine($"[Config]   Inactive: {newConfig.InactiveColor} @ {newConfig.InactiveOpacity}/255");
-            Console.WriteLine($"[Config]   Active: {newConfig.ActiveColor} @ {newConfig.ActiveOpacity}/255");
+            Console.WriteLine($"[Config]   Mode: {newConfig.Overlay.Mode}");
+            Console.WriteLine($"[Config]   Inactive: {newConfig.Overlay.InactiveColor} @ {newConfig.Overlay.InactiveOpacity}/255");
+            Console.WriteLine($"[Config]   Active: {newConfig.Overlay.ActiveColor} @ {newConfig.Overlay.ActiveOpacity}/255");
+            Console.WriteLine($"[Config]   Verbose logging: {newConfig.System.VerboseLoggingEnabled}");
 
             // Notify subscribers
             ConfigurationChanged?.Invoke(newConfig);

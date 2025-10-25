@@ -1,17 +1,10 @@
 using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
-// Parse command-line arguments
-bool verboseLogging = args.Contains("--verbose");
-
 Console.WriteLine("SpotlightDimmer .NET");
 Console.WriteLine("===============================================");
 Console.WriteLine("Core: Pure overlay calculation logic");
 Console.WriteLine("WindowsBindings: Windows-specific rendering");
-if (verboseLogging)
-{
-    Console.WriteLine("Verbose logging: ENABLED");
-}
 Console.WriteLine("\nPress Ctrl+C to exit\n");
 
 // Set up graceful shutdown
@@ -28,6 +21,20 @@ Console.CancelKeyPress += (sender, e) =>
     // This immediately unblocks GetMessage() which runs on the main thread
     WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 };
+
+// ========================================================================
+// Core Layer - Pure calculation logic
+// ========================================================================
+
+// Configuration: Load from file with hot-reload support (load first to get settings)
+var configManager = new ConfigurationManager();
+var config = configManager.Current.ToOverlayConfig();
+bool verboseLogging = configManager.Current.System.VerboseLoggingEnabled;
+
+if (verboseLogging)
+{
+    Console.WriteLine("Verbose logging: ENABLED\n");
+}
 
 // ========================================================================
 // WindowsBindings Layer - Platform-specific components
@@ -48,14 +55,6 @@ if (monitorManager.Monitors.Count == 0)
 
 var focusTracker = new FocusTracker(monitorManager, verboseLogging);
 var renderer = new OverlayRenderer();
-
-// ========================================================================
-// Core Layer - Pure calculation logic
-// ========================================================================
-
-// Configuration: Load from file with hot-reload support
-var configManager = new ConfigurationManager();
-var config = configManager.Current.ToOverlayConfig();
 
 // Create app state with pre-allocated overlay definitions
 var displays = monitorManager.GetDisplayInfo();
@@ -131,6 +130,9 @@ configManager.ConfigurationChanged += (newAppConfig) =>
 {
     // Update cached config when configuration changes
     cachedConfig = newAppConfig.ToOverlayConfig();
+
+    // Update verbose logging setting
+    verboseLogging = newAppConfig.System.VerboseLoggingEnabled;
 
     // Update brush colors for all windows
     renderer.UpdateBrushColors(cachedConfig);

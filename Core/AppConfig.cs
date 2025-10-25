@@ -1,10 +1,21 @@
 namespace SpotlightDimmer.Core;
 
 /// <summary>
-/// Application configuration that can be serialized to/from JSON.
-/// This represents the user-facing configuration structure.
+/// System configuration settings.
 /// </summary>
-public class AppConfig
+public class SystemConfig
+{
+    /// <summary>
+    /// Enable verbose logging for debugging purposes.
+    /// Default: false
+    /// </summary>
+    public bool VerboseLoggingEnabled { get; set; } = false;
+}
+
+/// <summary>
+/// Overlay configuration settings for dimming behavior.
+/// </summary>
+public class OverlayConfig
 {
     /// <summary>
     /// The dimming mode: "FullScreen", "Partial", or "PartialWithActive".
@@ -35,6 +46,23 @@ public class AppConfig
     /// Default: 102 (~40% opacity)
     /// </summary>
     public int ActiveOpacity { get; set; } = 102;
+}
+
+/// <summary>
+/// Application configuration that can be serialized to/from JSON.
+/// This represents the user-facing configuration structure.
+/// </summary>
+public class AppConfig
+{
+    /// <summary>
+    /// Overlay configuration settings.
+    /// </summary>
+    public OverlayConfig Overlay { get; set; } = new();
+
+    /// <summary>
+    /// System configuration settings.
+    /// </summary>
+    public SystemConfig System { get; set; } = new();
 
     /// <summary>
     /// Converts this AppConfig to an OverlayCalculationConfig.
@@ -42,11 +70,11 @@ public class AppConfig
     public OverlayCalculationConfig ToOverlayConfig()
     {
         return new OverlayCalculationConfig(
-            Mode: ParseMode(Mode),
-            InactiveColor: ParseColor(InactiveColor),
-            InactiveOpacity: ClampOpacity(InactiveOpacity),
-            ActiveColor: ParseColor(ActiveColor),
-            ActiveOpacity: ClampOpacity(ActiveOpacity)
+            Mode: ParseMode(Overlay.Mode),
+            InactiveColor: ParseColor(Overlay.InactiveColor),
+            InactiveOpacity: ClampOpacity(Overlay.InactiveOpacity),
+            ActiveColor: ParseColor(Overlay.ActiveColor),
+            ActiveOpacity: ClampOpacity(Overlay.ActiveOpacity)
         );
     }
 
@@ -57,11 +85,15 @@ public class AppConfig
     {
         return new AppConfig
         {
-            Mode = config.Mode.ToString(),
-            InactiveColor = ColorToHex(config.InactiveColor),
-            InactiveOpacity = config.InactiveOpacity,
-            ActiveColor = ColorToHex(config.ActiveColor),
-            ActiveOpacity = config.ActiveOpacity
+            Overlay = new OverlayConfig
+            {
+                Mode = config.Mode.ToString(),
+                InactiveColor = ColorToHex(config.InactiveColor),
+                InactiveOpacity = config.InactiveOpacity,
+                ActiveColor = ColorToHex(config.ActiveColor),
+                ActiveOpacity = config.ActiveOpacity
+            },
+            System = new SystemConfig()
         };
     }
 
