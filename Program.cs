@@ -33,6 +33,11 @@ Console.CancelKeyPress += (sender, e) =>
 // WindowsBindings Layer - Platform-specific components
 // ========================================================================
 
+// System Tray
+var systemTray = new SystemTrayManager(
+    "spotlight-dimmer-icon.ico",
+    "spotlight-dimmer-icon-paused.ico");
+
 var monitorManager = new MonitorManager();
 
 if (monitorManager.Monitors.Count == 0)
@@ -78,9 +83,48 @@ var cachedConfig = configManager.Current.ToOverlayConfig();
 // Helper function to update overlays (zero allocations - uses cached values)
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
+    // Don't update overlays if paused
+    if (systemTray.IsPaused)
+        return;
+
     appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
     renderer.UpdateOverlays(appState.DisplayStates);
 }
+
+// ========================================================================
+// System Tray Event Handlers
+// ========================================================================
+
+// Handle pause/resume from system tray
+systemTray.PauseStateChanged += (isPaused) =>
+{
+    if (isPaused)
+    {
+        Console.WriteLine("\n[Paused] Overlays hidden. Double-click tray icon or use context menu to resume.");
+        renderer.HideAllOverlays();
+    }
+    else
+    {
+        Console.WriteLine("\n[Resumed] Overlays active.");
+        // Trigger an update to show overlays again
+        if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+        {
+            UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+        }
+    }
+};
+
+// Handle quit from system tray
+systemTray.QuitRequested += () =>
+{
+    Console.WriteLine("\n[System Tray] Quit requested. Shutting down...");
+    cts.Cancel();
+    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+};
+
+// ========================================================================
+// Configuration and Focus Event Handlers
+// ========================================================================
 
 // Handle configuration changes - recalculate and render overlays
 configManager.ConfigurationChanged += (newAppConfig) =>
@@ -130,7 +174,8 @@ Console.WriteLine("\nSpotlightDimmer is running.");
 Console.WriteLine($"Current mode: {config.Mode}");
 Console.WriteLine("The focused display will remain bright.");
 Console.WriteLine("Move windows between monitors to see the effect.");
-Console.WriteLine($"\nConfiguration updates will be automatically applied.");
+Console.WriteLine($"\nSystem Tray: Available - Double-click to pause/resume, right-click for menu");
+Console.WriteLine($"Configuration updates will be automatically applied.");
 Console.WriteLine($"Edit the config file to change settings in real-time.\n");
 
 // GDI object monitoring for leak detection (verbose mode only)
@@ -195,6 +240,7 @@ catch (Exception ex)
 finally
 {
     // Clean up
+    systemTray.Dispose();
     focusTracker.Dispose();
     renderer.Dispose();
     configManager.Dispose();

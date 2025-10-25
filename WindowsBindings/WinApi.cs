@@ -124,6 +124,27 @@ internal static partial class WinApi
         public int Y;
     }
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct NOTIFYICONDATA
+    {
+        public int cbSize;
+        public IntPtr hWnd;
+        public uint uID;
+        public uint uFlags;
+        public uint uCallbackMessage;
+        public IntPtr hIcon;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string szTip;
+        public uint dwState;
+        public uint dwStateMask;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string szInfo;
+        public uint uVersion;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+        public string szInfoTitle;
+        public uint dwInfoFlags;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct PAINTSTRUCT
     {
@@ -263,7 +284,7 @@ internal static partial class WinApi
     [LibraryImport("user32.dll")]
     public static partial void PostQuitMessage(int nExitCode);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
+    [LibraryImport("user32.dll", EntryPoint = "PostThreadMessageW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
 
@@ -306,6 +327,46 @@ internal static partial class WinApi
     [LibraryImport("user32.dll")]
     public static partial int ReleaseDC(IntPtr hWnd, IntPtr hDC);
 
+    // System Tray / NotifyIcon functions
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
+
+    [LibraryImport("user32.dll", EntryPoint = "LoadImageW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial IntPtr LoadImage(IntPtr hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DestroyIcon(IntPtr hIcon);
+
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr CreatePopupMenu();
+
+    [LibraryImport("user32.dll", EntryPoint = "AppendMenuW", StringMarshalling = StringMarshalling.Utf16)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool AppendMenu(IntPtr hMenu, uint uFlags, uint uIDNewItem, string lpNewItem);
+
+    [LibraryImport("user32.dll")]
+    public static partial uint TrackPopupMenu(IntPtr hMenu, uint uFlags, int x, int y, int nReserved, IntPtr hWnd, IntPtr prcRect);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DestroyMenu(IntPtr hMenu);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetForegroundWindow(IntPtr hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)]
+    public static partial uint RegisterWindowMessage(string lpString);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetCursorPos")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetCursorPos(out POINT lpPoint);
+
+    // LoadImage constants
+    public const uint IMAGE_ICON = 1;
+    public const uint LR_LOADFROMFILE = 0x00000010;
+
     // Gdi32.dll imports
     [LibraryImport("gdi32.dll")]
     public static partial IntPtr CreateSolidBrush(uint color);
@@ -325,6 +386,44 @@ internal static partial class WinApi
     // GDI resource types
     public const int GR_GDIOBJECTS = 0;
     public const int GR_USEROBJECTS = 1;
+
+    // System Tray / NotifyIcon constants
+    public const uint NIM_ADD = 0x00000000;
+    public const uint NIM_MODIFY = 0x00000001;
+    public const uint NIM_DELETE = 0x00000002;
+    public const uint NIM_SETVERSION = 0x00000004;
+
+    public const uint NIF_MESSAGE = 0x00000001;
+    public const uint NIF_ICON = 0x00000002;
+    public const uint NIF_TIP = 0x00000004;
+    public const uint NIF_INFO = 0x00000010;
+
+    public const uint NOTIFYICON_VERSION_4 = 4;
+
+    // Custom message for tray icon
+    public const uint WM_TRAYICON = 0x8000; // WM_APP
+
+    // Mouse messages for tray icon
+    public const uint WM_LBUTTONDOWN = 0x0201;
+    public const uint WM_LBUTTONUP = 0x0202;
+    public const uint WM_LBUTTONDBLCLK = 0x0203;
+    public const uint WM_RBUTTONDOWN = 0x0204;
+    public const uint WM_RBUTTONUP = 0x0205;
+    public const uint WM_RBUTTONDBLCLK = 0x0206;
+    public const uint WM_CONTEXTMENU = 0x007B;
+
+    // TaskbarCreated message (for surviving explorer.exe restart)
+    public static readonly uint WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");
+
+    // Menu constants
+    public const uint TPM_BOTTOMALIGN = 0x0020;
+    public const uint TPM_LEFTALIGN = 0x0000;
+    public const uint TPM_RETURNCMD = 0x0100;
+
+    public const uint MF_STRING = 0x0000;
+    public const uint MF_SEPARATOR = 0x0800;
+    public const uint MF_CHECKED = 0x0008;
+    public const uint MF_UNCHECKED = 0x0000;
 
     // Helper method to create RGB color
     public static uint RGB(byte r, byte g, byte b)

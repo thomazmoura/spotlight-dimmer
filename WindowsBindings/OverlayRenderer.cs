@@ -206,6 +206,17 @@ internal class OverlayRenderer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Hides all overlay windows (for pause functionality).
+    /// </summary>
+    public void HideAllOverlays()
+    {
+        foreach (var window in _overlayPool.Values)
+        {
+            window.Hide();
+        }
+    }
+
     public void Dispose()
     {
         foreach (var window in _overlayPool.Values)

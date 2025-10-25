@@ -1,0 +1,290 @@
+using System.Runtime.InteropServices;
+
+namespace SpotlightDimmer.WindowsBindings;
+
+/// <summary>
+/// Manages the system tray icon with pause/resume and quit functionality.
+/// Survives explorer.exe restarts.
+/// </summary>
+internal class SystemTrayManager : IDisposable
+{
+    private const string WINDOW_CLASS_NAME = "SpotlightDimmerTrayWindow";
+    private const uint TRAY_ICON_ID = 1;
+
+    // Menu item IDs
+    private const uint MENU_PAUSE_RESUME = 1001;
+    private const uint MENU_QUIT = 1002;
+
+    private static readonly WinApi.WndProc _wndProcDelegate = WndProc;
+    private static SystemTrayManager? _instance;
+
+    private IntPtr _hwnd = IntPtr.Zero;
+    private IntPtr _activeIcon = IntPtr.Zero;
+    private IntPtr _pausedIcon = IntPtr.Zero;
+    private bool _isPaused = false;
+    private string _activeIconPath;
+    private string _pausedIconPath;
+
+    // Events
+    public event Action<bool>? PauseStateChanged;
+    public event Action? QuitRequested;
+
+    public bool IsPaused => _isPaused;
+
+    public SystemTrayManager(string activeIconPath, string pausedIconPath)
+    {
+        _activeIconPath = Path.GetFullPath(activeIconPath);
+        _pausedIconPath = Path.GetFullPath(pausedIconPath);
+        _instance = this;
+
+        RegisterWindowClass();
+        CreateMessageWindow();
+        LoadIcons();
+        AddTrayIcon();
+    }
+
+    /// <summary>
+    /// Toggles pause/resume state.
+    /// </summary>
+    public void TogglePause()
+    {
+        _isPaused = !_isPaused;
+        UpdateTrayIcon();
+        PauseStateChanged?.Invoke(_isPaused);
+    }
+
+    /// <summary>
+    /// Sets the pause state explicitly.
+    /// </summary>
+    public void SetPauseState(bool paused)
+    {
+        if (_isPaused != paused)
+        {
+            _isPaused = paused;
+            UpdateTrayIcon();
+            PauseStateChanged?.Invoke(_isPaused);
+        }
+    }
+
+    private void RegisterWindowClass()
+    {
+        var wndClass = new WinApi.WNDCLASSEX
+        {
+            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
+            hInstance = WinApi.GetModuleHandle(null),
+            lpszClassName = WINDOW_CLASS_NAME
+        };
+
+        var atom = WinApi.RegisterClassEx(wndClass);
+        if (atom == 0)
+        {
+            throw new InvalidOperationException($"Failed to register tray window class. Error: {Marshal.GetLastWin32Error()}");
+        }
+    }
+
+    private void CreateMessageWindow()
+    {
+        _hwnd = WinApi.CreateWindowEx(
+            0,
+            WINDOW_CLASS_NAME,
+            "SpotlightDimmer Tray",
+            0,
+            0, 0, 0, 0,
+            IntPtr.Zero,
+            IntPtr.Zero,
+            WinApi.GetModuleHandle(null),
+            IntPtr.Zero);
+
+        if (_hwnd == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"Failed to create tray message window. Error: {Marshal.GetLastWin32Error()}");
+        }
+    }
+
+    private void LoadIcons()
+    {
+        // Load active icon
+        _activeIcon = WinApi.LoadImage(
+            IntPtr.Zero,
+            _activeIconPath,
+            WinApi.IMAGE_ICON,
+            0, 0,
+            WinApi.LR_LOADFROMFILE);
+
+        if (_activeIcon == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"Failed to load active icon from {_activeIconPath}");
+        }
+
+        // Load paused icon
+        _pausedIcon = WinApi.LoadImage(
+            IntPtr.Zero,
+            _pausedIconPath,
+            WinApi.IMAGE_ICON,
+            0, 0,
+            WinApi.LR_LOADFROMFILE);
+
+        if (_pausedIcon == IntPtr.Zero)
+        {
+            throw new InvalidOperationException($"Failed to load paused icon from {_pausedIconPath}");
+        }
+    }
+
+    private void AddTrayIcon()
+    {
+        var nid = new WinApi.NOTIFYICONDATA
+        {
+            cbSize = Marshal.SizeOf<WinApi.NOTIFYICONDATA>(),
+            hWnd = _hwnd,
+            uID = TRAY_ICON_ID,
+            uFlags = WinApi.NIF_ICON | WinApi.NIF_MESSAGE | WinApi.NIF_TIP,
+            uCallbackMessage = WinApi.WM_TRAYICON,
+            hIcon = _activeIcon,
+            szTip = "SpotlightDimmer - Active"
+        };
+
+        if (!WinApi.Shell_NotifyIcon(WinApi.NIM_ADD, ref nid))
+        {
+            throw new InvalidOperationException("Failed to add tray icon");
+        }
+
+        // Set to version 4 for modern behavior
+        nid.uVersion = WinApi.NOTIFYICON_VERSION_4;
+        WinApi.Shell_NotifyIcon(WinApi.NIM_SETVERSION, ref nid);
+    }
+
+    private void UpdateTrayIcon()
+    {
+        var nid = new WinApi.NOTIFYICONDATA
+        {
+            cbSize = Marshal.SizeOf<WinApi.NOTIFYICONDATA>(),
+            hWnd = _hwnd,
+            uID = TRAY_ICON_ID,
+            uFlags = WinApi.NIF_ICON | WinApi.NIF_TIP,
+            hIcon = _isPaused ? _pausedIcon : _activeIcon,
+            szTip = _isPaused ? "SpotlightDimmer - Paused" : "SpotlightDimmer - Active"
+        };
+
+        WinApi.Shell_NotifyIcon(WinApi.NIM_MODIFY, ref nid);
+    }
+
+    private void RemoveTrayIcon()
+    {
+        var nid = new WinApi.NOTIFYICONDATA
+        {
+            cbSize = Marshal.SizeOf<WinApi.NOTIFYICONDATA>(),
+            hWnd = _hwnd,
+            uID = TRAY_ICON_ID
+        };
+
+        WinApi.Shell_NotifyIcon(WinApi.NIM_DELETE, ref nid);
+    }
+
+    private void ShowContextMenu()
+    {
+        // Get cursor position
+        WinApi.GetCursorPos(out var pt);
+
+        // Create popup menu
+        var hMenu = WinApi.CreatePopupMenu();
+        if (hMenu == IntPtr.Zero)
+            return;
+
+        try
+        {
+            // Add menu items
+            string pauseResumeText = _isPaused ? "Resume" : "Pause";
+            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_PAUSE_RESUME, pauseResumeText);
+            WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_QUIT, "Quit");
+
+            // Required for proper menu behavior
+            WinApi.SetForegroundWindow(_hwnd);
+
+            // Show menu and get selected item
+            var cmd = WinApi.TrackPopupMenu(
+                hMenu,
+                WinApi.TPM_BOTTOMALIGN | WinApi.TPM_LEFTALIGN | WinApi.TPM_RETURNCMD,
+                pt.X,
+                pt.Y,
+                0,
+                _hwnd,
+                IntPtr.Zero);
+
+            // Handle menu selection
+            if (cmd == MENU_PAUSE_RESUME)
+            {
+                TogglePause();
+            }
+            else if (cmd == MENU_QUIT)
+            {
+                QuitRequested?.Invoke();
+            }
+        }
+        finally
+        {
+            WinApi.DestroyMenu(hMenu);
+        }
+    }
+
+    private static IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (_instance == null)
+            return WinApi.DefWindowProc(hWnd, msg, wParam, lParam);
+
+        // Handle TaskbarCreated message (explorer.exe restart)
+        if (msg == WinApi.WM_TASKBARCREATED)
+        {
+            // Re-add the tray icon
+            _instance.AddTrayIcon();
+            return IntPtr.Zero;
+        }
+
+        if (msg == WinApi.WM_TRAYICON)
+        {
+            uint mouseMsg = (uint)(lParam.ToInt64() & 0xFFFF);
+
+            switch (mouseMsg)
+            {
+                case WinApi.WM_LBUTTONDBLCLK:
+                    // Double-click toggles pause/resume
+                    _instance.TogglePause();
+                    break;
+
+                case WinApi.WM_RBUTTONUP:
+                    // Right-click shows context menu
+                    _instance.ShowContextMenu();
+                    break;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        return WinApi.DefWindowProc(hWnd, msg, wParam, lParam);
+    }
+
+    public void Dispose()
+    {
+        RemoveTrayIcon();
+
+        if (_activeIcon != IntPtr.Zero)
+        {
+            WinApi.DestroyIcon(_activeIcon);
+            _activeIcon = IntPtr.Zero;
+        }
+
+        if (_pausedIcon != IntPtr.Zero)
+        {
+            WinApi.DestroyIcon(_pausedIcon);
+            _pausedIcon = IntPtr.Zero;
+        }
+
+        if (_hwnd != IntPtr.Zero)
+        {
+            WinApi.DestroyWindow(_hwnd);
+            _hwnd = IntPtr.Zero;
+        }
+
+        _instance = null;
+    }
+}
