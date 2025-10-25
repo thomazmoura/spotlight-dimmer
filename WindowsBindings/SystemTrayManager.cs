@@ -13,7 +13,8 @@ internal class SystemTrayManager : IDisposable
 
     // Menu item IDs
     private const uint MENU_PAUSE_RESUME = 1001;
-    private const uint MENU_QUIT = 1002;
+    private const uint MENU_AUTOSTART = 1002;
+    private const uint MENU_QUIT = 1003;
 
     private static readonly WinApi.WndProc _wndProcDelegate = WndProc;
     private static SystemTrayManager? _instance;
@@ -63,6 +64,24 @@ internal class SystemTrayManager : IDisposable
             _isPaused = paused;
             UpdateTrayIcon();
             PauseStateChanged?.Invoke(_isPaused);
+        }
+    }
+
+    /// <summary>
+    /// Toggles auto-start at login.
+    /// </summary>
+    private void ToggleAutoStart()
+    {
+        bool isEnabled = AutoStartManager.IsEnabled();
+        bool success = isEnabled ? AutoStartManager.Disable() : AutoStartManager.Enable();
+
+        if (success)
+        {
+            Console.WriteLine($"[System Tray] Auto-start {(isEnabled ? "disabled" : "enabled")}");
+        }
+        else
+        {
+            Console.WriteLine("[System Tray] Failed to toggle auto-start");
         }
     }
 
@@ -182,8 +201,29 @@ internal class SystemTrayManager : IDisposable
 
     private void ShowContextMenu()
     {
-        // Get cursor position
-        WinApi.GetCursorPos(out var pt);
+        // Try to get the tray icon position
+        var identifier = new WinApi.NOTIFYICONIDENTIFIER
+        {
+            cbSize = Marshal.SizeOf<WinApi.NOTIFYICONIDENTIFIER>(),
+            hWnd = _hwnd,
+            uID = TRAY_ICON_ID,
+            guidItem = Guid.Empty
+        };
+
+        WinApi.POINT pt;
+        int result = WinApi.Shell_NotifyIconGetRect(ref identifier, out var iconRect);
+
+        if (result == 0) // S_OK
+        {
+            // Successfully got icon position - use center-bottom of icon
+            pt.X = iconRect.Left + (iconRect.Right - iconRect.Left) / 2;
+            pt.Y = iconRect.Bottom;
+        }
+        else
+        {
+            // Fallback: use current cursor position
+            WinApi.GetCursorPos(out pt);
+        }
 
         // Create popup menu
         var hMenu = WinApi.CreatePopupMenu();
@@ -195,6 +235,13 @@ internal class SystemTrayManager : IDisposable
             // Add menu items
             string pauseResumeText = _isPaused ? "Resume" : "Pause";
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_PAUSE_RESUME, pauseResumeText);
+            WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+
+            // Add "Start at Login" menu item with checkbox
+            bool isAutoStartEnabled = AutoStartManager.IsEnabled();
+            uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
+            WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
+
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_QUIT, "Quit");
 
@@ -215,6 +262,10 @@ internal class SystemTrayManager : IDisposable
             if (cmd == MENU_PAUSE_RESUME)
             {
                 TogglePause();
+            }
+            else if (cmd == MENU_AUTOSTART)
+            {
+                ToggleAutoStart();
             }
             else if (cmd == MENU_QUIT)
             {
@@ -253,6 +304,40 @@ internal class SystemTrayManager : IDisposable
 
                 case WinApi.WM_RBUTTONUP:
                     // Right-click shows context menu
+                    _instance.ShowContextMenu();
+                    break;
+
+                case WinApi.NIN_SELECT:
+                    // This is sent for mouse selection (single click) - ignore it
+                    // We handle double-click separately
+                    break;
+
+                case WinApi.NIN_KEYSELECT:
+                    // Keyboard activation - check which key was pressed
+                    // GetAsyncKeyState returns:
+                    //   High-order bit (0x8000): Key is currently down
+                    //   Low-order bit (0x0001): Key was pressed after previous call
+                    // We check BOTH bits because the key might be released quickly
+
+                    short enterState = WinApi.GetAsyncKeyState(WinApi.VK_RETURN);
+                    short spaceState = WinApi.GetAsyncKeyState(WinApi.VK_SPACE);
+
+                    // Check if Enter key is/was pressed (check both bits)
+                    if ((enterState & 0x8001) != 0)
+                    {
+                        // Enter key - open context menu
+                        _instance.ShowContextMenu();
+                    }
+                    // Check if Space key is/was pressed (check both bits)
+                    else if ((spaceState & 0x8001) != 0)
+                    {
+                        // Space key - toggle pause/resume
+                        _instance.TogglePause();
+                    }
+                    break;
+
+                case WinApi.WM_CONTEXTMENU:
+                    // Context menu key (Apps key or Shift+F10) shows context menu
                     _instance.ShowContextMenu();
                     break;
             }

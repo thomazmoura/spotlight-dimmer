@@ -4,7 +4,7 @@ using SpotlightDimmer.WindowsBindings;
 // Parse command-line arguments
 bool verboseLogging = args.Contains("--verbose");
 
-Console.WriteLine("SpotlightDimmer .NET - Refactored Architecture");
+Console.WriteLine("SpotlightDimmer .NET");
 Console.WriteLine("===============================================");
 Console.WriteLine("Core: Pure overlay calculation logic");
 Console.WriteLine("WindowsBindings: Windows-specific rendering");

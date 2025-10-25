@@ -146,6 +146,15 @@ internal static partial class WinApi
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    public struct NOTIFYICONIDENTIFIER
+    {
+        public int cbSize;
+        public IntPtr hWnd;
+        public uint uID;
+        public Guid guidItem;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     public unsafe struct PAINTSTRUCT
     {
         public IntPtr hdc;
@@ -331,6 +340,9 @@ internal static partial class WinApi
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
+
     [LibraryImport("user32.dll", EntryPoint = "LoadImageW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial IntPtr LoadImage(IntPtr hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
 
@@ -362,6 +374,13 @@ internal static partial class WinApi
     [LibraryImport("user32.dll", EntryPoint = "GetCursorPos")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetCursorPos(out POINT lpPoint);
+
+    [LibraryImport("user32.dll")]
+    public static partial short GetAsyncKeyState(int vKey);
+
+    // Virtual key codes
+    public const int VK_RETURN = 0x0D;
+    public const int VK_SPACE = 0x20;
 
     // LoadImage constants
     public const uint IMAGE_ICON = 1;
@@ -411,6 +430,10 @@ internal static partial class WinApi
     public const uint WM_RBUTTONUP = 0x0205;
     public const uint WM_RBUTTONDBLCLK = 0x0206;
     public const uint WM_CONTEXTMENU = 0x007B;
+
+    // Tray icon notifications (NOTIFYICON_VERSION_4)
+    public const uint NIN_SELECT = 0x0400;        // WM_USER + 0 (mouse or keyboard selection)
+    public const uint NIN_KEYSELECT = 0x0401;     // WM_USER + 1 (keyboard selection only)
 
     // TaskbarCreated message (for surviving explorer.exe restart)
     public static readonly uint WM_TASKBARCREATED = RegisterWindowMessage("TaskbarCreated");

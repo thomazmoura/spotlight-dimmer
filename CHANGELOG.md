@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Auto-start at login**: New system tray menu option to automatically start SpotlightDimmer when Windows boots
+  - "Start at Login" checkbox menu item in system tray context menu
+  - Clicking toggles auto-start on/off via Windows Registry (HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)
+  - Menu shows checkmark when auto-start is enabled
+  - Works reliably across Windows restarts and user sessions
+  - No administrator privileges required - uses per-user registry key
+  - Based on proven Rust implementation design
+
+- **System tray keyboard accessibility**: Full keyboard support for system tray icon navigation
+  - Press **Space** to toggle pause/resume (same as double-click)
+  - Press **Enter**, **Apps key**, or **Shift+F10** to open the context menu (same as right-click)
+  - Intuitive key mapping: Space for quick toggle, Enter for menu access
+  - Improves accessibility for keyboard-only users
+  - Follows Windows accessibility guidelines for system tray interactions
+  - Uses `GetAsyncKeyState` to properly distinguish between Enter and Space key presses
+
+- **Improved context menu positioning**: Menu now appears at tray icon location instead of cursor position
+  - Uses `Shell_NotifyIconGetRect` to get exact tray icon coordinates
+  - Menu positioned at center-bottom of tray icon for consistency
+  - Cursor stays in place (not moved to tray icon)
+  - Fallback to cursor position if icon coordinates unavailable
+  - Professional behavior matching Windows system applications
+
+---
+
+### Adicionado
+- **Início automático no login**: Nova opção no menu da bandeja do sistema para iniciar automaticamente o SpotlightDimmer quando o Windows inicializa
+  - Item de menu com checkbox "Start at Login" no menu de contexto da bandeja do sistema
+  - Clicar alterna o início automático ligado/desligado via Registro do Windows (HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)
+  - Menu mostra marca de seleção quando o início automático está habilitado
+  - Funciona de forma confiável entre reinicializações do Windows e sessões de usuário
+  - Não requer privilégios de administrador - usa chave de registro por usuário
+  - Baseado no design comprovado da implementação Rust
+
+- **Acessibilidade via teclado na bandeja do sistema**: Suporte completo de teclado para navegação do ícone da bandeja
+  - Pressione **Espaço** para alternar pausar/retomar (igual ao duplo clique)
+  - Pressione **Enter**, **tecla Apps**, ou **Shift+F10** para abrir o menu de contexto (igual ao clique direito)
+  - Mapeamento intuitivo de teclas: Espaço para alternância rápida, Enter para acesso ao menu
+  - Melhora a acessibilidade para usuários que usam apenas teclado
+  - Segue as diretrizes de acessibilidade do Windows para interações com a bandeja do sistema
+  - Usa `GetAsyncKeyState` para distinguir adequadamente entre as teclas Enter e Espaço
+
+- **Posicionamento aprimorado do menu de contexto**: Menu agora aparece na localização do ícone da bandeja em vez da posição do cursor
+  - Usa `Shell_NotifyIconGetRect` para obter coordenadas exatas do ícone da bandeja
+  - Menu posicionado no centro-inferior do ícone da bandeja para consistência
+  - Cursor permanece no lugar (não é movido para o ícone da bandeja)
+  - Retorno à posição do cursor se as coordenadas do ícone não estiverem disponíveis
+  - Comportamento profissional correspondente aos aplicativos do sistema Windows
+
 ## [0.6.8] - 2025-10-16
 
 ## [0.5.6] - 2025-10-14
