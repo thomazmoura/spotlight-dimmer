@@ -42,7 +42,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore SpotlightDimmer.sln
 
       - name: Build SpotlightDimmer with AOT
         run: dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64 -o publish
