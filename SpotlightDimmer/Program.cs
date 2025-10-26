@@ -166,8 +166,33 @@ systemTray.ProfileSelected += (profileName) =>
     }
 };
 
+// Handle open config app request from system tray
+systemTray.OpenConfigAppRequested += () =>
+{
+    try
+    {
+        var appDirectory = AppContext.BaseDirectory;
+        var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
+
+        Console.WriteLine($"\n[Config] Launching config app: {configAppPath}");
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = configAppPath,
+            UseShellExecute = true,
+            WorkingDirectory = appDirectory
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Config] Failed to launch config app: {ex.Message}");
+    }
+};
+
 // Handle open config file request from system tray
-systemTray.OpenConfigRequested += () =>
+systemTray.OpenConfigFileRequested += () =>
 {
     try
     {

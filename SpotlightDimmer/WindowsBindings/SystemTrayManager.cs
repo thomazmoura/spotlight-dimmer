@@ -16,7 +16,8 @@ internal class SystemTrayManager : IDisposable
     private const uint MENU_PAUSE_RESUME = 1001;
     private const uint MENU_AUTOSTART = 1002;
     private const uint MENU_QUIT = 1003;
-    private const uint MENU_OPEN_CONFIG = 1004;
+    private const uint MENU_OPEN_CONFIG_APP = 1004;
+    private const uint MENU_OPEN_CONFIG_FILE = 1005;
 
     // Profile menu IDs (2000-2999)
     private const uint MENU_PROFILE_START = 2000;
@@ -37,7 +38,8 @@ internal class SystemTrayManager : IDisposable
     public event Action<bool>? PauseStateChanged;
     public event Action? QuitRequested;
     public event Action<string>? ProfileSelected;
-    public event Action? OpenConfigRequested;
+    public event Action? OpenConfigAppRequested;
+    public event Action? OpenConfigFileRequested;
 
     public bool IsPaused => _isPaused;
 
@@ -291,8 +293,17 @@ internal class SystemTrayManager : IDisposable
             uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
             WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
 
-            // Add "Open Config File" menu item
-            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_OPEN_CONFIG, "Open Config File");
+            // Add config menu items
+            var appDirectory = AppContext.BaseDirectory;
+            var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
+            bool configAppExists = File.Exists(configAppPath);
+
+            // Add "Configuration..." menu item (disabled if exe doesn't exist)
+            uint configAppFlags = WinApi.MF_STRING | (configAppExists ? 0 : WinApi.MF_GRAYED);
+            WinApi.AppendMenu(hMenu, configAppFlags, MENU_OPEN_CONFIG_APP, "Configuration...");
+
+            // Add "Open Config File" menu item (always enabled)
+            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_OPEN_CONFIG_FILE, "Open Config File");
 
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_QUIT, "Quit");
@@ -319,9 +330,13 @@ internal class SystemTrayManager : IDisposable
             {
                 ToggleAutoStart();
             }
-            else if (cmd == MENU_OPEN_CONFIG)
+            else if (cmd == MENU_OPEN_CONFIG_APP)
             {
-                OpenConfigRequested?.Invoke();
+                OpenConfigAppRequested?.Invoke();
+            }
+            else if (cmd == MENU_OPEN_CONFIG_FILE)
+            {
+                OpenConfigFileRequested?.Invoke();
             }
             else if (cmd >= MENU_PROFILE_START && cmd <= MENU_PROFILE_END)
             {
