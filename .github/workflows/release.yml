@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.tag }}"
+          } else {
+            $version = "${{ github.ref_name }}"
+          }
+
+          # Remove 'v' prefix for version number
+          $versionNumber = $version -replace '^v', ''
+
+          echo "version=$versionNumber" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          echo "tag=$version" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build SpotlightDimmer with AOT
+        run: dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64 -o publish
+
+      - name: Build SpotlightDimmer.Config with AOT
+        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          Write-Host "Checking publish directory contents:"
+          Get-ChildItem -Path publish -Force | Format-Table Name, Length
+
+          if (-not (Test-Path "publish/SpotlightDimmer.exe")) {
+            Write-Host "::error::SpotlightDimmer.exe not found!"
+            exit 1
+          }
+
+          if (-not (Test-Path "publish/SpotlightDimmer.Config.exe")) {
+            Write-Host "::error::SpotlightDimmer.Config.exe not found!"
+            exit 1
+          }
+
+          Write-Host "✓ Both executables built successfully"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
+          # Add Inno Setup to PATH
+          $innoPath = "C:\Program Files (x86)\Inno Setup 6"
+          echo $innoPath | Out-File -FilePath $Env:GITHUB_PATH -Append
+
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: |
+          # Run Inno Setup compiler with version parameter
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=${{ steps.version.outputs.version }}" `
+            spotlight-dimmer.iss
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Inno Setup compilation failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Host "✓ Installer created successfully"
+
+      - name: Prepare installer asset
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter '*.exe' | Select-Object -First 1
+
+          if (-not $installer) {
+            Write-Host "::error::Installer not found in dist/"
+            Write-Host "dist/ contents:"
+            Get-ChildItem -Path dist -Force | Format-List FullName
+            exit 1
+          }
+
+          Write-Host "Found installer: $($installer.FullName)"
+
+          # Use version-less filename for fixed URL access
+          $assetName = "spotlight-dimmer-installer.exe"
+          Copy-Item -Path $installer.FullName -Destination $assetName -Force
+
+          "INSTALLER_ASSET_PATH=$assetName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          # Use version-less filename for fixed URL access
+          $zipName = "spotlight-dimmer-windows-x86_64.zip"
+
+          # Include executables, icons, and documentation
+          Compress-Archive -Path `
+            publish/SpotlightDimmer.exe, `
+            publish/SpotlightDimmer.Config.exe, `
+            spotlight-dimmer-icon.ico, `
+            spotlight-dimmer-icon-paused.ico, `
+            README.md, `
+            CONFIGURATION.md `
+            -DestinationPath $zipName
+
+          "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ env.INSTALLER_ASSET_PATH }}
+          retention-days: 1
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: ${{ env.ZIP_ASSET_PATH }}
+          retention-days: 1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: 'Spotlight Dimmer ${{ steps.version.outputs.tag }}'
+          body: |
+            ## Installation
+
+            ### Windows Installer (Recommended)
+            Download the `.exe` installer below and run it. The installer:
+            - ✅ Requires **no admin rights** (per-user installation)
+            - ✅ Creates Start Menu shortcuts with proper icons
+            - ✅ Can be uninstalled via Windows Settings > Apps
+            - ✅ Ultra-compact (~2 MB installer overhead)
+
+            ### Portable ZIP (Alternative)
+            Download the ZIP file if you prefer a portable installation. Extract all files to the same folder to keep the icons alongside the executables.
+
+            ## What's Spotlight Dimmer?
+
+            Spotlight Dimmer is a Windows utility that creates semi-transparent overlays to dim inactive displays or regions, creating a "spotlight" effect on the active window.
+
+            **Key Features:**
+            - 🎯 **Multi-monitor support** with event-driven focus tracking
+            - 🔄 **Three dimming modes**: FullScreen, Partial, and PartialWithActive
+            - ⚡ **Hot-reloadable config** at `%AppData%\SpotlightDimmer\config.json`
+            - 🚀 **Native AOT compilation** for fast startup and small binaries
+            - 💾 **Zero-allocation hot path** design for minimal GC pressure
+
+            ---
+
+            🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'rc') }}
+          files: |
+            ${{ env.INSTALLER_ASSET_PATH }}
+            ${{ env.ZIP_ASSET_PATH }}
