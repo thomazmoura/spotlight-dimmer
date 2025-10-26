@@ -15,18 +15,52 @@ partial class ConfigForm
     /// </summary>
     private void InitializeComponent()
     {
+        // Profile Section
+        var profileLabel = new Label
+        {
+            Text = "Profile:",
+            Location = new Point(20, 20),
+            Size = new Size(120, 23),
+            AutoSize = true
+        };
+
+        profileComboBox = new ComboBox
+        {
+            Location = new Point(20, 45),
+            Size = new Size(200, 28),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        profileComboBox.SelectedIndexChanged += OnProfileSelected;
+
+        saveProfileButton = new Button
+        {
+            Text = "Save Profile...",
+            Location = new Point(230, 44),
+            Size = new Size(110, 28)
+        };
+        saveProfileButton.Click += OnSaveProfile;
+
+        deleteProfileButton = new Button
+        {
+            Text = "Delete Profile",
+            Location = new Point(350, 44),
+            Size = new Size(110, 28),
+            Enabled = false
+        };
+        deleteProfileButton.Click += OnDeleteProfile;
+
         // Mode ComboBox
         var modeLabel = new Label
         {
             Text = "Dimming Mode:",
-            Location = new Point(20, 20),
+            Location = new Point(20, 90),
             Size = new Size(120, 23),
             AutoSize = true
         };
 
         modeComboBox = new ComboBox
         {
-            Location = new Point(20, 45),
+            Location = new Point(20, 115),
             Size = new Size(300, 28),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
@@ -37,14 +71,14 @@ partial class ConfigForm
         var inactiveColorLabel = new Label
         {
             Text = "Inactive Color:",
-            Location = new Point(20, 90),
+            Location = new Point(20, 160),
             Size = new Size(120, 23),
             AutoSize = true
         };
 
         inactiveColorPanel = new Panel
         {
-            Location = new Point(20, 115),
+            Location = new Point(20, 185),
             Size = new Size(50, 50),
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -53,14 +87,14 @@ partial class ConfigForm
         var inactiveOpacityLabel = new Label
         {
             Text = "Opacity:",
-            Location = new Point(80, 115),
+            Location = new Point(80, 185),
             Size = new Size(60, 23),
             AutoSize = true
         };
 
         inactiveOpacityTrackBar = new TrackBar
         {
-            Location = new Point(80, 138),
+            Location = new Point(80, 208),
             Size = new Size(180, 45),
             Minimum = 0,
             Maximum = 255,
@@ -72,7 +106,7 @@ partial class ConfigForm
         inactiveOpacityValueLabel = new Label
         {
             Text = "153",
-            Location = new Point(270, 138),
+            Location = new Point(270, 208),
             Size = new Size(50, 23),
             AutoSize = true
         };
@@ -81,14 +115,14 @@ partial class ConfigForm
         var activeColorLabel = new Label
         {
             Text = "Active Color:",
-            Location = new Point(20, 190),
+            Location = new Point(20, 260),
             Size = new Size(120, 23),
             AutoSize = true
         };
 
         activeColorPanel = new Panel
         {
-            Location = new Point(20, 215),
+            Location = new Point(20, 285),
             Size = new Size(50, 50),
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -97,14 +131,14 @@ partial class ConfigForm
         var activeOpacityLabel = new Label
         {
             Text = "Opacity:",
-            Location = new Point(80, 215),
+            Location = new Point(80, 285),
             Size = new Size(60, 23),
             AutoSize = true
         };
 
         activeOpacityTrackBar = new TrackBar
         {
-            Location = new Point(80, 238),
+            Location = new Point(80, 308),
             Size = new Size(180, 45),
             Minimum = 0,
             Maximum = 255,
@@ -116,14 +150,24 @@ partial class ConfigForm
         activeOpacityValueLabel = new Label
         {
             Text = "102",
-            Location = new Point(270, 238),
+            Location = new Point(270, 308),
             Size = new Size(50, 23),
             AutoSize = true
         };
 
+        // Verbose Logging Section
+        verboseLoggingCheckBox = new CheckBox
+        {
+            Text = "Verbose Logging",
+            Location = new Point(20, 365),
+            Size = new Size(150, 24),
+            AutoSize = true
+        };
+        verboseLoggingCheckBox.CheckedChanged += OnVerboseLoggingChanged;
+
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(350, 300);
+        ClientSize = new Size(480, 410);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -131,6 +175,10 @@ partial class ConfigForm
         StartPosition = FormStartPosition.CenterScreen;
 
         // Add controls
+        Controls.Add(profileLabel);
+        Controls.Add(profileComboBox);
+        Controls.Add(saveProfileButton);
+        Controls.Add(deleteProfileButton);
         Controls.Add(modeLabel);
         Controls.Add(modeComboBox);
         Controls.Add(inactiveColorLabel);
@@ -143,10 +191,14 @@ partial class ConfigForm
         Controls.Add(activeOpacityLabel);
         Controls.Add(activeOpacityTrackBar);
         Controls.Add(activeOpacityValueLabel);
+        Controls.Add(verboseLoggingCheckBox);
     }
 
     #endregion
 
+    private ComboBox profileComboBox = null!;
+    private Button saveProfileButton = null!;
+    private Button deleteProfileButton = null!;
     private ComboBox modeComboBox = null!;
     private Panel inactiveColorPanel = null!;
     private TrackBar inactiveOpacityTrackBar = null!;
@@ -154,4 +206,5 @@ partial class ConfigForm
     private Panel activeColorPanel = null!;
     private TrackBar activeOpacityTrackBar = null!;
     private Label activeOpacityValueLabel = null!;
+    private CheckBox verboseLoggingCheckBox = null!;
 }
