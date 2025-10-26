@@ -28,6 +28,7 @@ internal static partial class WinApi
     public const uint WM_QUIT = 0x0012;
     public const uint WM_TIMER = 0x0113;
     public const uint WM_DISPLAYCHANGE = 0x007E;
+    public const uint WM_SETICON = 0x0080;
 
     // SetWindowLong/GetWindowLong constants
     public const int GWL_EXSTYLE = -20;
@@ -388,6 +389,9 @@ internal static partial class WinApi
     [LibraryImport("user32.dll")]
     public static partial short GetAsyncKeyState(int vKey);
 
+    [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+    public static partial IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
     // Virtual key codes
     public const int VK_RETURN = 0x0D;
     public const int VK_SPACE = 0x20;
@@ -395,6 +399,10 @@ internal static partial class WinApi
     // LoadImage constants
     public const uint IMAGE_ICON = 1;
     public const uint LR_LOADFROMFILE = 0x00000010;
+
+    // Icon size constants for WM_SETICON
+    public const int ICON_SMALL = 0;
+    public const int ICON_BIG = 1;
 
     // Gdi32.dll imports
     [LibraryImport("gdi32.dll")]

@@ -13,6 +13,13 @@ public partial class ConfigForm : Form
         InitializeComponent();
         _configManager = new ConfigurationManager();
 
+        // Load and set the paused icon for the config app
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon-paused.ico");
+        if (File.Exists(iconPath))
+        {
+            Icon = new Icon(iconPath);
+        }
+
         // Subscribe to configuration changes for two-way binding
         _configManager.ConfigurationChanged += OnConfigurationFileChanged;
 

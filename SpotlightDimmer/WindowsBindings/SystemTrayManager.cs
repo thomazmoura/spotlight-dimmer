@@ -167,6 +167,13 @@ internal class SystemTrayManager : IDisposable
         {
             throw new InvalidOperationException($"Failed to load paused icon from {_pausedIconPath}");
         }
+
+        // Set the window icon (both small and large) to match the active tray icon
+        if (_hwnd != IntPtr.Zero)
+        {
+            WinApi.SendMessage(_hwnd, WinApi.WM_SETICON, (IntPtr)WinApi.ICON_SMALL, _activeIcon);
+            WinApi.SendMessage(_hwnd, WinApi.WM_SETICON, (IntPtr)WinApi.ICON_BIG, _activeIcon);
+        }
     }
 
     private void AddTrayIcon()

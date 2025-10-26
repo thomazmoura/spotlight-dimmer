@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>..\spotlight-dimmer-icon.ico</ApplicationIcon>
 
     <!-- AOT and Self-Contained Configuration -->
     <PublishAot>true</PublishAot>
@@ -19,5 +20,14 @@
     <OptimizationPreference>Speed</OptimizationPreference>
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\spotlight-dimmer-icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\spotlight-dimmer-icon-paused.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>
