@@ -20,11 +20,14 @@ internal static partial class WinApi
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
     // Window message constants
+    public const uint WM_CREATE = 0x0001;
     public const uint WM_DESTROY = 0x0002;
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_PAINT = 0x000F;
     public const uint WM_ERASEBKGND = 0x0014;
     public const uint WM_QUIT = 0x0012;
+    public const uint WM_TIMER = 0x0113;
+    public const uint WM_DISPLAYCHANGE = 0x007E;
 
     // SetWindowLong/GetWindowLong constants
     public const int GWL_EXSTYLE = -20;
@@ -246,6 +249,13 @@ internal static partial class WinApi
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool DestroyWindow(IntPtr hWnd);
 
+    [LibraryImport("user32.dll")]
+    public static partial IntPtr SetTimer(IntPtr hWnd, IntPtr nIDEvent, uint uElapse, IntPtr lpTimerFunc);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool KillTimer(IntPtr hWnd, IntPtr nIDEvent);
+
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLong")]
     private static partial IntPtr GetWindowLongPtr32(IntPtr hWnd, int nIndex);
 
@@ -257,10 +267,10 @@ internal static partial class WinApi
         return IntPtr.Size == 8 ? GetWindowLongPtr64(hWnd, nIndex) : GetWindowLongPtr32(hWnd, nIndex);
     }
 
-    [LibraryImport("user32.dll", EntryPoint = "SetWindowLong")]
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
-    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW", StringMarshalling = StringMarshalling.Utf16)]
     private static partial IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     public static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)

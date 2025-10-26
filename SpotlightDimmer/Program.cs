@@ -56,6 +56,8 @@ if (monitorManager.Monitors.Count == 0)
 
 var focusTracker = new FocusTracker(monitorManager, verboseLogging);
 var renderer = new OverlayRenderer();
+var displayChangeMonitor = new DisplayChangeMonitor();
+Console.WriteLine("[Init] Display change monitor created - listening for layout changes");
 
 // Create app state with pre-allocated overlay definitions
 var displays = monitorManager.GetDisplayInfo();
@@ -79,6 +81,11 @@ Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{con
 // These are only updated when monitors change or config changes
 var cachedDisplays = monitorManager.GetDisplayInfo();
 var cachedConfig = configManager.Current.ToOverlayConfig();
+
+// Track display count for detecting layout changes
+// Windows fires WM_DISPLAYCHANGE before displays are actually reconfigured,
+// so we need to retry checking the count at intervals
+var currentDisplayCount = cachedDisplays.Length;
 
 // Helper function to update overlays (zero allocations - uses cached values)
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
@@ -232,6 +239,49 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
     }
 };
 
+// Handle display configuration changes - event-driven with immediate + 2s safety check
+displayChangeMonitor.CheckDisplaysRequested += () =>
+{
+    Console.WriteLine("\n[Display Change] Check requested - resetting displays and overlays...");
+
+    // Refresh monitor list
+    monitorManager.RefreshMonitors();
+    var newDisplayCount = monitorManager.Monitors.Count;
+
+    // Update tracked count
+    var oldDisplayCount = currentDisplayCount;
+    currentDisplayCount = newDisplayCount;
+
+    // Check if we still have monitors
+    if (newDisplayCount == 0)
+    {
+        Console.WriteLine("[Display Change] No monitors detected.");
+        renderer.CleanupOverlays();
+        return;
+    }
+
+    // Clean up old overlays
+    renderer.CleanupOverlays();
+
+    // Get updated display information
+    var newDisplays = monitorManager.GetDisplayInfo();
+    cachedDisplays = newDisplays;
+
+    // Recreate app state with new display configuration
+    appState = new AppState(newDisplays);
+
+    // Recreate all overlays with current configuration
+    renderer.CreateOverlays(newDisplays, cachedConfig);
+
+    Console.WriteLine($"[Display Change] Overlays recreated: {oldDisplayCount} -> {newDisplays.Length} display(s).");
+
+    // Trigger an overlay update if we have a focused window
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+};
+
 // Start tracking
 focusTracker.Start();
 
@@ -307,6 +357,7 @@ finally
     // Clean up
     systemTray.Dispose();
     focusTracker.Dispose();
+    displayChangeMonitor.Dispose();
     renderer.Dispose();
     configManager.Dispose();
 }

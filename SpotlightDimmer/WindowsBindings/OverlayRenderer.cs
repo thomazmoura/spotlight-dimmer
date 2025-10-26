@@ -217,6 +217,19 @@ internal class OverlayRenderer : IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes all existing overlay windows and clears the pool.
+    /// Call this before recreating overlays when display configuration changes.
+    /// </summary>
+    public void CleanupOverlays()
+    {
+        foreach (var window in _overlayPool.Values)
+        {
+            window.Dispose();
+        }
+        _overlayPool.Clear();
+    }
+
     public void Dispose()
     {
         foreach (var window in _overlayPool.Values)
@@ -320,12 +333,6 @@ internal class OverlayRenderer : IDisposable
             // Update position/size if needed
             if (boundsChanged)
             {
-                WinApi.SetWindowLongPtr(
-                    _hwnd,
-                    WinApi.GWL_STYLE,
-                    new IntPtr((long)(WinApi.WS_POPUP | WinApi.WS_VISIBLE))
-                );
-
                 // Use SetWindowPos for moving/resizing (more efficient than recreating)
                 WinApi.SetWindowPos(
                     _hwnd,
