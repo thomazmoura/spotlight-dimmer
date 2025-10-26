@@ -1,0 +1,45 @@
+{
+  "name": "Spotlight Dimmer (Thomaz Dev Environment)",
+  "image": "thomazmoura/dev-environment:latest",
+
+  "features": {
+    "ghcr.io/devcontainers/features/dotnet:2": {
+      "version": "10.0",
+      "installUsingApt": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.vscode-dotnet-runtime",
+        "ms-vscode.vscode-json",
+        "anthropic.claude-dev"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "pwsh",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit"
+        },
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csharp",
+          "editor.formatOnSave": true
+        },
+        "dotnet.defaultSolution": "SpotlightDimmer.sln"
+      }
+    }
+  },
+
+  "postCreateCommand": "bash .devcontainer/thomaz/post-create.sh",
+
+  "containerEnv": {
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1"
+  },
+
+  "remoteUser": "vscode"
+}
