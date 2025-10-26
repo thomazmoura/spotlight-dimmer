@@ -1,5 +1,0 @@
-// Icon resource file for Spotlight Dimmer
-// This embeds the application icon into the executable
-
-// Main application icon (ID 1 is the default icon Windows looks for)
-1 ICON "src/icons/icon.ico"

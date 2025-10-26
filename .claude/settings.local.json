@@ -1,42 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:claude.ai)",
-      "Bash(cargo install:*)",
-      "Bash(rustc --version)",
-      "Bash(rustup:*)",
-      "Bash(cargo:*)",
       "WebSearch",
-      "WebFetch(domain:v2.tauri.app)",
-      "Bash(spotlight-dimmer.exe:*)",
-      "Bash(python:*)",
-      "WebFetch(domain:github.com)",
-      "Bash(git tag:*)",
-      "Bash(awk:*)",
-      "Bash(./spotlight-dimmer-config.exe status)",
-      "Bash(start spotlight-dimmer.exe)",
-      "Bash(./spotlight-dimmer-config.exe disable)",
-      "Bash(./spotlight-dimmer-config.exe enable)",
-      "Bash(./spotlight-dimmer-config.exe color 255 0 0 0.6)",
-      "WebFetch(domain:users.rust-lang.org)",
-      "Bash(cat:*)",
-      "Bash(./target/debug/spotlight-dimmer)",
-      "Bash(git log:*)",
-      "Bash(git fetch:*)",
-      "Bash(gh run list:*)",
-      "Bash(gh run view:*)",
-      "Bash(x86_64-w64-mingw32-gcc:*)",
-      "Bash(chmod:*)",
-      "WebFetch(domain:docs.rs)",
-      "WebFetch(domain:docs.crabnebula.dev)",
-      "Read(//c/Users/thomaz.moura/Pictures/Prints/**)",
-      "Bash(export:*)",
-      "Bash(tee:*)",
-      "WebFetch(domain:api.github.com)",
-      "Read(//c/Users/thomaz.moura/AppData/Roaming/spotlight-dimmer/**)"
+      "Bash(dotnet new:*)",
+      "Bash(dotnet:*)",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []
-  },
-  "outputStyle": "Explanatory"
+  }
 }

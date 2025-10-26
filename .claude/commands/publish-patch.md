@@ -6,11 +6,11 @@
 
 ## What this command does:
 
-1. Checks current versions in `package.json` and `Cargo.toml`
-2. Increments the patch version (e.g., 0.4.9 → 0.4.10, or 0.4.9-beta.2 → 0.4.10)
-3. Updates version in `package.json`, `Cargo.toml`, and `Cargo.lock`
-4. **Runs pre-commit validation**: tests, clippy, and release build
-5. **If validation fails**: Cancels the release and prompts user to run `/check` first
+1. Checks current version in `Directory.Build.props`
+2. Increments the patch version (e.g., 0.8.0 → 0.8.1, or 0.8.0-beta → 0.8.1)
+3. Updates version in `Directory.Build.props`
+4. **Runs pre-commit validation**: build and tests
+5. **If validation fails**: Cancels the release and prompts user to fix issues first
 6. Generates a commit message based on git diff and changelog
 7. Creates a git commit with all pending changes
 8. Creates a git tag with the new patch version
@@ -19,26 +19,28 @@
 ## Process:
 
 The agent will:
-1. Read current versions from `package.json` and `Cargo.toml`
+1. Read current version from `Directory.Build.props` (the `<Version>` property)
 2. Calculate new patch version:
-   - If current is release (e.g., `0.4.9`): increment patch (→ `0.4.10`)
-   - If current is beta (e.g., `0.4.9-beta.2`): strip beta suffix and increment patch (→ `0.4.10`)
+   - If current is release (e.g., `0.8.0`): increment patch (→ `0.8.1`)
+   - If current is beta (e.g., `0.8.0-beta`): strip beta suffix and increment patch (→ `0.8.1`)
    - Pattern: `X.Y.Z` → `X.Y.(Z+1)`
-3. Update version in `package.json`, `Cargo.toml`, and `Cargo.lock` (using `cargo update -p spotlight-dimmer --precise X.Y.Z`)
-4. **Run pre-commit validation in order** (matching `/check` exactly):
-   - `cargo test --lib --verbose` - Run library tests
-   - `cargo test --doc --verbose` - Run doc tests
-   - `cargo clippy --all-targets --all-features -- -W clippy::all -A dead_code` - Check for code issues
-   - `cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config` - Build release binaries
+3. Update all version properties in `Directory.Build.props`:
+   - `<Version>X.Y.(Z+1)</Version>`
+   - `<AssemblyVersion>X.Y.(Z+1)</AssemblyVersion>`
+   - `<FileVersion>X.Y.(Z+1)</FileVersion>`
+   - `<InformationalVersion>X.Y.(Z+1)</InformationalVersion>`
+4. **Run pre-commit validation in order**:
+   - `dotnet build -c Release` - Build release binaries
+   - `dotnet test` - Run all tests (if any test projects exist)
 5. **If any validation step fails**:
    - **STOP immediately** and cancel the release
-   - Revert version changes in `package.json`, `Cargo.toml`, and `Cargo.lock`
+   - Revert version changes in `Directory.Build.props`
    - Display error output to user
-   - Instruct user to run `/check` first to fix errors
+   - Instruct user to fix errors first
    - **DO NOT proceed with release** and **DO NOT attempt to fix errors**
-6. Once validation passes, run `cargo fmt --all` to ensure code is properly formatted
+6. Once validation passes, run `dotnet format` to ensure code is properly formatted
 7. Run `git status` and `git diff` to understand changes
-8. Generate a descriptive commit message based on the changes
+8. Generate a descriptive commit message based on the changes and CHANGELOG.md
 9. Execute a **single bash command** that does all of the following:
    ```bash
    git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.Z && git push origin main && git push origin vX.Y.Z
@@ -48,15 +50,13 @@ The agent will:
 
 - **Patch release versioning**: Creates stable releases without beta suffix
 - **Use for bug fixes**: Patch releases are for bug fixes and small changes
-- **Validation is mandatory**: Must pass tests, clippy, and build before releasing
-- **NO auto-fix**: If validation fails, release is cancelled - run `/check` first to fix errors
-- **Recommended workflow**: Run `/check` to fix any issues, then `/publish-patch` to create the release
+- **Validation is mandatory**: Must pass build and tests before releasing
+- **NO auto-fix**: If validation fails, release is cancelled
 - The entire git operation (add, commit, tag, push) must be presented as **ONE command line** using `&&`
 - This allows the user to approve once with a single execution
 - If any git step fails, subsequent steps won't execute (due to `&&` behavior)
 - The commit message should be concise and descriptive
-- Tag format: `vX.Y.Z` (e.g., `v0.4.10`)
-- Cargo.lock is automatically updated to match the new version
+- Tag format: `vX.Y.Z` (e.g., `v0.8.1`)
 
 ## Commit Message Format (CRITICAL):
 
@@ -73,21 +73,20 @@ This repository is built with Claude Code - these attributions are redundant.
 
 ### Example Format:
 ```
-Fix window dragging crash and ghost windows
+Fix window dragging memory leak
 
-Implemented intelligent mouse button detection to prevent system instability during window drag operations.
+Implemented proper disposal of DeferWindowPos handles to prevent memory growth during window operations.
 
-- Add GetAsyncKeyState mouse button detection
-- Hide overlays when mouse button pressed
-- Restore overlays when mouse released
-- Document known limitation in README files
+- Fix DeferWindowPos handle cleanup
+- Add GDI object monitoring in verbose mode
+- Document handle leak prevention pattern
 ```
 
 ## Example:
 
-**Scenario 1**: Current version is `0.4.9` (release version)
-- Update to `0.4.10` in all files
-- Run validation: tests → clippy → build
+**Scenario 1**: Current version is `0.8.0` (release version)
+- Update to `0.8.1` in Directory.Build.props
+- Run validation: build → tests
 - If validation passes, create command like:
   ```bash
   git add . && git commit -m "Fix overlay flickering on multi-monitor setups
@@ -96,43 +95,38 @@ Resolved issue where overlays would flicker when moving windows between displays
 
 - Improve display change detection logic
 - Add debouncing for rapid display events
-- Optimize overlay recreation performance" && git pull --rebase origin main && git tag v0.4.10 && git push origin main && git push origin v0.4.10
+- Optimize overlay recreation performance" && git pull --rebase origin main && git tag v0.8.1 && git push origin main && git push origin v0.8.1
   ```
 
-**Scenario 2**: Current version is `0.4.9-beta.2` (beta version)
-- Strip beta suffix and update to `0.4.10` in all files
-- Run validation: tests → clippy → build
-- If validation passes, create tag `v0.4.10`
+**Scenario 2**: Current version is `0.8.0-beta` (beta version)
+- Strip beta suffix and update to `0.8.1` in Directory.Build.props
+- Run validation: build → tests
+- If validation passes, create tag `v0.8.1`
 
 **Scenario 3**: Validation fails - Release cancelled
 ```
-Updating version to 0.4.10...
-✓ Updated package.json
-✓ Updated Cargo.toml
-✓ Updated Cargo.lock
+Updating version to 0.8.1...
+✓ Updated Directory.Build.props
 
 Running validation...
-Running cargo test... ✗ 2 tests failed
+Running dotnet build... ✗ Build failed
 
 ❌ Validation failed! Release cancelled.
 
 Error details:
----- config::tests::test_config_load stdout ----
-thread 'config::tests::test_config_load' panicked at 'assertion failed'
+Program.cs(42,5): error CS0103: The name 'InvalidMethod' does not exist in the current context
 
 Reverting version changes...
-✓ Reverted package.json to 0.4.9
-✓ Reverted Cargo.toml to 0.4.9
-✓ Reverted Cargo.lock to 0.4.9
+✓ Reverted Directory.Build.props to 0.8.0
 
-Please run `/check` first to fix validation errors, then try `/publish-patch` again.
+Please fix validation errors first, then try /publish-patch again.
 ```
 
 ## Release Workflow:
 
-1. **Development**: Make changes and commit with `/commit` (creates beta versions)
+1. **Development**: Make changes and commit (creates beta versions with /commit)
 2. **Testing**: Test the beta versions thoroughly
-3. **Quality Check**: Run `/check` to ensure all validation passes
+3. **Quality Check**: Run builds and tests to ensure everything passes
 4. **Release**: Run `/publish-patch` to create the stable patch release
 
 ## When to Use This Command:
@@ -140,6 +134,6 @@ Please run `/check` first to fix validation errors, then try `/publish-patch` ag
 - ✅ **Bug fixes**: Fixing bugs in the current release
 - ✅ **Small improvements**: Minor enhancements that don't add new features
 - ✅ **Documentation updates**: Significant documentation improvements
-- ✅ **Dependency updates**: Updating dependencies without breaking changes
+- ✅ **Performance fixes**: Fixing performance regressions
 - ❌ **New features**: Use `/publish-minor` instead
-- ❌ **Breaking changes**: Use `/publish-minor` and plan for major release
+- ❌ **Breaking changes**: Use `/publish-minor` and plan carefully

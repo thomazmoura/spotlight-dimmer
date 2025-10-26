@@ -1,0 +1,391 @@
+using SpotlightDimmer.Core;
+using SpotlightDimmer.WindowsBindings;
+
+Console.WriteLine("SpotlightDimmer .NET");
+Console.WriteLine("===============================================");
+Console.WriteLine("Core: Pure overlay calculation logic");
+Console.WriteLine("WindowsBindings: Windows-specific rendering");
+Console.WriteLine("\nPress Ctrl+C to exit\n");
+
+// Set up graceful shutdown
+using var cts = new CancellationTokenSource();
+var mainThreadId = WinApi.GetCurrentThreadId();
+
+Console.CancelKeyPress += (sender, e) =>
+{
+    e.Cancel = true;
+    cts.Cancel();
+    Console.WriteLine("\nShutting down...");
+
+    // Post a quit message to the main thread's message queue
+    // This immediately unblocks GetMessage() which runs on the main thread
+    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+};
+
+// ========================================================================
+// Core Layer - Pure calculation logic
+// ========================================================================
+
+// Configuration: Load from file with hot-reload support (load first to get settings)
+var configManager = new ConfigurationManager();
+var config = configManager.Current.ToOverlayConfig();
+bool verboseLogging = configManager.Current.System.VerboseLoggingEnabled;
+
+if (verboseLogging)
+{
+    Console.WriteLine("Verbose logging: ENABLED\n");
+}
+
+// ========================================================================
+// WindowsBindings Layer - Platform-specific components
+// ========================================================================
+
+// System Tray
+var systemTray = new SystemTrayManager(
+    "spotlight-dimmer-icon.ico",
+    "spotlight-dimmer-icon-paused.ico",
+    configManager.Current);
+
+var monitorManager = new MonitorManager();
+
+if (monitorManager.Monitors.Count == 0)
+{
+    Console.WriteLine("No monitors detected. Exiting.");
+    return 1;
+}
+
+var focusTracker = new FocusTracker(monitorManager, verboseLogging);
+var renderer = new OverlayRenderer();
+var displayChangeMonitor = new DisplayChangeMonitor();
+Console.WriteLine("[Init] Display change monitor created - listening for layout changes");
+
+// Create app state with pre-allocated overlay definitions
+var displays = monitorManager.GetDisplayInfo();
+var appState = new AppState(displays);
+
+// Pre-create all overlay windows (6 per display, all initially hidden)
+// Pre-allocate brushes for configured colors - zero allocations during updates
+renderer.CreateOverlays(displays, config);
+
+Console.WriteLine($"\nOverlay Configuration:");
+Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
+Console.WriteLine($"  Mode: {config.Mode}");
+Console.WriteLine($"  Inactive: {config.InactiveColor.R},{config.InactiveColor.G},{config.InactiveColor.B} @ {config.InactiveOpacity}/255 opacity");
+Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{config.ActiveColor.B} @ {config.ActiveOpacity}/255 opacity");
+
+// ========================================================================
+// Wire Core and WindowsBindings together
+// ========================================================================
+
+// Cache displays and config to avoid allocations in hot path
+// These are only updated when monitors change or config changes
+var cachedDisplays = monitorManager.GetDisplayInfo();
+var cachedConfig = configManager.Current.ToOverlayConfig();
+
+// Track display count for detecting layout changes
+// Windows fires WM_DISPLAYCHANGE before displays are actually reconfigured,
+// so we need to retry checking the count at intervals
+var currentDisplayCount = cachedDisplays.Length;
+
+// Helper function to update overlays (zero allocations - uses cached values)
+void UpdateOverlays(int displayIndex, Rectangle windowBounds)
+{
+    // Don't update overlays if paused
+    if (systemTray.IsPaused)
+        return;
+
+    appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
+    renderer.UpdateOverlays(appState.DisplayStates);
+}
+
+// ========================================================================
+// System Tray Event Handlers
+// ========================================================================
+
+// Handle pause/resume from system tray
+systemTray.PauseStateChanged += (isPaused) =>
+{
+    if (isPaused)
+    {
+        Console.WriteLine("\n[Paused] Overlays hidden. Double-click tray icon or use context menu to resume.");
+        renderer.HideAllOverlays();
+    }
+    else
+    {
+        Console.WriteLine("\n[Resumed] Overlays active.");
+        // Trigger an update to show overlays again
+        if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+        {
+            UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+        }
+    }
+};
+
+// Handle quit from system tray
+systemTray.QuitRequested += () =>
+{
+    Console.WriteLine("\n[System Tray] Quit requested. Shutting down...");
+    cts.Cancel();
+    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+};
+
+// Handle profile selection from system tray
+systemTray.ProfileSelected += (profileName) =>
+{
+    Console.WriteLine($"\n[Profile] Applying profile: {profileName}");
+
+    // Get current config
+    var currentConfig = configManager.Current;
+
+    // Apply the profile
+    if (currentConfig.ApplyProfile(profileName))
+    {
+        // Save the updated configuration
+        configManager.SaveConfiguration(currentConfig);
+
+        // Update cached config
+        cachedConfig = currentConfig.ToOverlayConfig();
+
+        // Update brush colors for all windows
+        renderer.UpdateBrushColors(cachedConfig);
+
+        // Update system tray with new config
+        systemTray.UpdateConfig(currentConfig);
+
+        // Trigger overlay update if we have a focused window
+        if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+        {
+            UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+        }
+
+        Console.WriteLine($"[Profile] Profile '{profileName}' applied successfully");
+    }
+    else
+    {
+        Console.WriteLine($"[Profile] Failed to apply profile: {profileName}");
+    }
+};
+
+// Handle open config app request from system tray
+systemTray.OpenConfigAppRequested += () =>
+{
+    try
+    {
+        var appDirectory = AppContext.BaseDirectory;
+        var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
+
+        Console.WriteLine($"\n[Config] Launching config app: {configAppPath}");
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = configAppPath,
+            UseShellExecute = true,
+            WorkingDirectory = appDirectory
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Config] Failed to launch config app: {ex.Message}");
+    }
+};
+
+// Handle open config file request from system tray
+systemTray.OpenConfigFileRequested += () =>
+{
+    try
+    {
+        var configPath = ConfigurationManager.GetDefaultConfigPath();
+        Console.WriteLine($"\n[Config] Opening config file: {configPath}");
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = configPath,
+            UseShellExecute = true
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Config] Failed to open config file: {ex.Message}");
+    }
+};
+
+// ========================================================================
+// Configuration and Focus Event Handlers
+// ========================================================================
+
+// Handle configuration changes - recalculate and render overlays
+configManager.ConfigurationChanged += (newAppConfig) =>
+{
+    // Update cached config when configuration changes
+    cachedConfig = newAppConfig.ToOverlayConfig();
+
+    // Update verbose logging setting
+    verboseLogging = newAppConfig.System.VerboseLoggingEnabled;
+
+    // Update system tray with new config (refreshes profile list)
+    systemTray.UpdateConfig(newAppConfig);
+
+    // Update brush colors for all windows
+    renderer.UpdateBrushColors(cachedConfig);
+
+    // If we have a focused window, trigger an update with the new config
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+
+    Console.WriteLine("[Config] Overlays updated with new configuration\n");
+};
+
+// Handle display changes - recalculate and render overlays
+focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
+{
+    if (verboseLogging)
+    {
+        Console.WriteLine($"[VERBOSE] Display {displayIndex} gained focus");
+    }
+    UpdateOverlays(displayIndex, windowBounds);
+};
+
+// Handle window position/size changes - recalculate and render overlays
+focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
+{
+    // This event fires frequently during window movement
+    // In FullScreen mode, we don't need to update (only display changes matter)
+    // In Partial/PartialWithActive modes, we need to update on every movement
+    // CRITICAL: Use cachedConfig to avoid allocating on every event!
+    if (cachedConfig.Mode != DimmingMode.FullScreen)
+    {
+        UpdateOverlays(displayIndex, windowBounds);
+    }
+};
+
+// Handle display configuration changes - event-driven with immediate + 2s safety check
+displayChangeMonitor.CheckDisplaysRequested += () =>
+{
+    Console.WriteLine("\n[Display Change] Check requested - resetting displays and overlays...");
+
+    // Refresh monitor list
+    monitorManager.RefreshMonitors();
+    var newDisplayCount = monitorManager.Monitors.Count;
+
+    // Update tracked count
+    var oldDisplayCount = currentDisplayCount;
+    currentDisplayCount = newDisplayCount;
+
+    // Check if we still have monitors
+    if (newDisplayCount == 0)
+    {
+        Console.WriteLine("[Display Change] No monitors detected.");
+        renderer.CleanupOverlays();
+        return;
+    }
+
+    // Clean up old overlays
+    renderer.CleanupOverlays();
+
+    // Get updated display information
+    var newDisplays = monitorManager.GetDisplayInfo();
+    cachedDisplays = newDisplays;
+
+    // Recreate app state with new display configuration
+    appState = new AppState(newDisplays);
+
+    // Recreate all overlays with current configuration
+    renderer.CreateOverlays(newDisplays, cachedConfig);
+
+    Console.WriteLine($"[Display Change] Overlays recreated: {oldDisplayCount} -> {newDisplays.Length} display(s).");
+
+    // Trigger an overlay update if we have a focused window
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+};
+
+// Start tracking
+focusTracker.Start();
+
+Console.WriteLine("\nSpotlightDimmer is running.");
+Console.WriteLine($"Current mode: {config.Mode}");
+Console.WriteLine("The focused display will remain bright.");
+Console.WriteLine("Move windows between monitors to see the effect.");
+Console.WriteLine($"\nSystem Tray: Available - Double-click to pause/resume, right-click for menu");
+Console.WriteLine($"Configuration updates will be automatically applied.");
+Console.WriteLine($"Edit the config file to change settings in real-time.\n");
+
+// GDI object monitoring for leak detection (verbose mode only)
+var initialGdiCount = 0;
+var lastGdiCount = 0;
+var gdiCheckTimer = System.Diagnostics.Stopwatch.StartNew();
+if (verboseLogging)
+{
+    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+    initialGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
+    lastGdiCount = initialGdiCount;
+    Console.WriteLine($"[VERBOSE] Initial GDI objects: {initialGdiCount}");
+}
+
+// ========================================================================
+// Windows Message Loop
+// ========================================================================
+
+try
+{
+    while (!cts.Token.IsCancellationRequested)
+    {
+        // Process Windows messages
+        while (WinApi.GetMessage(out var msg, IntPtr.Zero, 0, 0))
+        {
+            WinApi.TranslateMessage(ref msg);
+            WinApi.DispatchMessage(ref msg);
+
+            // Check for cancellation periodically
+            if (cts.Token.IsCancellationRequested)
+                break;
+
+            // Periodic GDI object monitoring (verbose mode only, every 5 seconds)
+            if (verboseLogging && gdiCheckTimer.Elapsed.TotalSeconds >= 5)
+            {
+                var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                var currentGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
+                if (currentGdiCount != lastGdiCount)
+                {
+                    var delta = currentGdiCount - initialGdiCount;
+                    var deltaSign = delta >= 0 ? "+" : "";
+                    Console.WriteLine($"[VERBOSE] GDI objects: {currentGdiCount} ({deltaSign}{delta} from start)");
+                    lastGdiCount = currentGdiCount;
+                }
+                gdiCheckTimer.Restart();
+            }
+        }
+
+        // If we exit the message loop, wait a bit before checking again
+        if (!cts.Token.IsCancellationRequested)
+        {
+            Thread.Sleep(100);
+        }
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    return 1;
+}
+finally
+{
+    // Clean up
+    systemTray.Dispose();
+    focusTracker.Dispose();
+    displayChangeMonitor.Dispose();
+    renderer.Dispose();
+    configManager.Dispose();
+}
+
+Console.WriteLine("Goodbye!");
+return 0;

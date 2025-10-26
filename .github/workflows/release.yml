@@ -11,39 +11,8 @@ on:
         required: true
         type: string
 
-env:
-  CARGO_INCREMENTAL: 0
-  RUST_BACKTRACE: short
-
 jobs:
-  changelog:
-    runs-on: ubuntu-latest
-    outputs:
-      release-notes: ${{ steps.changelog.outputs.release-notes }}
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Get version from tag
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.tag }}"
-          else
-            VERSION="${{ github.ref_name }}"
-          fi
-          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
-          echo "tag=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Extract changelog
-        id: changelog
-        run: |
-          # Extract unreleased section from CHANGELOG.md using external script
-          python3 .github/scripts/extract_changelog.py
-
   build-and-release:
-    needs: changelog
     permissions:
       contents: write
     runs-on: windows-latest
@@ -51,47 +20,115 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-
-      - name: Run tests
-        run: cargo test --lib --verbose
-
-      - name: Build binaries
-        run: cargo build --release --bin spotlight-dimmer --bin spotlight-dimmer-config
-
-      - name: Install cargo-packager
-        run: cargo install --locked cargo-packager
-
-      - name: Install NSIS
+      - name: Get version from tag
+        id: version
         shell: pwsh
-        run: choco install nsis -y --no-progress
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.tag }}"
+          } else {
+            $version = "${{ github.ref_name }}"
+          }
 
-      - name: Build NSIS installer
-        run: cargo packager --release
+          # Remove 'v' prefix for version number
+          $versionNumber = $version -replace '^v', ''
+
+          echo "version=$versionNumber" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          echo "tag=$version" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build SpotlightDimmer with AOT
+        run: dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64 -o publish
+
+      - name: Build SpotlightDimmer.Config with AOT
+        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          Write-Host "Checking publish directory contents:"
+          Get-ChildItem -Path publish -Force | Format-Table Name, Length
+
+          if (-not (Test-Path "publish/SpotlightDimmer.exe")) {
+            Write-Host "::error::SpotlightDimmer.exe not found!"
+            exit 1
+          }
+
+          if (-not (Test-Path "publish/SpotlightDimmer.Config.exe")) {
+            Write-Host "::error::SpotlightDimmer.Config.exe not found!"
+            exit 1
+          }
+
+          Write-Host "✓ Both executables built successfully"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
+          # Add Inno Setup to PATH
+          $innoPath = "C:\Program Files (x86)\Inno Setup 6"
+          echo $innoPath | Out-File -FilePath $Env:GITHUB_PATH -Append
+
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: |
+          # Run Inno Setup compiler with version parameter
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=${{ steps.version.outputs.version }}" `
+            spotlight-dimmer.iss
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Inno Setup compilation failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Host "✓ Installer created successfully"
 
       - name: Prepare installer asset
         shell: pwsh
         run: |
-          # cargo-packager outputs the installer directly to target/release/
-          # with the naming pattern: spotlight-dimmer_{version}_x64-setup.exe
-          $installer = Get-ChildItem -Path target/release -Filter '*-setup.exe' | Select-Object -First 1
+          $installer = Get-ChildItem -Path dist -Filter '*.exe' | Select-Object -First 1
+
           if (-not $installer) {
-            Write-Host "::error::NSIS installer not found in target/release/"
-            Write-Host "target/release contents:"
-            Get-ChildItem -Path target/release -Force | Format-List FullName
-            throw "NSIS installer missing"
+            Write-Host "::error::Installer not found in dist/"
+            Write-Host "dist/ contents:"
+            Get-ChildItem -Path dist -Force | Format-List FullName
+            exit 1
           }
 
           Write-Host "Found installer: $($installer.FullName)"
+
           # Use version-less filename for fixed URL access
           $assetName = "spotlight-dimmer-installer.exe"
           Copy-Item -Path $installer.FullName -Destination $assetName -Force
 
           "INSTALLER_ASSET_PATH=$assetName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Create ZIP archive
+        shell: pwsh
+        run: |
+          # Use version-less filename for fixed URL access
+          $zipName = "spotlight-dimmer-windows-x86_64.zip"
+
+          # Include executables, icons, and documentation
+          Compress-Archive -Path `
+            publish/SpotlightDimmer.exe, `
+            publish/SpotlightDimmer.Config.exe, `
+            spotlight-dimmer-icon.ico, `
+            spotlight-dimmer-icon-paused.ico, `
+            README.md, `
+            CONFIGURATION.md `
+            -DestinationPath $zipName
+
+          "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
@@ -100,158 +137,49 @@ jobs:
           path: ${{ env.INSTALLER_ASSET_PATH }}
           retention-days: 1
 
-      - name: Upload binaries as artifacts
+      - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-binaries
-          path: |
-            target/release/spotlight-dimmer.exe
-            target/release/spotlight-dimmer-config.exe
+          name: windows-portable
+          path: ${{ env.ZIP_ASSET_PATH }}
           retention-days: 1
 
-      - name: Create ZIP archive
-        shell: pwsh
-        run: |
-          # Use version-less filename for fixed URL access
-          $zipName = "spotlight-dimmer-windows-x86_64.zip"
-          Compress-Archive -Path target/release/spotlight-dimmer.exe, target/release/spotlight-dimmer-config.exe, spotlight-dimmer-icon.ico, spotlight-dimmer-icon-paused.ico -DestinationPath $zipName
-
-          "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
-
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ needs.changelog.outputs.version && format('v{0}', needs.changelog.outputs.version) || github.ref_name }}
-          name: 'Spotlight Dimmer v${{ needs.changelog.outputs.version || github.ref_name }}'
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: 'Spotlight Dimmer ${{ steps.version.outputs.tag }}'
           body: |
-            ${{ needs.changelog.outputs.release-notes }}
-
             ## Installation
 
             ### Windows Installer (Recommended)
-            Download the `.exe` installer below and follow the setup wizard. It installs Spotlight Dimmer with Start Menu shortcuts, desktop integration, and an uninstaller entry in Windows Settings.
+            Download the `.exe` installer below and run it. The installer:
+            - ✅ Requires **no admin rights** (per-user installation)
+            - ✅ Creates Start Menu shortcuts with proper icons
+            - ✅ Can be uninstalled via Windows Settings > Apps
+            - ✅ Ultra-compact (~2 MB installer overhead)
 
             ### Portable ZIP (Alternative)
             Download the ZIP file if you prefer a portable installation. Extract all files to the same folder to keep the icons alongside the executables.
 
-            ### Via Cargo
-            ```bash
-            cargo install --git https://github.com/thomazmoura/spotlight-dimmer --branch main spotlight-dimmer
-            ```
-
             ## What's Spotlight Dimmer?
 
-            Spotlight Dimmer dims inactive displays to help you focus on the active one. Perfect for multi-monitor setups!
+            Spotlight Dimmer is a Windows utility that creates semi-transparent overlays to dim inactive displays or regions, creating a "spotlight" effect on the active window.
 
-            - 🎯 **Ultra-lightweight**: Only ~7.6 MB RAM usage
-            - 🔄 **Real-time Monitoring**: Instantly detects window focus changes (100ms polling)
-            - 👻 **Click-through Overlays**: Dimming overlays don't interfere with your workflow
-            - ⚡ **Native Windows API**: No browser engine overhead, instant startup
-            - ⚙️ **Auto-reload Config**: Changes detected within 2 seconds, no restart needed
+            **Key Features:**
+            - 🎯 **Multi-monitor support** with event-driven focus tracking
+            - 🔄 **Three dimming modes**: FullScreen, Partial, and PartialWithActive
+            - ⚡ **Hot-reloadable config** at `%AppData%\SpotlightDimmer\config.json`
+            - 🚀 **Native AOT compilation** for fast startup and small binaries
+            - 💾 **Zero-allocation hot path** design for minimal GC pressure
 
             ---
 
             🤖 *Generated with [Claude Code](https://claude.com/claude-code)*
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'rc') }}
           files: |
             ${{ env.INSTALLER_ASSET_PATH }}
             ${{ env.ZIP_ASSET_PATH }}
-
-  publish-cargo:
-    needs: [changelog, build-and-release]
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-        run: cargo publish --allow-dirty
-
-  publish-npm:
-    needs: [changelog, build-and-release]
-    if: always()
-    runs-on: windows-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Download pre-built binaries
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-binaries
-          path: target/release/
-
-      - name: Prepare npm package
-        shell: pwsh
-        run: |
-          # Copy executables to bin directory
-          Copy-Item target/release/spotlight-dimmer.exe bin/
-          Copy-Item target/release/spotlight-dimmer-config.exe bin/
-
-          # Copy icon files to bin directory
-          Copy-Item spotlight-dimmer-icon.ico bin/
-          Copy-Item spotlight-dimmer-icon-paused.ico bin/
-
-          Write-Host "Package contents ready for npm publish"
-
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
-
-  update-changelog:
-    needs: [changelog, build-and-release]
-    runs-on: ubuntu-latest
-    if: success()
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-          ref: main
-
-      - name: Update changelog
-        run: |
-          # Update CHANGELOG.md to move unreleased content to new version using external script
-          python3 .github/scripts/update_changelog.py "${{ needs.changelog.outputs.version }}"
-
-      - name: Commit changelog update
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add CHANGELOG.md
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Update CHANGELOG.md for release v${{ needs.changelog.outputs.version }}"
-            git push
-          fi
-
-  generate-winget-manifests:
-    needs: [changelog, build-and-release, publish-cargo, publish-npm]
-    permissions:
-      contents: read
-    uses: ./.github/workflows/winget-publish.yml
-    if: needs.build-and-release.result == 'success'
-    with:
-      version: ${{ needs.changelog.outputs.version }}

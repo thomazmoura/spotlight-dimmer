@@ -7,132 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.7.3-beta.2] - 2025-10-21
-
-## [0.7.3-beta.1] - 2025-10-21
-
 ### Added
-- **Tmux pane focusing integration**: Dim inactive tmux panes within Windows Terminal (via WSL) for enhanced focus
-  - Works even when Windows Terminal is in fullscreen mode
-  - Event-driven file watching for instant response to pane switches (zero polling overhead)
-  - Automatic Windows Terminal detection via process name matching
-  - Configurable terminal geometry (font size, padding) for accurate pixel-perfect overlay positioning
-  - Character-to-pixel coordinate translation system for tmux (columns/rows) → Windows (pixels)
-  - Seamless integration with existing partial dimming and active overlay features
-  - Tmux hook configuration writes pane boundaries to shared file accessible from Windows
-  - CLI commands: `tmux-enable`, `tmux-disable`, `tmux-config`, `tmux-auto-config`, `tmux-status`
-  - Setup guide included in CLI output with exact tmux configuration needed
-  - Independent file watcher for tmux pane file with automatic cleanup on exit
-  - Overlays automatically cleared when switching away from Windows Terminal or disabling mode
-  - Modular architecture: `tmux_watcher` (parsing), `tmux_overlay` (coordinate translation), overlay methods (rendering)
+- **Auto-start at login**: New system tray menu option to automatically start SpotlightDimmer when Windows boots
+  - "Start at Login" checkbox menu item in system tray context menu
+  - Clicking toggles auto-start on/off via Windows Registry (HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)
+  - Menu shows checkmark when auto-start is enabled
+  - Works reliably across Windows restarts and user sessions
+  - No administrator privileges required - uses per-user registry key
+  - Based on proven Rust implementation design
 
-- **Automatic terminal geometry detection** (`tmux-auto-config`): Zero-friction tmux setup with intelligent configuration
-  - Automatically reads Windows Terminal settings.json to extract font and padding configuration
-  - Uses Windows GDI API (`GetTextMetrics`) to calculate exact font pixel dimensions
-  - Supports both legacy (`fontSize`, `fontFace`) and modern (`font.size`, `font.face`) settings formats
-  - Optional profile selection: reads from specific profile or defaults section
-  - `--dry-run` flag for previewing detected settings before applying
-  - Shows before/after comparison with current configuration
-  - Handles all padding formats: single value, two values (horizontal/vertical), four values (left/top/right/bottom)
-  - Smart detection: only saves if configuration actually changed
-  - Comprehensive error messages with troubleshooting steps
-  - Eliminates manual font size measurement - calculates precise metrics automatically
+- **System tray keyboard accessibility**: Full keyboard support for system tray icon navigation
+  - Press **Space** to toggle pause/resume (same as double-click)
+  - Press **Enter**, **Apps key**, or **Shift+F10** to open the context menu (same as right-click)
+  - Intuitive key mapping: Space for quick toggle, Enter for menu access
+  - Improves accessibility for keyboard-only users
+  - Follows Windows accessibility guidelines for system tray interactions
+  - Uses `GetAsyncKeyState` to properly distinguish between Enter and Space key presses
 
-- **Intelligent tmux tab detection** (`tmux-title-pattern`): Prevents false positives by detecting active Windows Terminal tab
-  - Overlays only appear when the active tab is actually running tmux (not just when Windows Terminal is focused)
-  - Uses Windows Terminal window title to detect tmux sessions (instant detection, <100ms)
-  - Works perfectly in both windowed and fullscreen modes (no UI visibility required)
-  - Configurable pattern matching: customize detection for any tmux title format
-  - Default pattern: "tmux" (matches standard tmux title format)
-  - Recommended tmux configuration: `set-option -g set-titles-string "tmux:#S/#W"`
-  - CLI command: `tmux-title-pattern <pattern>` to customize detection
-  - Integrated into `tmux-status` output for visibility
-  - Zero performance overhead: uses already-cached window title from main monitoring loop
-  - Automatic overlay cleanup when switching to non-tmux tabs (instant response)
-  - No new dependencies required: uses existing Windows API `GetWindowText`
+- **Improved context menu positioning**: Menu now appears at tray icon location instead of cursor position
+  - Uses `Shell_NotifyIconGetRect` to get exact tray icon coordinates
+  - Menu positioned at center-bottom of tray icon for consistency
+  - Cursor stays in place (not moved to tray icon)
+  - Fallback to cursor position if icon coordinates unavailable
+  - Professional behavior matching Windows system applications
 
 ---
 
 ### Adicionado
-- **Integração de foco de painel tmux**: Escurece painéis tmux inativos dentro do Windows Terminal (via WSL) para foco aprimorado
-  - Funciona mesmo quando o Windows Terminal está em modo tela cheia
-  - Observação de arquivo orientada a eventos para resposta instantânea a trocas de painel (zero sobrecarga de polling)
-  - Detecção automática do Windows Terminal via correspondência de nome de processo
-  - Geometria de terminal configurável (tamanho de fonte, padding) para posicionamento preciso de overlay pixel a pixel
-  - Sistema de tradução de coordenadas caractere-para-pixel para tmux (colunas/linhas) → Windows (pixels)
-  - Integração perfeita com recursos existentes de escurecimento parcial e overlay ativo
-  - Configuração de hook tmux escreve limites de painel para arquivo compartilhado acessível do Windows
-  - Comandos CLI: `tmux-enable`, `tmux-disable`, `tmux-config`, `tmux-auto-config`, `tmux-status`
-  - Guia de configuração incluído na saída CLI com configuração tmux exata necessária
-  - Observador de arquivo independente para arquivo de painel tmux com limpeza automática ao sair
-  - Overlays automaticamente limpos ao alternar para fora do Windows Terminal ou ao desabilitar modo
-  - Arquitetura modular: `tmux_watcher` (análise), `tmux_overlay` (tradução de coordenadas), métodos overlay (renderização)
+- **Início automático no login**: Nova opção no menu da bandeja do sistema para iniciar automaticamente o SpotlightDimmer quando o Windows inicializa
+  - Item de menu com checkbox "Start at Login" no menu de contexto da bandeja do sistema
+  - Clicar alterna o início automático ligado/desligado via Registro do Windows (HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)
+  - Menu mostra marca de seleção quando o início automático está habilitado
+  - Funciona de forma confiável entre reinicializações do Windows e sessões de usuário
+  - Não requer privilégios de administrador - usa chave de registro por usuário
+  - Baseado no design comprovado da implementação Rust
 
-- **Detecção automática de geometria de terminal** (`tmux-auto-config`): Configuração tmux sem fricção com configuração inteligente
-  - Lê automaticamente settings.json do Windows Terminal para extrair configuração de fonte e padding
-  - Usa API Windows GDI (`GetTextMetrics`) para calcular dimensões exatas de fonte em pixels
-  - Suporta formatos de configuração legados (`fontSize`, `fontFace`) e modernos (`font.size`, `font.face`)
-  - Seleção opcional de perfil: lê de perfil específico ou seção padrões
-  - Flag `--dry-run` para visualizar configurações detectadas antes de aplicar
-  - Mostra comparação antes/depois com configuração atual
-  - Trata todos os formatos de padding: valor único, dois valores (horizontal/vertical), quatro valores (esquerda/topo/direita/baixo)
-  - Detecção inteligente: só salva se a configuração realmente mudou
-  - Mensagens de erro abrangentes com passos de solução de problemas
-  - Elimina medição manual de tamanho de fonte - calcula métricas precisas automaticamente
+- **Acessibilidade via teclado na bandeja do sistema**: Suporte completo de teclado para navegação do ícone da bandeja
+  - Pressione **Espaço** para alternar pausar/retomar (igual ao duplo clique)
+  - Pressione **Enter**, **tecla Apps**, ou **Shift+F10** para abrir o menu de contexto (igual ao clique direito)
+  - Mapeamento intuitivo de teclas: Espaço para alternância rápida, Enter para acesso ao menu
+  - Melhora a acessibilidade para usuários que usam apenas teclado
+  - Segue as diretrizes de acessibilidade do Windows para interações com a bandeja do sistema
+  - Usa `GetAsyncKeyState` para distinguir adequadamente entre as teclas Enter e Espaço
 
-- **Detecção inteligente de aba tmux** (`tmux-title-pattern`): Previne falsos positivos detectando a aba ativa do Windows Terminal
-  - Overlays aparecem apenas quando a aba ativa está realmente executando tmux (não apenas quando Windows Terminal está focado)
-  - Usa título da janela do Windows Terminal para detectar sessões tmux (detecção instantânea, <100ms)
-  - Funciona perfeitamente em modos janela e tela cheia (não requer visibilidade da UI)
-  - Correspondência de padrão configurável: personalize detecção para qualquer formato de título tmux
-  - Padrão padrão: "tmux" (corresponde ao formato de título tmux padrão)
-  - Configuração tmux recomendada: `set-option -g set-titles-string "tmux:#S/#W"`
-  - Comando CLI: `tmux-title-pattern <padrão>` para personalizar detecção
-  - Integrado na saída de `tmux-status` para visibilidade
-  - Zero sobrecarga de performance: usa título de janela já em cache do loop principal de monitoramento
-  - Limpeza automática de overlay ao alternar para abas não-tmux (resposta instantânea)
-  - Nenhuma dependência nova necessária: usa API Windows existente `GetWindowText`
+- **Posicionamento aprimorado do menu de contexto**: Menu agora aparece na localização do ícone da bandeja em vez da posição do cursor
+  - Usa `Shell_NotifyIconGetRect` para obter coordenadas exatas do ícone da bandeja
+  - Menu posicionado no centro-inferior do ícone da bandeja para consistência
+  - Cursor permanece no lugar (não é movido para o ícone da bandeja)
+  - Retorno à posição do cursor se as coordenadas do ícone não estiverem disponíveis
+  - Comportamento profissional correspondente aos aplicativos do sistema Windows
 
-## [0.7.2] - 2025-10-19
-### Fixed
-- **Winget validation DLL dependency error**: Fixed `STATUS_DLL_NOT_FOUND` (exit code -1073741515) error during Winget package validation
-  - Root cause: Binaries were dynamically linked to Visual C++ Runtime DLLs (vcruntime140.dll, msvcp140.dll) not present in Winget validation sandbox
-  - Solution: Enabled static linking of C runtime via `.cargo/config.toml` with `target-feature=+crt-static` flag
-  - Binaries now fully self-contained and work on any Windows 10+ system without requiring Visual C++ Redistributables
-  - Binary size impact: Minimal increase of ~196 KB total (720KB→818KB and 634KB→732KB, ~14% larger)
-  - Ensures Winget package validation succeeds and provides better portability for all distribution methods
-  - Technical reference: `.cargo/config.toml` contains rustflags configuration for x86_64-pc-windows-msvc target
+## [0.8.0-beta] - TBD
 
----
+### Changed
+- **Complete .NET 10 rewrite**: Migrated entire codebase from Rust to .NET 10 for improved event-driven architecture
+  - Replaced 50-200ms polling with 100% event-driven design using Windows event hooks
+  - EVENT_SYSTEM_FOREGROUND for instant focus detection (0ms latency)
+  - EVENT_OBJECT_LOCATIONCHANGE for real-time window movement tracking
+  - Zero CPU usage when idle - only activates on actual window changes
+  - Maintains all previous functionality while improving performance and responsiveness
+  - Native AOT compilation support for fast startup and reduced memory footprint
 
-### Corrigido
-- **Erro de dependência DLL na validação Winget**: Corrigido erro `STATUS_DLL_NOT_FOUND` (código de saída -1073741515) durante validação de pacote Winget
-  - Causa raiz: Binários estavam dinamicamente vinculados a DLLs do Visual C++ Runtime (vcruntime140.dll, msvcp140.dll) não presentes no sandbox de validação Winget
-  - Solução: Habilitada vinculação estática do runtime C via `.cargo/config.toml` com flag `target-feature=+crt-static`
-  - Binários agora totalmente autocontidos e funcionam em qualquer sistema Windows 10+ sem necessidade de Visual C++ Redistributables
-  - Impacto no tamanho binário: Aumento mínimo de ~196 KB total (720KB→818KB e 634KB→732KB, ~14% maior)
-  - Garante sucesso na validação de pacote Winget e proporciona melhor portabilidade para todos os métodos de distribuição
-  - Referência técnica: `.cargo/config.toml` contém configuração rustflags para target x86_64-pc-windows-msvc
+### Added
+- **Hot-reloadable JSON configuration**: Configuration changes now apply instantly without restart
+  - FileSystemWatcher detects config.json changes in real-time
+  - New JSON format replaces TOML for better tooling support
+  - Configuration file location: `%AppData%\SpotlightDimmer\config.json`
+  - Three dimming modes: FullScreen, Partial, and PartialWithActive
+  - Customizable colors and opacity for both active and inactive overlays
+  - See CONFIGURATION.md for detailed configuration options
 
-## [0.7.1] - 2025-10-18
+### Improved
+- **Zero-allocation hot path**: Eliminates memory allocations during window movement and focus changes
+  - Pre-allocated overlay windows (6 per display) created at startup
+  - In-place updates using CopyFrom() pattern instead of creating new objects
+  - Cached configuration and display info to avoid re-allocation on every event
+  - Batch window updates using DeferWindowPos for atomic operations
+  - GDI object monitoring in verbose mode to detect potential leaks
 
-### Fixed
-- **Winget manifest generation**: Fixed installer URL mismatch in automated Winget workflow
-  - Updated winget-publish.yml to use version-less installer filename `spotlight-dimmer-installer.exe`
-  - Previously expected versioned filename `spotlight-dimmer-v{version}-installer.exe` causing 404 errors
-  - Aligns with release.yml which creates stable, version-less filenames for predictable URLs
-  - Winget manifest generation now successfully downloads installer and calculates SHA256 hash
+- **Memory leak prevention**: Enhanced handle management to prevent resource leaks
+  - Proper DeferWindowPos handle cleanup even on failure
+  - Pre-allocated brushes for overlay colors (zero allocations during rendering)
+  - Comprehensive disposal pattern for all Windows resources
+
+- **Layered architecture**: Clear separation between platform-agnostic logic and Windows-specific code
+  - Core layer: Pure C# calculation logic with zero Windows dependencies
+  - WindowsBindings layer: Windows API integration using P/Invoke
+  - Enables easier testing and potential future cross-platform support
 
 ---
 
-### Corrigido
-- **Geração de manifesto Winget**: Corrigida incompatibilidade de URL do instalador no fluxo de trabalho automatizado do Winget
-  - Atualizado winget-publish.yml para usar nome de arquivo do instalador sem versão `spotlight-dimmer-installer.exe`
-  - Anteriormente esperava nome de arquivo versionado `spotlight-dimmer-v{version}-installer.exe` causando erros 404
-  - Alinha com release.yml que cria nomes de arquivos estáveis sem versão para URLs previsíveis
-  - Geração de manifesto Winget agora baixa o instalador com sucesso e calcula o hash SHA256
+### Alterado
+- **Reescrita completa em .NET 10**: Migrado toda a base de código de Rust para .NET 10 para arquitetura orientada a eventos aprimorada
+  - Substituído polling de 50-200ms por design 100% orientado a eventos usando event hooks do Windows
+  - EVENT_SYSTEM_FOREGROUND para detecção instantânea de foco (latência de 0ms)
+  - EVENT_OBJECT_LOCATIONCHANGE para rastreamento de movimento de janela em tempo real
+  - Zero uso de CPU quando ocioso - apenas ativa em mudanças reais de janela
+  - Mantém toda funcionalidade anterior enquanto melhora desempenho e responsividade
+  - Suporte a compilação Native AOT para inicialização rápida e redução de footprint de memória
 
-## [0.7.0] - 2025-10-16
+### Adicionado
+- **Configuração JSON hot-reload**: Mudanças de configuração agora aplicam instantaneamente sem reinício
+  - FileSystemWatcher detecta mudanças em config.json em tempo real
+  - Novo formato JSON substitui TOML para melhor suporte de ferramentas
+  - Localização do arquivo de configuração: `%AppData%\SpotlightDimmer\config.json`
+  - Três modos de escurecimento: FullScreen, Partial e PartialWithActive
+  - Cores e opacidade personalizáveis para sobreposições ativas e inativas
+  - Veja CONFIGURATION.md para opções detalhadas de configuração
+
+### Melhorado
+- **Hot path sem alocações**: Elimina alocações de memória durante movimento de janela e mudanças de foco
+  - Janelas de sobreposição pré-alocadas (6 por display) criadas na inicialização
+  - Atualizações in-place usando padrão CopyFrom() ao invés de criar novos objetos
+  - Configuração e informações de display cacheadas para evitar re-alocação a cada evento
+  - Atualizações de janela em lote usando DeferWindowPos para operações atômicas
+  - Monitoramento de objetos GDI em modo verbose para detectar vazamentos potenciais
+
+- **Prevenção de vazamento de memória**: Gerenciamento aprimorado de handles para prevenir vazamentos de recursos
+  - Limpeza adequada de handle DeferWindowPos mesmo em caso de falha
+  - Brushes pré-alocados para cores de sobreposição (zero alocações durante renderização)
+  - Padrão abrangente de disposição para todos recursos do Windows
+
+- **Arquitetura em camadas**: Separação clara entre lógica agnóstica de plataforma e código específico do Windows
+  - Camada Core: Lógica de cálculo C# pura sem dependências do Windows
+  - Camada WindowsBindings: Integração com Windows API usando P/Invoke
+  - Possibilita testes mais fáceis e potencial suporte cross-platform futuro
 
 ## [0.6.8] - 2025-10-16
 
