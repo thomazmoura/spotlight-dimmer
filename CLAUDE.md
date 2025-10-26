@@ -219,3 +219,12 @@ Understanding these APIs is essential for working with the WindowsBindings layer
 - Always dispose IDisposable resources in finally blocks
 - Use XML doc comments (`///`) for all public APIs
 - Keep Core layer pure - no Windows dependencies
+
+## Git Commit Messages
+
+**IMPORTANT**: Do NOT include any references to Claude, Claude Code, AI tools, or co-authorship attributions in git commit messages.
+
+- Write clear, descriptive commit messages focused on the changes made
+- Use conventional commit format when appropriate (e.g., "Fix:", "Add:", "Update:")
+- Keep commit messages professional and technical
+- No footer lines like "Generated with Claude Code" or "Co-Authored-By: Claude"
