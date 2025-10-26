@@ -4,9 +4,11 @@
       "WebSearch",
       "Bash(dotnet new:*)",
       "Bash(dotnet:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(gh run:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "outputStyle": "Explanatory"
 }
