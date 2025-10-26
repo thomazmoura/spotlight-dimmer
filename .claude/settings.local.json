@@ -3,7 +3,8 @@
     "allow": [
       "WebSearch",
       "Bash(dotnet new:*)",
-      "Bash(dotnet:*)"
+      "Bash(dotnet:*)",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []

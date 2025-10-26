@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.8.0-beta</Version>
+    <AssemblyVersion>0.8.0</AssemblyVersion>
+    <FileVersion>0.8.0</FileVersion>
+    <InformationalVersion>0.8.0-beta</InformationalVersion>
+
+    <!-- Common metadata -->
+    <Authors>Thomaz Moura</Authors>
+    <Company>Thomaz Moura</Company>
+    <Product>SpotlightDimmer</Product>
+    <Copyright>Copyright © Thomaz Moura</Copyright>
+    <Description>A lightweight Windows application that dims inactive displays to highlight the active one. Built with .NET and Windows API for maximum performance.</Description>
+    <PackageProjectUrl>https://github.com/thomazmoura/spotlight-dimmer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/thomazmoura/spotlight-dimmer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+</Project>

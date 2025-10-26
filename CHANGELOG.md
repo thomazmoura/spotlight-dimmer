@@ -57,6 +57,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Retorno à posição do cursor se as coordenadas do ícone não estiverem disponíveis
   - Comportamento profissional correspondente aos aplicativos do sistema Windows
 
+## [0.8.0-beta] - TBD
+
+### Changed
+- **Complete .NET 10 rewrite**: Migrated entire codebase from Rust to .NET 10 for improved event-driven architecture
+  - Replaced 50-200ms polling with 100% event-driven design using Windows event hooks
+  - EVENT_SYSTEM_FOREGROUND for instant focus detection (0ms latency)
+  - EVENT_OBJECT_LOCATIONCHANGE for real-time window movement tracking
+  - Zero CPU usage when idle - only activates on actual window changes
+  - Maintains all previous functionality while improving performance and responsiveness
+  - Native AOT compilation support for fast startup and reduced memory footprint
+
+### Added
+- **Hot-reloadable JSON configuration**: Configuration changes now apply instantly without restart
+  - FileSystemWatcher detects config.json changes in real-time
+  - New JSON format replaces TOML for better tooling support
+  - Configuration file location: `%AppData%\SpotlightDimmer\config.json`
+  - Three dimming modes: FullScreen, Partial, and PartialWithActive
+  - Customizable colors and opacity for both active and inactive overlays
+  - See CONFIGURATION.md for detailed configuration options
+
+### Improved
+- **Zero-allocation hot path**: Eliminates memory allocations during window movement and focus changes
+  - Pre-allocated overlay windows (6 per display) created at startup
+  - In-place updates using CopyFrom() pattern instead of creating new objects
+  - Cached configuration and display info to avoid re-allocation on every event
+  - Batch window updates using DeferWindowPos for atomic operations
+  - GDI object monitoring in verbose mode to detect potential leaks
+
+- **Memory leak prevention**: Enhanced handle management to prevent resource leaks
+  - Proper DeferWindowPos handle cleanup even on failure
+  - Pre-allocated brushes for overlay colors (zero allocations during rendering)
+  - Comprehensive disposal pattern for all Windows resources
+
+- **Layered architecture**: Clear separation between platform-agnostic logic and Windows-specific code
+  - Core layer: Pure C# calculation logic with zero Windows dependencies
+  - WindowsBindings layer: Windows API integration using P/Invoke
+  - Enables easier testing and potential future cross-platform support
+
+---
+
+### Alterado
+- **Reescrita completa em .NET 10**: Migrado toda a base de código de Rust para .NET 10 para arquitetura orientada a eventos aprimorada
+  - Substituído polling de 50-200ms por design 100% orientado a eventos usando event hooks do Windows
+  - EVENT_SYSTEM_FOREGROUND para detecção instantânea de foco (latência de 0ms)
+  - EVENT_OBJECT_LOCATIONCHANGE para rastreamento de movimento de janela em tempo real
+  - Zero uso de CPU quando ocioso - apenas ativa em mudanças reais de janela
+  - Mantém toda funcionalidade anterior enquanto melhora desempenho e responsividade
+  - Suporte a compilação Native AOT para inicialização rápida e redução de footprint de memória
+
+### Adicionado
+- **Configuração JSON hot-reload**: Mudanças de configuração agora aplicam instantaneamente sem reinício
+  - FileSystemWatcher detecta mudanças em config.json em tempo real
+  - Novo formato JSON substitui TOML para melhor suporte de ferramentas
+  - Localização do arquivo de configuração: `%AppData%\SpotlightDimmer\config.json`
+  - Três modos de escurecimento: FullScreen, Partial e PartialWithActive
+  - Cores e opacidade personalizáveis para sobreposições ativas e inativas
+  - Veja CONFIGURATION.md para opções detalhadas de configuração
+
+### Melhorado
+- **Hot path sem alocações**: Elimina alocações de memória durante movimento de janela e mudanças de foco
+  - Janelas de sobreposição pré-alocadas (6 por display) criadas na inicialização
+  - Atualizações in-place usando padrão CopyFrom() ao invés de criar novos objetos
+  - Configuração e informações de display cacheadas para evitar re-alocação a cada evento
+  - Atualizações de janela em lote usando DeferWindowPos para operações atômicas
+  - Monitoramento de objetos GDI em modo verbose para detectar vazamentos potenciais
+
+- **Prevenção de vazamento de memória**: Gerenciamento aprimorado de handles para prevenir vazamentos de recursos
+  - Limpeza adequada de handle DeferWindowPos mesmo em caso de falha
+  - Brushes pré-alocados para cores de sobreposição (zero alocações durante renderização)
+  - Padrão abrangente de disposição para todos recursos do Windows
+
+- **Arquitetura em camadas**: Separação clara entre lógica agnóstica de plataforma e código específico do Windows
+  - Camada Core: Lógica de cálculo C# pura sem dependências do Windows
+  - Camada WindowsBindings: Integração com Windows API usando P/Invoke
+  - Possibilita testes mais fáceis e potencial suporte cross-platform futuro
+
 ## [0.6.8] - 2025-10-16
 
 ## [0.5.6] - 2025-10-14
