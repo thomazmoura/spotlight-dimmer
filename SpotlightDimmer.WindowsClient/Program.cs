@@ -42,8 +42,8 @@ if (verboseLogging)
 
 // System Tray
 var systemTray = new SystemTrayManager(
-    "spotlight-dimmer-icon.ico",
-    "spotlight-dimmer-icon-paused.ico",
+    Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon.ico"),
+    Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon-paused.ico"),
     configManager.Current);
 
 var monitorManager = new MonitorManager();
