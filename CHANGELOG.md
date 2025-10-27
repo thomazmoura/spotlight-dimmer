@@ -31,13 +31,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback to cursor position if icon coordinates unavailable
   - Professional behavior matching Windows system applications
 
+- **Diagnostics submenu in system tray**: New diagnostics tools for troubleshooting and log management
+  - "View Logs Folder" - Opens the logs directory in Windows Explorer
+  - "View Latest Log" - Opens the most recent log file in Notepad (with smart validation)
+  - "Enable Logging" - Toggle checkbox to enable/disable logging on the fly
+  - Logs stored in `%AppData%\SpotlightDimmer\logs\` with daily rotation
+  - Intelligent error handling: shows message box if logging disabled and no logs exist
+
+### Changed
+- **File-based logging system replaces console output**: Professional structured logging with Serilog
+  - Logs written to `%AppData%\SpotlightDimmer\logs\spotlight-YYYY-MM-DD.log`
+  - Configurable log levels: Error, Information, Debug (default: Information)
+  - Automatic daily log rotation with configurable retention (default: 7 days)
+  - Hot-reload support - logging changes apply immediately without restart
+  - Zero console window - application runs silently when launched from GUI
+  - All console output migrated to structured logging with context-aware log levels
+  - Configuration properties: `EnableLogging` (bool), `LogLevel` (string), `LogRetentionDays` (int)
+
 ### Fixed
-- **Console window no longer appears when launched from Start Menu**: Application now runs silently when launched from GUI
-  - Changed output type from console to Windows application
-  - Console output only appears when launched from a terminal or command prompt
-  - When launched from Start Menu, shortcuts, or auto-start, runs silently with system tray as the only UI
-  - Uses conditional console attachment (`AttachConsole`) to detect launch context
-  - Provides clean user experience for GUI launches while maintaining debugging capabilities for terminal launches
+- **Application now runs without console window**: Changed from console to Windows subsystem
+  - No console window appears when launched from Start Menu, shortcuts, or auto-start
+  - Silent operation with system tray as the only visible UI component
+  - Professional user experience matching modern Windows applications
 
 ---
 
@@ -65,13 +80,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Retorno à posição do cursor se as coordenadas do ícone não estiverem disponíveis
   - Comportamento profissional correspondente aos aplicativos do sistema Windows
 
+- **Submenu de Diagnósticos na bandeja do sistema**: Novas ferramentas de diagnóstico para solução de problemas e gerenciamento de logs
+  - "View Logs Folder" - Abre o diretório de logs no Windows Explorer
+  - "View Latest Log" - Abre o arquivo de log mais recente no Notepad (com validação inteligente)
+  - "Enable Logging" - Checkbox de alternância para habilitar/desabilitar logging instantaneamente
+  - Logs armazenados em `%AppData%\SpotlightDimmer\logs\` com rotação diária
+  - Tratamento inteligente de erros: mostra caixa de mensagem se logging desabilitado e não há logs existentes
+
+### Alterado
+- **Sistema de logging baseado em arquivos substitui saída de console**: Logging estruturado profissional com Serilog
+  - Logs escritos em `%AppData%\SpotlightDimmer\logs\spotlight-YYYY-MM-DD.log`
+  - Níveis de log configuráveis: Error, Information, Debug (padrão: Information)
+  - Rotação automática diária de logs com retenção configurável (padrão: 7 dias)
+  - Suporte a hot-reload - mudanças de logging aplicadas imediatamente sem reiniciar
+  - Zero janela de console - aplicação executa silenciosamente quando iniciada da GUI
+  - Toda saída de console migrada para logging estruturado com níveis de log conscientes do contexto
+  - Propriedades de configuração: `EnableLogging` (bool), `LogLevel` (string), `LogRetentionDays` (int)
+
 ### Corrigido
-- **Janela de console não aparece mais quando iniciado do Menu Iniciar**: Aplicação agora executa silenciosamente quando iniciada da GUI
-  - Alterado tipo de saída de console para aplicação Windows
-  - Saída do console só aparece quando iniciado de um terminal ou prompt de comando
-  - Quando iniciado do Menu Iniciar, atalhos, ou início automático, executa silenciosamente com a bandeja do sistema como única interface
-  - Usa conexão condicional ao console (`AttachConsole`) para detectar o contexto de inicialização
-  - Proporciona experiência limpa ao usuário para inicializações via GUI mantendo capacidades de depuração para inicializações via terminal
+- **Aplicação agora executa sem janela de console**: Alterado de subsistema console para Windows
+  - Nenhuma janela de console aparece quando iniciado do Menu Iniciar, atalhos, ou início automático
+  - Operação silenciosa com a bandeja do sistema como único componente de interface visível
+  - Experiência de usuário profissional correspondente a aplicações Windows modernas
 
 ## [0.8.0-beta] - TBD
 

@@ -308,26 +308,18 @@ internal static partial class WinApi
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
 
+    // MessageBox constants
+    public const uint MB_OK = 0x00000000;
+    public const uint MB_ICONINFORMATION = 0x00000040;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+
     [LibraryImport("kernel32.dll")]
     public static partial uint GetCurrentThreadId();
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial IntPtr GetModuleHandle(string? lpModuleName);
-
-    // Console attachment constants
-    public const uint ATTACH_PARENT_PROCESS = unchecked((uint)-1);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool AttachConsole(uint dwProcessId);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool AllocConsole();
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool FreeConsole();
 
     [LibraryImport("user32.dll", EntryPoint = "LoadCursorW")]
     public static partial IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);

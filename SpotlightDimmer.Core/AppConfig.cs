@@ -42,10 +42,22 @@ public class Profile
 public class SystemConfig
 {
     /// <summary>
-    /// Enable verbose logging for debugging purposes.
-    /// Default: false
+    /// Enable file-based logging.
+    /// Default: true
     /// </summary>
-    public bool VerboseLoggingEnabled { get; set; } = false;
+    public bool EnableLogging { get; set; } = true;
+
+    /// <summary>
+    /// Log level for file output: "Error", "Information", or "Debug".
+    /// Default: "Information"
+    /// </summary>
+    public string LogLevel { get; set; } = "Information";
+
+    /// <summary>
+    /// Number of days to retain log files. Older logs are automatically deleted.
+    /// Default: 7
+    /// </summary>
+    public int LogRetentionDays { get; set; } = 7;
 }
 
 /// <summary>

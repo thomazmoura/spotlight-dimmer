@@ -18,6 +18,9 @@ internal class SystemTrayManager : IDisposable
     private const uint MENU_QUIT = 1003;
     private const uint MENU_OPEN_CONFIG_APP = 1004;
     private const uint MENU_OPEN_CONFIG_FILE = 1005;
+    private const uint MENU_VIEW_LOGS_FOLDER = 1006;
+    private const uint MENU_VIEW_LATEST_LOG = 1007;
+    private const uint MENU_ENABLE_LOGGING = 1008;
 
     // Profile menu IDs (2000-2999)
     private const uint MENU_PROFILE_START = 2000;
@@ -40,6 +43,9 @@ internal class SystemTrayManager : IDisposable
     public event Action<string>? ProfileSelected;
     public event Action? OpenConfigAppRequested;
     public event Action? OpenConfigFileRequested;
+    public event Action? ViewLogsFolderRequested;
+    public event Action? ViewLatestLogRequested;
+    public event Action<bool>? LoggingToggled;
 
     public bool IsPaused => _isPaused;
 
@@ -95,14 +101,7 @@ internal class SystemTrayManager : IDisposable
         bool isEnabled = AutoStartManager.IsEnabled();
         bool success = isEnabled ? AutoStartManager.Disable() : AutoStartManager.Enable();
 
-        if (success)
-        {
-            Console.WriteLine($"[System Tray] Auto-start {(isEnabled ? "disabled" : "enabled")}");
-        }
-        else
-        {
-            Console.WriteLine("[System Tray] Failed to toggle auto-start");
-        }
+        // Note: Success/failure is silent - user can verify via menu checkbox state
     }
 
     private void RegisterWindowClass()
@@ -300,6 +299,25 @@ internal class SystemTrayManager : IDisposable
             uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
             WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
 
+            WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+
+            // Add Diagnostics submenu
+            var hDiagnosticsMenu = WinApi.CreatePopupMenu();
+            if (hDiagnosticsMenu != IntPtr.Zero)
+            {
+                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_STRING, MENU_VIEW_LOGS_FOLDER, "View Logs Folder");
+                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_STRING, MENU_VIEW_LATEST_LOG, "View Latest Log");
+                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+
+                // Add "Enable Logging" checkbox
+                bool isLoggingEnabled = _currentConfig.System.EnableLogging;
+                uint loggingFlags = WinApi.MF_STRING | (isLoggingEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
+                WinApi.AppendMenu(hDiagnosticsMenu, loggingFlags, MENU_ENABLE_LOGGING, "Enable Logging");
+
+                // Add Diagnostics submenu to main menu
+                WinApi.AppendMenu(hMenu, WinApi.MF_POPUP, (uint)hDiagnosticsMenu, "Diagnostics");
+            }
+
             // Add config menu items
             var appDirectory = AppContext.BaseDirectory;
             var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
@@ -344,6 +362,20 @@ internal class SystemTrayManager : IDisposable
             else if (cmd == MENU_OPEN_CONFIG_FILE)
             {
                 OpenConfigFileRequested?.Invoke();
+            }
+            else if (cmd == MENU_VIEW_LOGS_FOLDER)
+            {
+                ViewLogsFolderRequested?.Invoke();
+            }
+            else if (cmd == MENU_VIEW_LATEST_LOG)
+            {
+                ViewLatestLogRequested?.Invoke();
+            }
+            else if (cmd == MENU_ENABLE_LOGGING)
+            {
+                // Toggle logging state
+                bool newLoggingState = !_currentConfig.System.EnableLogging;
+                LoggingToggled?.Invoke(newLoggingState);
             }
             else if (cmd >= MENU_PROFILE_START && cmd <= MENU_PROFILE_END)
             {

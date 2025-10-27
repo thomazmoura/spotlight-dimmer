@@ -88,7 +88,7 @@ public class ConfigurationManager : IDisposable
         _watcher.Changed += OnConfigFileChanged;
         _watcher.Created += OnConfigFileChanged;
 
-        if (_currentConfig.System.VerboseLoggingEnabled)
+        if (_currentConfig.System.EnableLogging && _currentConfig.System.LogLevel == "Debug")
         {
             Console.WriteLine($"Watching config file: {_configFilePath}");
         }
@@ -129,7 +129,7 @@ public class ConfigurationManager : IDisposable
                 return AppConfig.Default;
             }
 
-            if (config.System.VerboseLoggingEnabled)
+            if (config.System.EnableLogging && config.System.LogLevel == "Debug")
             {
                 Console.WriteLine($"Loaded configuration from: {_configFilePath}");
             }
@@ -153,7 +153,7 @@ public class ConfigurationManager : IDisposable
             var json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
             File.WriteAllText(_configFilePath, json);
 
-            if (config.System.VerboseLoggingEnabled)
+            if (config.System.EnableLogging && config.System.LogLevel == "Debug")
             {
                 Console.WriteLine($"Saved configuration to: {_configFilePath}");
             }
@@ -228,8 +228,8 @@ public class ConfigurationManager : IDisposable
                 _currentConfig = newConfig;
             }
 
-            // Only log configuration details if verbose logging is enabled
-            if (newConfig.System.VerboseLoggingEnabled)
+            // Only log configuration details if debug logging is enabled
+            if (newConfig.System.EnableLogging && newConfig.System.LogLevel == "Debug")
             {
                 Console.WriteLine($"\n[Config] Configuration reloaded from file");
                 Console.WriteLine($"[Config]   Mode: {newConfig.Overlay.Mode}");

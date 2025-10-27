@@ -155,19 +155,76 @@ partial class ConfigForm
             AutoSize = true
         };
 
-        // Verbose Logging Section
-        verboseLoggingCheckBox = new CheckBox
+        // Logging Section
+        var loggingGroupBox = new GroupBox
         {
-            Text = "Verbose Logging",
-            Location = new Point(20, 365),
+            Text = "Logging",
+            Location = new Point(20, 360),
+            Size = new Size(440, 140)
+        };
+
+        enableLoggingCheckBox = new CheckBox
+        {
+            Text = "Enable Logging",
+            Location = new Point(10, 25),
             Size = new Size(150, 24),
             AutoSize = true
         };
-        verboseLoggingCheckBox.CheckedChanged += OnVerboseLoggingChanged;
+        enableLoggingCheckBox.CheckedChanged += OnEnableLoggingChanged;
+
+        var logLevelLabel = new Label
+        {
+            Text = "Log Level:",
+            Location = new Point(10, 55),
+            Size = new Size(80, 23),
+            AutoSize = true
+        };
+
+        logLevelComboBox = new ComboBox
+        {
+            Location = new Point(100, 52),
+            Size = new Size(120, 28),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        logLevelComboBox.Items.AddRange(new object[] { "Error", "Information", "Debug" });
+        logLevelComboBox.SelectedIndexChanged += OnLogLevelChanged;
+
+        var retentionLabel = new Label
+        {
+            Text = "Retention (days):",
+            Location = new Point(10, 90),
+            Size = new Size(120, 23),
+            AutoSize = true
+        };
+
+        logRetentionDaysNumericUpDown = new NumericUpDown
+        {
+            Location = new Point(135, 87),
+            Size = new Size(85, 27),
+            Minimum = 1,
+            Maximum = 365,
+            Value = 7
+        };
+        logRetentionDaysNumericUpDown.ValueChanged += OnLogRetentionDaysChanged;
+
+        openLogsFolderButton = new Button
+        {
+            Text = "Open Logs Folder",
+            Location = new Point(240, 52),
+            Size = new Size(130, 28)
+        };
+        openLogsFolderButton.Click += OnOpenLogsFolderClicked;
+
+        loggingGroupBox.Controls.Add(enableLoggingCheckBox);
+        loggingGroupBox.Controls.Add(logLevelLabel);
+        loggingGroupBox.Controls.Add(logLevelComboBox);
+        loggingGroupBox.Controls.Add(retentionLabel);
+        loggingGroupBox.Controls.Add(logRetentionDaysNumericUpDown);
+        loggingGroupBox.Controls.Add(openLogsFolderButton);
 
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(480, 410);
+        ClientSize = new Size(480, 520);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -191,7 +248,7 @@ partial class ConfigForm
         Controls.Add(activeOpacityLabel);
         Controls.Add(activeOpacityTrackBar);
         Controls.Add(activeOpacityValueLabel);
-        Controls.Add(verboseLoggingCheckBox);
+        Controls.Add(loggingGroupBox);
     }
 
     #endregion
@@ -206,5 +263,8 @@ partial class ConfigForm
     private Panel activeColorPanel = null!;
     private TrackBar activeOpacityTrackBar = null!;
     private Label activeOpacityValueLabel = null!;
-    private CheckBox verboseLoggingCheckBox = null!;
+    private CheckBox enableLoggingCheckBox = null!;
+    private ComboBox logLevelComboBox = null!;
+    private NumericUpDown logRetentionDaysNumericUpDown = null!;
+    private Button openLogsFolderButton = null!;
 }

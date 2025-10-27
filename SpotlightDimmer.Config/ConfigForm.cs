@@ -64,8 +64,10 @@ public partial class ConfigForm : Form
             activeOpacityTrackBar.Value = config.Overlay.ActiveOpacity;
             activeOpacityValueLabel.Text = config.Overlay.ActiveOpacity.ToString();
 
-            // Set verbose logging
-            verboseLoggingCheckBox.Checked = config.System.VerboseLoggingEnabled;
+            // Set logging configuration
+            enableLoggingCheckBox.Checked = config.System.EnableLogging;
+            logLevelComboBox.SelectedItem = config.System.LogLevel;
+            logRetentionDaysNumericUpDown.Value = config.System.LogRetentionDays;
         }
         finally
         {
@@ -223,13 +225,60 @@ public partial class ConfigForm : Form
         }
     }
 
-    private void OnVerboseLoggingChanged(object? sender, EventArgs e)
+    private void OnEnableLoggingChanged(object? sender, EventArgs e)
     {
         if (!_isLoading)
         {
             var config = _configManager.Current;
-            config.System.VerboseLoggingEnabled = verboseLoggingCheckBox.Checked;
+            config.System.EnableLogging = enableLoggingCheckBox.Checked;
             SaveConfiguration();
+        }
+    }
+
+    private void OnLogLevelChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            var config = _configManager.Current;
+            config.System.LogLevel = logLevelComboBox.SelectedItem?.ToString() ?? "Information";
+            SaveConfiguration();
+        }
+    }
+
+    private void OnLogRetentionDaysChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            var config = _configManager.Current;
+            config.System.LogRetentionDays = (int)logRetentionDaysNumericUpDown.Value;
+            SaveConfiguration();
+        }
+    }
+
+    private void OnOpenLogsFolderClicked(object? sender, EventArgs e)
+    {
+        try
+        {
+            var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var logsDir = Path.Combine(appDataPath, "SpotlightDimmer", "logs");
+
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(logsDir))
+            {
+                Directory.CreateDirectory(logsDir);
+            }
+
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = logsDir,
+                UseShellExecute = true
+            };
+
+            System.Diagnostics.Process.Start(processStartInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to open logs folder: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

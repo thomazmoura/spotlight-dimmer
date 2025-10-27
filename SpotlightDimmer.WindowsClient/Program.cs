@@ -1,48 +1,30 @@
+using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
-// Conditionally attach to console only when launched from terminal
-// This prevents showing console window when launched from Start Menu or shortcuts
-if (!WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS))
-{
-    // Not launched from a terminal - running in GUI mode (Start Menu, etc.)
-    // Console output will be discarded silently
-}
+// ========================================================================
+// Logging Initialization
+// ========================================================================
 
-Console.WriteLine("SpotlightDimmer .NET");
-Console.WriteLine("===============================================");
-Console.WriteLine("Core: Pure overlay calculation logic");
-Console.WriteLine("WindowsBindings: Windows-specific rendering");
-Console.WriteLine("\nPress Ctrl+C to exit\n");
+// Configuration: Load from file with hot-reload support (load first to get logging settings)
+var configManager = new ConfigurationManager();
 
-// Set up graceful shutdown
-using var cts = new CancellationTokenSource();
-var mainThreadId = WinApi.GetCurrentThreadId();
+// Initialize file-based logging system
+var loggerFactory = LoggingConfiguration.Initialize(configManager.Current);
+var logger = loggerFactory.CreateLogger<Program>();
 
-Console.CancelKeyPress += (sender, e) =>
-{
-    e.Cancel = true;
-    cts.Cancel();
-    Console.WriteLine("\nShutting down...");
-
-    // Post a quit message to the main thread's message queue
-    // This immediately unblocks GetMessage() which runs on the main thread
-    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
-};
+logger.LogInformation("SpotlightDimmer starting...");
+logger.LogInformation("Logs directory: {LogsDirectory}", LoggingConfiguration.GetLogsDirectory());
 
 // ========================================================================
 // Core Layer - Pure calculation logic
 // ========================================================================
 
-// Configuration: Load from file with hot-reload support (load first to get settings)
-var configManager = new ConfigurationManager();
 var config = configManager.Current.ToOverlayConfig();
-bool verboseLogging = configManager.Current.System.VerboseLoggingEnabled;
 
-if (verboseLogging)
-{
-    Console.WriteLine("Verbose logging: ENABLED\n");
-}
+// Set up graceful shutdown
+using var cts = new CancellationTokenSource();
+var mainThreadId = WinApi.GetCurrentThreadId();
 
 // ========================================================================
 // WindowsBindings Layer - Platform-specific components
@@ -58,14 +40,16 @@ var monitorManager = new MonitorManager();
 
 if (monitorManager.Monitors.Count == 0)
 {
-    Console.WriteLine("No monitors detected. Exiting.");
+    logger.LogError("No monitors detected. Exiting");
     return 1;
 }
 
-var focusTracker = new FocusTracker(monitorManager, verboseLogging);
+logger.LogInformation("Detected {Count} monitor(s)", monitorManager.Monitors.Count);
+
+var focusTracker = new FocusTracker(monitorManager, configManager.Current.System.LogLevel == "Debug");
 var renderer = new OverlayRenderer();
 var displayChangeMonitor = new DisplayChangeMonitor();
-Console.WriteLine("[Init] Display change monitor created - listening for layout changes");
+logger.LogInformation("Display change monitor initialized");
 
 // Create app state with pre-allocated overlay definitions
 var displays = monitorManager.GetDisplayInfo();
@@ -75,11 +59,13 @@ var appState = new AppState(displays);
 // Pre-allocate brushes for configured colors - zero allocations during updates
 renderer.CreateOverlays(displays, config);
 
-Console.WriteLine($"\nOverlay Configuration:");
-Console.WriteLine($"  Config file: {ConfigurationManager.GetDefaultConfigPath()}");
-Console.WriteLine($"  Mode: {config.Mode}");
-Console.WriteLine($"  Inactive: {config.InactiveColor.R},{config.InactiveColor.G},{config.InactiveColor.B} @ {config.InactiveOpacity}/255 opacity");
-Console.WriteLine($"  Active: {config.ActiveColor.R},{config.ActiveColor.G},{config.ActiveColor.B} @ {config.ActiveOpacity}/255 opacity");
+logger.LogInformation("Overlay configuration loaded");
+logger.LogInformation("  Config file: {ConfigPath}", ConfigurationManager.GetDefaultConfigPath());
+logger.LogInformation("  Mode: {Mode}", config.Mode);
+logger.LogInformation("  Inactive: #{R:X2}{G:X2}{B:X2} @ {Opacity}/255 opacity",
+    config.InactiveColor.R, config.InactiveColor.G, config.InactiveColor.B, config.InactiveOpacity);
+logger.LogInformation("  Active: #{R:X2}{G:X2}{B:X2} @ {Opacity}/255 opacity",
+    config.ActiveColor.R, config.ActiveColor.G, config.ActiveColor.B, config.ActiveOpacity);
 
 // ========================================================================
 // Wire Core and WindowsBindings together
@@ -115,12 +101,12 @@ systemTray.PauseStateChanged += (isPaused) =>
 {
     if (isPaused)
     {
-        Console.WriteLine("\n[Paused] Overlays hidden. Double-click tray icon or use context menu to resume.");
+        logger.LogInformation("Paused - overlays hidden");
         renderer.HideAllOverlays();
     }
     else
     {
-        Console.WriteLine("\n[Resumed] Overlays active.");
+        logger.LogInformation("Resumed - overlays active");
         // Trigger an update to show overlays again
         if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
         {
@@ -132,7 +118,7 @@ systemTray.PauseStateChanged += (isPaused) =>
 // Handle quit from system tray
 systemTray.QuitRequested += () =>
 {
-    Console.WriteLine("\n[System Tray] Quit requested. Shutting down...");
+    logger.LogInformation("Quit requested from system tray");
     cts.Cancel();
     WinApi.PostThreadMessage(mainThreadId, WinApi.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 };
@@ -140,7 +126,7 @@ systemTray.QuitRequested += () =>
 // Handle profile selection from system tray
 systemTray.ProfileSelected += (profileName) =>
 {
-    Console.WriteLine($"\n[Profile] Applying profile: {profileName}");
+    logger.LogInformation("Applying profile: {ProfileName}", profileName);
 
     // Get current config
     var currentConfig = configManager.Current;
@@ -166,11 +152,11 @@ systemTray.ProfileSelected += (profileName) =>
             UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
         }
 
-        Console.WriteLine($"[Profile] Profile '{profileName}' applied successfully");
+        logger.LogInformation("Profile '{ProfileName}' applied successfully", profileName);
     }
     else
     {
-        Console.WriteLine($"[Profile] Failed to apply profile: {profileName}");
+        logger.LogError("Failed to apply profile: {ProfileName}", profileName);
     }
 };
 
@@ -182,7 +168,7 @@ systemTray.OpenConfigAppRequested += () =>
         var appDirectory = AppContext.BaseDirectory;
         var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
 
-        Console.WriteLine($"\n[Config] Launching config app: {configAppPath}");
+        logger.LogInformation("Launching config app: {ConfigAppPath}", configAppPath);
 
         var processStartInfo = new System.Diagnostics.ProcessStartInfo
         {
@@ -195,7 +181,7 @@ systemTray.OpenConfigAppRequested += () =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[Config] Failed to launch config app: {ex.Message}");
+        logger.LogError(ex, "Failed to launch config app");
     }
 };
 
@@ -205,7 +191,7 @@ systemTray.OpenConfigFileRequested += () =>
     try
     {
         var configPath = ConfigurationManager.GetDefaultConfigPath();
-        Console.WriteLine($"\n[Config] Opening config file: {configPath}");
+        logger.LogInformation("Opening config file: {ConfigPath}", configPath);
 
         var processStartInfo = new System.Diagnostics.ProcessStartInfo
         {
@@ -217,8 +203,94 @@ systemTray.OpenConfigFileRequested += () =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[Config] Failed to open config file: {ex.Message}");
+        logger.LogError(ex, "Failed to open config file");
     }
+};
+
+// Handle view logs folder request from system tray
+systemTray.ViewLogsFolderRequested += () =>
+{
+    try
+    {
+        var logsDir = LoggingConfiguration.GetLogsDirectory();
+        logger.LogInformation("Opening logs folder: {LogsDirectory}", logsDir);
+
+        // Create directory if it doesn't exist
+        if (!Directory.Exists(logsDir))
+        {
+            Directory.CreateDirectory(logsDir);
+        }
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = logsDir,
+            UseShellExecute = true
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to open logs folder");
+    }
+};
+
+// Handle view latest log request from system tray
+systemTray.ViewLatestLogRequested += () =>
+{
+    try
+    {
+        // Check if logging is disabled and no logs exist
+        if (!configManager.Current.System.EnableLogging && !LoggingConfiguration.DoLogFilesExist())
+        {
+            logger.LogWarning("View latest log requested but logging is disabled and no logs exist");
+            WinApi.MessageBox(IntPtr.Zero,
+                "Logging is currently disabled and no log files exist.\n\nEnable logging from the Diagnostics menu to start logging.",
+                "No Logs Available",
+                WinApi.MB_OK | WinApi.MB_ICONINFORMATION);
+            return;
+        }
+
+        var latestLogFile = LoggingConfiguration.GetMostRecentLogFile();
+        if (latestLogFile == null)
+        {
+            logger.LogWarning("No log files found");
+            WinApi.MessageBox(IntPtr.Zero,
+                "No log files found.",
+                "No Logs Available",
+                WinApi.MB_OK | WinApi.MB_ICONINFORMATION);
+            return;
+        }
+
+        logger.LogInformation("Opening latest log file: {LogFile}", latestLogFile);
+
+        var processStartInfo = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = latestLogFile,
+            UseShellExecute = true
+        };
+
+        System.Diagnostics.Process.Start(processStartInfo);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to open latest log file");
+    }
+};
+
+// Handle logging toggle from system tray
+systemTray.LoggingToggled += (enableLogging) =>
+{
+    logger.LogInformation("Logging {State} via system tray", enableLogging ? "enabled" : "disabled");
+
+    // Get current config
+    var currentConfig = configManager.Current;
+    currentConfig.System.EnableLogging = enableLogging;
+
+    // Save the updated configuration
+    configManager.SaveConfiguration(currentConfig);
+
+    // Logging reconfiguration will happen automatically via ConfigurationChanged event
 };
 
 // ========================================================================
@@ -231,8 +303,8 @@ configManager.ConfigurationChanged += (newAppConfig) =>
     // Update cached config when configuration changes
     cachedConfig = newAppConfig.ToOverlayConfig();
 
-    // Update verbose logging setting
-    verboseLogging = newAppConfig.System.VerboseLoggingEnabled;
+    // Reconfigure logging if logging settings changed
+    LoggingConfiguration.Reconfigure(newAppConfig);
 
     // Update system tray with new config (refreshes profile list)
     systemTray.UpdateConfig(newAppConfig);
@@ -246,16 +318,13 @@ configManager.ConfigurationChanged += (newAppConfig) =>
         UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
     }
 
-    Console.WriteLine("[Config] Overlays updated with new configuration\n");
+    logger.LogInformation("Configuration reloaded - overlays updated");
 };
 
 // Handle display changes - recalculate and render overlays
 focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
 {
-    if (verboseLogging)
-    {
-        Console.WriteLine($"[VERBOSE] Display {displayIndex} gained focus");
-    }
+    logger.LogDebug("Display {DisplayIndex} gained focus", displayIndex);
     UpdateOverlays(displayIndex, windowBounds);
 };
 
@@ -275,7 +344,7 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
 // Handle display configuration changes - event-driven with immediate + 2s safety check
 displayChangeMonitor.CheckDisplaysRequested += () =>
 {
-    Console.WriteLine("\n[Display Change] Check requested - resetting displays and overlays...");
+    logger.LogInformation("Display change detected - resetting displays and overlays");
 
     // Refresh monitor list
     monitorManager.RefreshMonitors();
@@ -288,7 +357,7 @@ displayChangeMonitor.CheckDisplaysRequested += () =>
     // Check if we still have monitors
     if (newDisplayCount == 0)
     {
-        Console.WriteLine("[Display Change] No monitors detected.");
+        logger.LogWarning("No monitors detected after display change");
         renderer.CleanupOverlays();
         return;
     }
@@ -306,7 +375,7 @@ displayChangeMonitor.CheckDisplaysRequested += () =>
     // Recreate all overlays with current configuration
     renderer.CreateOverlays(newDisplays, cachedConfig);
 
-    Console.WriteLine($"[Display Change] Overlays recreated: {oldDisplayCount} -> {newDisplays.Length} display(s).");
+    logger.LogInformation("Overlays recreated: {OldCount} -> {NewCount} display(s)", oldDisplayCount, newDisplays.Length);
 
     // Trigger an overlay update if we have a focused window
     if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
@@ -318,24 +387,20 @@ displayChangeMonitor.CheckDisplaysRequested += () =>
 // Start tracking
 focusTracker.Start();
 
-Console.WriteLine("\nSpotlightDimmer is running.");
-Console.WriteLine($"Current mode: {config.Mode}");
-Console.WriteLine("The focused display will remain bright.");
-Console.WriteLine("Move windows between monitors to see the effect.");
-Console.WriteLine($"\nSystem Tray: Available - Double-click to pause/resume, right-click for menu");
-Console.WriteLine($"Configuration updates will be automatically applied.");
-Console.WriteLine($"Edit the config file to change settings in real-time.\n");
+logger.LogInformation("SpotlightDimmer is running");
+logger.LogInformation("Mode: {Mode}", config.Mode);
+logger.LogInformation("System tray: Double-click to pause/resume, right-click for menu");
 
-// GDI object monitoring for leak detection (verbose mode only)
+// GDI object monitoring for leak detection (debug mode only)
 var initialGdiCount = 0;
 var lastGdiCount = 0;
 var gdiCheckTimer = System.Diagnostics.Stopwatch.StartNew();
-if (verboseLogging)
+if (configManager.Current.System.LogLevel == "Debug")
 {
     var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
     initialGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
     lastGdiCount = initialGdiCount;
-    Console.WriteLine($"[VERBOSE] Initial GDI objects: {initialGdiCount}");
+    logger.LogDebug("Initial GDI objects: {Count}", initialGdiCount);
 }
 
 // ========================================================================
@@ -356,16 +421,15 @@ try
             if (cts.Token.IsCancellationRequested)
                 break;
 
-            // Periodic GDI object monitoring (verbose mode only, every 5 seconds)
-            if (verboseLogging && gdiCheckTimer.Elapsed.TotalSeconds >= 5)
+            // Periodic GDI object monitoring (debug mode only, every 5 seconds)
+            if (configManager.Current.System.LogLevel == "Debug" && gdiCheckTimer.Elapsed.TotalSeconds >= 5)
             {
                 var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
                 var currentGdiCount = WinApi.GetGuiResources(currentProcess.Handle, WinApi.GR_GDIOBJECTS);
                 if (currentGdiCount != lastGdiCount)
                 {
                     var delta = currentGdiCount - initialGdiCount;
-                    var deltaSign = delta >= 0 ? "+" : "";
-                    Console.WriteLine($"[VERBOSE] GDI objects: {currentGdiCount} ({deltaSign}{delta} from start)");
+                    logger.LogDebug("GDI objects: {Count} ({Delta:+0;-0} from start)", currentGdiCount, delta);
                     lastGdiCount = currentGdiCount;
                 }
                 gdiCheckTimer.Restart();
@@ -381,19 +445,22 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Error: {ex.Message}");
-    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+    logger.LogCritical(ex, "Fatal error occurred");
     return 1;
 }
 finally
 {
-    // Clean up
+    // Clean up resources
+    logger.LogInformation("Shutting down SpotlightDimmer");
+
     systemTray.Dispose();
     focusTracker.Dispose();
     displayChangeMonitor.Dispose();
     renderer.Dispose();
     configManager.Dispose();
+
+    // Shutdown logging system
+    LoggingConfiguration.Shutdown();
 }
 
-Console.WriteLine("Goodbye!");
 return 0;
