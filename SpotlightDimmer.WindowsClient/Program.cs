@@ -6,15 +6,28 @@ using SpotlightDimmer.WindowsBindings;
 // Logging Initialization
 // ========================================================================
 
-// Configuration: Load from file with hot-reload support (load first to get logging settings)
-var configManager = new ConfigurationManager();
-
-// Initialize file-based logging system
-var loggerFactory = LoggingConfiguration.Initialize(configManager.Current);
+// Initialize file-based logging with default settings first
+// This ensures we capture ALL log messages, including ConfigurationManager's initial load
+var loggerFactory = LoggingConfiguration.Initialize(AppConfig.Default);
 var logger = loggerFactory.CreateLogger<Program>();
 
 logger.LogInformation("SpotlightDimmer starting...");
 logger.LogInformation("Logs directory: {LogsDirectory}", LoggingConfiguration.GetLogsDirectory());
+
+// Configuration: Load from file with hot-reload support
+// Now ConfigurationManager can log properly during initialization
+var configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>());
+
+// Reconfigure logging based on actual loaded settings (if different from defaults)
+LoggingConfiguration.Reconfigure(configManager.Current);
+logger.LogInformation("Logging configured: Level={LogLevel}, Enabled={Enabled}",
+    configManager.Current.System.LogLevel, configManager.Current.System.EnableLogging);
+
+// Create loggers for all components
+var monitorManagerLogger = LoggingConfiguration.GetLogger<MonitorManager>();
+var focusTrackerLogger = LoggingConfiguration.GetLogger<FocusTracker>();
+var displayChangeMonitorLogger = LoggingConfiguration.GetLogger<DisplayChangeMonitor>();
+var autoStartManagerLogger = LoggingConfiguration.GetLogger<AutoStartManager>();
 
 // ========================================================================
 // Core Layer - Pure calculation logic
@@ -30,13 +43,17 @@ var mainThreadId = WinApi.GetCurrentThreadId();
 // WindowsBindings Layer - Platform-specific components
 // ========================================================================
 
+// Create AutoStartManager instance first (needed by system tray)
+var autoStartManager = new AutoStartManager(autoStartManagerLogger);
+
 // System Tray
 var systemTray = new SystemTrayManager(
     Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon.ico"),
     Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon-paused.ico"),
-    configManager.Current);
+    configManager.Current,
+    autoStartManager);
 
-var monitorManager = new MonitorManager();
+var monitorManager = new MonitorManager(monitorManagerLogger);
 
 if (monitorManager.Monitors.Count == 0)
 {
@@ -46,9 +63,9 @@ if (monitorManager.Monitors.Count == 0)
 
 logger.LogInformation("Detected {Count} monitor(s)", monitorManager.Monitors.Count);
 
-var focusTracker = new FocusTracker(monitorManager, configManager.Current.System.LogLevel == "Debug");
+var focusTracker = new FocusTracker(monitorManager, focusTrackerLogger);
 var renderer = new OverlayRenderer();
-var displayChangeMonitor = new DisplayChangeMonitor();
+var displayChangeMonitor = new DisplayChangeMonitor(displayChangeMonitorLogger);
 logger.LogInformation("Display change monitor initialized");
 
 // Create app state with pre-allocated overlay definitions

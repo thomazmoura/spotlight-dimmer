@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SpotlightDimmer.Core\SpotlightDimmer.Core.csproj" />
+    <ProjectReference Include="..\SpotlightDimmer.WindowsClient\SpotlightDimmer.WindowsClient.csproj" />
   </ItemGroup>
 
   <ItemGroup>

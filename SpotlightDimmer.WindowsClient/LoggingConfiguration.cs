@@ -132,13 +132,14 @@ public static class LoggingConfiguration
     /// <summary>
     /// Parses the log level string from configuration to a Serilog LogEventLevel.
     /// </summary>
-    /// <param name="logLevel">The log level string: "Error", "Information", or "Debug".</param>
+    /// <param name="logLevel">The log level string: "Error", "Warning", "Information", or "Debug".</param>
     /// <returns>The corresponding LogEventLevel.</returns>
     private static LogEventLevel ParseLogLevel(string logLevel)
     {
         return logLevel?.ToLowerInvariant() switch
         {
             "error" => LogEventLevel.Error,
+            "warning" => LogEventLevel.Warning,
             "information" => LogEventLevel.Information,
             "debug" => LogEventLevel.Debug,
             _ => LogEventLevel.Information

@@ -36,6 +36,7 @@ internal class SystemTrayManager : IDisposable
     private string _activeIconPath;
     private string _pausedIconPath;
     private AppConfig _currentConfig;
+    private readonly AutoStartManager _autoStartManager;
 
     // Events
     public event Action<bool>? PauseStateChanged;
@@ -49,11 +50,12 @@ internal class SystemTrayManager : IDisposable
 
     public bool IsPaused => _isPaused;
 
-    public SystemTrayManager(string activeIconPath, string pausedIconPath, AppConfig config)
+    public SystemTrayManager(string activeIconPath, string pausedIconPath, AppConfig config, AutoStartManager autoStartManager)
     {
         _activeIconPath = Path.GetFullPath(activeIconPath);
         _pausedIconPath = Path.GetFullPath(pausedIconPath);
         _currentConfig = config;
+        _autoStartManager = autoStartManager;
         _instance = this;
 
         RegisterWindowClass();
@@ -98,8 +100,8 @@ internal class SystemTrayManager : IDisposable
     /// </summary>
     private void ToggleAutoStart()
     {
-        bool isEnabled = AutoStartManager.IsEnabled();
-        bool success = isEnabled ? AutoStartManager.Disable() : AutoStartManager.Enable();
+        bool isEnabled = _autoStartManager.IsEnabled();
+        bool success = isEnabled ? _autoStartManager.Disable() : _autoStartManager.Enable();
 
         // Note: Success/failure is silent - user can verify via menu checkbox state
     }
@@ -295,7 +297,7 @@ internal class SystemTrayManager : IDisposable
             }
 
             // Add "Start at Login" menu item with checkbox
-            bool isAutoStartEnabled = AutoStartManager.IsEnabled();
+            bool isAutoStartEnabled = _instance?._autoStartManager.IsEnabled() ?? false;
             uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
             WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
 

@@ -48,7 +48,7 @@ public class SystemConfig
     public bool EnableLogging { get; set; } = true;
 
     /// <summary>
-    /// Log level for file output: "Error", "Information", or "Debug".
+    /// Log level for file output: "Error", "Warning", "Information", or "Debug".
     /// Default: "Information"
     /// </summary>
     public string LogLevel { get; set; } = "Information";

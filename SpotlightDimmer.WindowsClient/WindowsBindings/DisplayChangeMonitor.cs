@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace SpotlightDimmer.WindowsBindings;
 
@@ -14,6 +15,7 @@ internal class DisplayChangeMonitor : IDisposable
     private static bool _classRegistered = false;
     private static readonly WinApi.WndProc _wndProcDelegate = WndProc;
 
+    private readonly ILogger<DisplayChangeMonitor> _logger;
     private IntPtr _hwnd = IntPtr.Zero;
     private static DisplayChangeMonitor? _instance;
 
@@ -27,8 +29,9 @@ internal class DisplayChangeMonitor : IDisposable
     /// </summary>
     public event Action? CheckDisplaysRequested;
 
-    public DisplayChangeMonitor()
+    public DisplayChangeMonitor(ILogger<DisplayChangeMonitor> logger)
     {
+        _logger = logger;
         _instance = this;
         EnsureWindowClassRegistered();
         CreateMessageWindow();
@@ -99,7 +102,7 @@ internal class DisplayChangeMonitor : IDisposable
             case WinApi.WM_DISPLAYCHANGE:
                 // Display configuration changed (resolution, monitor added/removed, layout change)
                 // Check immediately and set a 2s safety timer
-                Console.WriteLine($"[DisplayChangeMonitor] WM_DISPLAYCHANGE received - checking immediately and setting {SAFETY_DELAY_MS}ms safety timer");
+                _instance?._logger.LogInformation("WM_DISPLAYCHANGE received - checking immediately and setting {SafetyDelayMs}ms safety timer", SAFETY_DELAY_MS);
 
                 // Fire event immediately
                 _instance?.CheckDisplaysRequested?.Invoke();
@@ -115,7 +118,7 @@ internal class DisplayChangeMonitor : IDisposable
                 // Safety timer fired - check displays again
                 if (wParam == TIMER_ID)
                 {
-                    Console.WriteLine($"[DisplayChangeMonitor] Safety timer fired - rechecking displays");
+                    _instance?._logger.LogDebug("Safety timer fired - rechecking displays");
 
                     // Fire event for safety check
                     _instance?.CheckDisplaysRequested?.Invoke();
@@ -129,7 +132,7 @@ internal class DisplayChangeMonitor : IDisposable
                 return IntPtr.Zero;
 
             case WinApi.WM_CREATE:
-                Console.WriteLine("[DisplayChangeMonitor] Window created successfully");
+                _instance?._logger.LogDebug("Window created successfully");
                 return IntPtr.Zero;
 
             default:

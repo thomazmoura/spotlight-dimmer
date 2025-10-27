@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
 
 namespace SpotlightDimmer.WindowsBindings;
@@ -9,6 +10,7 @@ namespace SpotlightDimmer.WindowsBindings;
 /// </summary>
 internal class MonitorManager
 {
+    private readonly ILogger<MonitorManager> _logger;
     private readonly List<MonitorHandle> _monitors = new();
     private DisplayInfo[]? _cachedDisplayInfo = null; // Cache to avoid LINQ allocations
 
@@ -37,8 +39,9 @@ internal class MonitorManager
     /// </summary>
     internal IReadOnlyList<MonitorHandle> Monitors => _monitors;
 
-    public MonitorManager()
+    public MonitorManager(ILogger<MonitorManager> logger)
     {
+        _logger = logger;
         RefreshMonitors();
     }
 
@@ -53,11 +56,12 @@ internal class MonitorManager
         // Enumerate all monitors - the callback will be called for each one
         WinApi.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, MonitorEnumCallback, IntPtr.Zero);
 
-        Console.WriteLine($"Detected {_monitors.Count} monitor(s)");
+        _logger.LogInformation("Detected {MonitorCount} monitor(s)", _monitors.Count);
         for (int i = 0; i < _monitors.Count; i++)
         {
             var mon = _monitors[i];
-            Console.WriteLine($"  Monitor {i}: {mon.Bounds.Width}x{mon.Bounds.Height} at ({mon.Bounds.X}, {mon.Bounds.Y})");
+            _logger.LogInformation("  Monitor {Index}: {Width}x{Height} at ({X}, {Y})",
+                i, mon.Bounds.Width, mon.Bounds.Height, mon.Bounds.X, mon.Bounds.Y);
         }
     }
 

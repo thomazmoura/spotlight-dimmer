@@ -1,17 +1,33 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
+using SpotlightDimmer.WindowsBindings;
 
 namespace SpotlightDimmer.Config;
 
 public partial class ConfigForm : Form
 {
     private readonly ConfigurationManager _configManager;
+    private readonly ILogger<ConfigForm> _logger;
     private bool _isLoading = false;
 
     public ConfigForm()
     {
         InitializeComponent();
-        _configManager = new ConfigurationManager();
+
+        // Initialize file-based logging with default settings
+        // This ensures we capture config operations, parse errors, etc.
+        var loggerFactory = LoggingConfiguration.Initialize(AppConfig.Default);
+        _logger = loggerFactory.CreateLogger<ConfigForm>();
+
+        _logger.LogInformation("SpotlightDimmer Config App starting");
+
+        // Create ConfigurationManager with proper logging
+        _configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>());
+
+        // Reconfigure logging based on loaded settings
+        LoggingConfiguration.Reconfigure(_configManager.Current);
+        _logger.LogInformation("Config app initialized with LogLevel={LogLevel}", _configManager.Current.System.LogLevel);
 
         // Load and set the paused icon for the config app
         var iconPath = Path.Combine(AppContext.BaseDirectory, "spotlight-dimmer-icon-paused.ico");
@@ -134,6 +150,7 @@ public partial class ConfigForm : Form
         }
 
         // Apply the selected profile to OverlayConfig
+        _logger.LogInformation("Applying profile: {ProfileName}", profileName);
         var config = _configManager.Current;
         if (config.ApplyProfile(profileName))
         {
@@ -142,6 +159,10 @@ public partial class ConfigForm : Form
 
             // Now reload the UI to reflect the profile's values
             LoadConfiguration();
+        }
+        else
+        {
+            _logger.LogWarning("Failed to apply profile: {ProfileName}", profileName);
         }
 
         deleteProfileButton.Enabled = true;
@@ -163,6 +184,7 @@ public partial class ConfigForm : Form
         var existingProfile = config.Profiles.FirstOrDefault(p => p.Name == profileName);
         if (existingProfile != null)
         {
+            _logger.LogInformation("Updating existing profile: {ProfileName}", profileName);
             // Update existing profile
             existingProfile.Mode = config.Overlay.Mode;
             existingProfile.InactiveColor = config.Overlay.InactiveColor;
@@ -172,6 +194,7 @@ public partial class ConfigForm : Form
         }
         else
         {
+            _logger.LogInformation("Creating new profile: {ProfileName}", profileName);
             // Create new profile
             config.Profiles.Add(new SpotlightDimmer.Core.Profile
             {
@@ -212,6 +235,7 @@ public partial class ConfigForm : Form
         var profile = config.Profiles.FirstOrDefault(p => p.Name == profileName);
         if (profile != null)
         {
+            _logger.LogInformation("Deleting profile: {ProfileName}", profileName);
             config.Profiles.Remove(profile);
 
             // Clear current profile if it was the deleted one
@@ -222,6 +246,10 @@ public partial class ConfigForm : Form
 
             SaveConfiguration();
             LoadConfiguration(); // Refresh profile list
+        }
+        else
+        {
+            _logger.LogWarning("Attempted to delete non-existent profile: {ProfileName}", profileName);
         }
     }
 
@@ -377,10 +405,14 @@ public partial class ConfigForm : Form
             config.Overlay.ActiveColor = ColorToHex(activeColorPanel.BackColor);
             config.Overlay.ActiveOpacity = activeOpacityTrackBar.Value;
 
+            _logger.LogDebug("Saving configuration: Mode={Mode}, InactiveOpacity={InactiveOpacity}, ActiveOpacity={ActiveOpacity}",
+                config.Overlay.Mode, config.Overlay.InactiveOpacity, config.Overlay.ActiveOpacity);
+
             _configManager.SaveConfiguration(config);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error saving configuration");
             MessageBox.Show(
                 $"Error saving configuration: {ex.Message}",
                 "Error",

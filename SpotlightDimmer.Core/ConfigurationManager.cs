@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace SpotlightDimmer.Core;
 
@@ -27,6 +28,7 @@ public class ConfigurationManager : IDisposable
     private readonly object _lock = new();
     private DateTime _lastReloadTime = DateTime.MinValue;
     private const int DebounceMilliseconds = 100; // Debounce rapid file changes
+    private readonly ILogger<ConfigurationManager> _logger;
 
     /// <summary>
     /// Event fired when the configuration changes.
@@ -53,7 +55,8 @@ public class ConfigurationManager : IDisposable
     /// Creates a new ConfigurationManager using the default configuration path.
     /// Default path: %AppData%\SpotlightDimmer\config.json
     /// </summary>
-    public ConfigurationManager() : this(GetDefaultConfigPath())
+    /// <param name="logger">Logger instance for configuration operations.</param>
+    public ConfigurationManager(ILogger<ConfigurationManager> logger) : this(GetDefaultConfigPath(), logger)
     {
     }
 
@@ -61,8 +64,10 @@ public class ConfigurationManager : IDisposable
     /// Creates a new ConfigurationManager with a custom configuration file path.
     /// </summary>
     /// <param name="configFilePath">Path to the configuration JSON file.</param>
-    public ConfigurationManager(string configFilePath)
+    /// <param name="logger">Logger instance for configuration operations.</param>
+    public ConfigurationManager(string configFilePath, ILogger<ConfigurationManager> logger)
     {
+        _logger = logger;
         _configFilePath = configFilePath;
 
         // Ensure the directory exists
@@ -70,7 +75,7 @@ public class ConfigurationManager : IDisposable
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
-            Console.WriteLine($"Created config directory: {directory}");
+            _logger.LogInformation("Created config directory: {Directory}", directory);
         }
 
         // Load or create initial configuration
@@ -88,10 +93,7 @@ public class ConfigurationManager : IDisposable
         _watcher.Changed += OnConfigFileChanged;
         _watcher.Created += OnConfigFileChanged;
 
-        if (_currentConfig.System.EnableLogging && _currentConfig.System.LogLevel == "Debug")
-        {
-            Console.WriteLine($"Watching config file: {_configFilePath}");
-        }
+        _logger.LogDebug("Watching config file: {ConfigFilePath}", _configFilePath);
     }
 
     /// <summary>
@@ -112,7 +114,7 @@ public class ConfigurationManager : IDisposable
     {
         if (!File.Exists(_configFilePath))
         {
-            Console.WriteLine($"Config file not found. Creating default config at: {_configFilePath}");
+            _logger.LogInformation("Config file not found. Creating default config at: {ConfigFilePath}", _configFilePath);
             var defaultConfig = AppConfig.Default;
             SaveConfig(defaultConfig);
             return defaultConfig;
@@ -125,20 +127,16 @@ public class ConfigurationManager : IDisposable
 
             if (config == null)
             {
-                Console.WriteLine("Failed to parse config file. Using default configuration.");
+                _logger.LogWarning("Failed to parse config file. Using default configuration");
                 return AppConfig.Default;
             }
 
-            if (config.System.EnableLogging && config.System.LogLevel == "Debug")
-            {
-                Console.WriteLine($"Loaded configuration from: {_configFilePath}");
-            }
+            _logger.LogDebug("Loaded configuration from: {ConfigFilePath}", _configFilePath);
             return config;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading config: {ex.Message}");
-            Console.WriteLine("Using default configuration.");
+            _logger.LogError(ex, "Error loading config. Using default configuration");
             return AppConfig.Default;
         }
     }
@@ -152,15 +150,11 @@ public class ConfigurationManager : IDisposable
         {
             var json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
             File.WriteAllText(_configFilePath, json);
-
-            if (config.System.EnableLogging && config.System.LogLevel == "Debug")
-            {
-                Console.WriteLine($"Saved configuration to: {_configFilePath}");
-            }
+            _logger.LogDebug("Saved configuration to: {ConfigFilePath}", _configFilePath);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error saving config: {ex.Message}");
+            _logger.LogError(ex, "Error saving config");
         }
     }
 
@@ -210,7 +204,7 @@ public class ConfigurationManager : IDisposable
         {
             if (!File.Exists(_configFilePath))
             {
-                Console.WriteLine("Config file was deleted. Using current configuration.");
+                _logger.LogWarning("Config file was deleted. Using current configuration");
                 return;
             }
 
@@ -219,7 +213,7 @@ public class ConfigurationManager : IDisposable
 
             if (newConfig == null)
             {
-                Console.WriteLine("Failed to parse updated config file. Keeping current configuration.");
+                _logger.LogWarning("Failed to parse updated config file. Keeping current configuration");
                 return;
             }
 
@@ -228,20 +222,17 @@ public class ConfigurationManager : IDisposable
                 _currentConfig = newConfig;
             }
 
-            // Only log configuration details if debug logging is enabled
-            if (newConfig.System.EnableLogging && newConfig.System.LogLevel == "Debug")
-            {
-                Console.WriteLine($"\n[Config] Configuration reloaded from file");
-                Console.WriteLine($"[Config]   Mode: {newConfig.Overlay.Mode}");
-                Console.WriteLine($"[Config]   Inactive: {newConfig.Overlay.InactiveColor} @ {newConfig.Overlay.InactiveOpacity}/255");
-                Console.WriteLine($"[Config]   Active: {newConfig.Overlay.ActiveColor} @ {newConfig.Overlay.ActiveOpacity}/255");
+            // Log configuration details at debug level
+            _logger.LogDebug("Configuration reloaded from file");
+            _logger.LogDebug("  Mode: {Mode}", newConfig.Overlay.Mode);
+            _logger.LogDebug("  Inactive: {InactiveColor} @ {InactiveOpacity}/255", newConfig.Overlay.InactiveColor, newConfig.Overlay.InactiveOpacity);
+            _logger.LogDebug("  Active: {ActiveColor} @ {ActiveOpacity}/255", newConfig.Overlay.ActiveColor, newConfig.Overlay.ActiveOpacity);
 
-                // Show current profile status
-                if (!string.IsNullOrEmpty(newConfig.CurrentProfile))
-                {
-                    bool matches = newConfig.DoesOverlayMatchProfile(newConfig.CurrentProfile);
-                    Console.WriteLine($"[Config]   Current profile: {newConfig.CurrentProfile}{(matches ? "" : " *")}");
-                }
+            // Show current profile status
+            if (!string.IsNullOrEmpty(newConfig.CurrentProfile))
+            {
+                bool matches = newConfig.DoesOverlayMatchProfile(newConfig.CurrentProfile);
+                _logger.LogDebug("  Current profile: {CurrentProfile}{ProfileMatch}", newConfig.CurrentProfile, matches ? "" : " *");
             }
 
             // Notify subscribers
@@ -249,7 +240,7 @@ public class ConfigurationManager : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error reloading config: {ex.Message}");
+            _logger.LogError(ex, "Error reloading config");
         }
     }
 
