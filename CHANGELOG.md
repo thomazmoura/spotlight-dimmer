@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback to cursor position if icon coordinates unavailable
   - Professional behavior matching Windows system applications
 
+### Fixed
+- **Console window no longer appears when launched from Start Menu**: Application now runs silently when launched from GUI
+  - Changed output type from console to Windows application
+  - Console output only appears when launched from a terminal or command prompt
+  - When launched from Start Menu, shortcuts, or auto-start, runs silently with system tray as the only UI
+  - Uses conditional console attachment (`AttachConsole`) to detect launch context
+  - Provides clean user experience for GUI launches while maintaining debugging capabilities for terminal launches
+
 ---
 
 ### Adicionado
@@ -56,6 +64,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cursor permanece no lugar (não é movido para o ícone da bandeja)
   - Retorno à posição do cursor se as coordenadas do ícone não estiverem disponíveis
   - Comportamento profissional correspondente aos aplicativos do sistema Windows
+
+### Corrigido
+- **Janela de console não aparece mais quando iniciado do Menu Iniciar**: Aplicação agora executa silenciosamente quando iniciada da GUI
+  - Alterado tipo de saída de console para aplicação Windows
+  - Saída do console só aparece quando iniciado de um terminal ou prompt de comando
+  - Quando iniciado do Menu Iniciar, atalhos, ou início automático, executa silenciosamente com a bandeja do sistema como única interface
+  - Usa conexão condicional ao console (`AttachConsole`) para detectar o contexto de inicialização
+  - Proporciona experiência limpa ao usuário para inicializações via GUI mantendo capacidades de depuração para inicializações via terminal
 
 ## [0.8.0-beta] - TBD
 

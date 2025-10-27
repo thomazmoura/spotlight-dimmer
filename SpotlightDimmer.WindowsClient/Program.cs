@@ -1,6 +1,14 @@
 using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
+// Conditionally attach to console only when launched from terminal
+// This prevents showing console window when launched from Start Menu or shortcuts
+if (!WinApi.AttachConsole(WinApi.ATTACH_PARENT_PROCESS))
+{
+    // Not launched from a terminal - running in GUI mode (Start Menu, etc.)
+    // Console output will be discarded silently
+}
+
 Console.WriteLine("SpotlightDimmer .NET");
 Console.WriteLine("===============================================");
 Console.WriteLine("Core: Pure overlay calculation logic");
