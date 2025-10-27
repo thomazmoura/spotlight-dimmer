@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer", "SpotlightDimmer\SpotlightDimmer.csproj", "{3F1DE65A-D094-4EBB-869A-82BB2E07C427}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer.Config", "SpotlightDimmer.Config\SpotlightDimmer.Config.csproj", "{5F219788-A8F4-4FB1-84D5-DFF2185F6607}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer.Core", "SpotlightDimmer.Core\SpotlightDimmer.Core.csproj", "{EB6CAA01-CF4F-4B3A-9EC5-21EFC54EA37A}"
@@ -23,18 +21,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|x64.Build.0 = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Debug|x86.Build.0 = Debug|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|x64.ActiveCfg = Release|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|x64.Build.0 = Release|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|x86.ActiveCfg = Release|Any CPU
-		{3F1DE65A-D094-4EBB-869A-82BB2E07C427}.Release|x86.Build.0 = Release|Any CPU
 		{5F219788-A8F4-4FB1-84D5-DFF2185F6607}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5F219788-A8F4-4FB1-84D5-DFF2185F6607}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5F219788-A8F4-4FB1-84D5-DFF2185F6607}.Debug|x64.ActiveCfg = Debug|Any CPU

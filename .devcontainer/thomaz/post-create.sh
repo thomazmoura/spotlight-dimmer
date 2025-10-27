@@ -51,9 +51,9 @@ if [ -f ~/.bashrc ]; then
     echo "# SpotlightDimmer development aliases" >> ~/.bashrc
     echo "alias build='dotnet build SpotlightDimmer.sln'" >> ~/.bashrc
     echo "alias build-release='dotnet build SpotlightDimmer.sln -c Release'" >> ~/.bashrc
-    echo "alias run='dotnet run --project SpotlightDimmer/SpotlightDimmer.csproj'" >> ~/.bashrc
+    echo "alias run='dotnet run --project SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj'" >> ~/.bashrc
     echo "alias test='dotnet test SpotlightDimmer.sln'" >> ~/.bashrc
-    echo "alias publish='dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64'" >> ~/.bashrc
+    echo "alias publish='dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-x64'" >> ~/.bashrc
     echo "alias clean='dotnet clean SpotlightDimmer.sln'" >> ~/.bashrc
 fi
 
@@ -63,9 +63,9 @@ if [ -f ~/.zshrc ]; then
     echo "# SpotlightDimmer development aliases" >> ~/.zshrc
     echo "alias build='dotnet build SpotlightDimmer.sln'" >> ~/.zshrc
     echo "alias build-release='dotnet build SpotlightDimmer.sln -c Release'" >> ~/.zshrc
-    echo "alias run='dotnet run --project SpotlightDimmer/SpotlightDimmer.csproj'" >> ~/.zshrc
+    echo "alias run='dotnet run --project SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj'" >> ~/.zshrc
     echo "alias test='dotnet test SpotlightDimmer.sln'" >> ~/.zshrc
-    echo "alias publish='dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64'" >> ~/.zshrc
+    echo "alias publish='dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-x64'" >> ~/.zshrc
     echo "alias clean='dotnet clean SpotlightDimmer.sln'" >> ~/.zshrc
 fi
 

@@ -137,7 +137,7 @@ dotnet restore SpotlightDimmer.sln
 dotnet build SpotlightDimmer.sln
 
 # Run specific project
-dotnet run --project SpotlightDimmer/SpotlightDimmer.csproj
+dotnet run --project SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj
 
 # Run tests
 dotnet test SpotlightDimmer.sln
@@ -148,18 +148,16 @@ dotnet test SpotlightDimmer.sln
 ```
 /workspaces/spotlight-dimmer/
 ├── SpotlightDimmer.sln              # Main solution file
-├── SpotlightDimmer/                 # Main Windows application
-│   ├── Program.cs                   # Entry point
-│   └── SpotlightDimmer.csproj
 ├── SpotlightDimmer.Core/            # Core business logic (platform-agnostic)
 │   ├── AppState.cs                  # State management
 │   ├── OverlayDefinition.cs         # Overlay calculations
 │   └── SpotlightDimmer.Core.csproj
-├── SpotlightDimmer.WindowsClient/   # Windows-specific bindings
+├── SpotlightDimmer.WindowsClient/   # Main Windows application
+│   ├── Program.cs                   # Main entry point
 │   ├── FocusTracker.cs              # Event-driven focus tracking
 │   ├── OverlayRenderer.cs           # Overlay window management
 │   └── SpotlightDimmer.WindowsClient.csproj
-├── SpotlightDimmer.Config/          # Configuration management
+├── SpotlightDimmer.Config/          # Configuration GUI utility
 │   └── SpotlightDimmer.Config.csproj
 └── SpotlightDimmer.Tests/           # Unit tests
     └── SpotlightDimmer.Tests.csproj

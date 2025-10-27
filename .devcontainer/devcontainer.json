@@ -34,7 +34,7 @@
           "editor.defaultFormatter": "ms-dotnettools.csharp",
           "editor.formatOnSave": true
         },
-        "dotnet.defaultSolution": "dotnet/SpotlightDimmer.csproj"
+        "dotnet.defaultSolution": "SpotlightDimmer.sln"
       }
     }
   },

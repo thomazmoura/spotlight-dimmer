@@ -44,8 +44,8 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore SpotlightDimmer.sln
 
-      - name: Build SpotlightDimmer with AOT
-        run: dotnet publish SpotlightDimmer/SpotlightDimmer.csproj -c Release -r win-x64 -o publish
+      - name: Build SpotlightDimmer.WindowsClient with AOT
+        run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-x64 -o publish
 
       - name: Build SpotlightDimmer.Config with AOT
         run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish

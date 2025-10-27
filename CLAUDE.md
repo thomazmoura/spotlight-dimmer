@@ -185,9 +185,9 @@ Each display can have up to 6 overlays (one per `OverlayRegion` enum value):
 ## Platform-Specific Notes
 
 ### Windows-Only Compilation
-- Project targets `net10.0-windows` (see `SpotlightDimmer.csproj:5`)
+- Project targets `net10.0-windows` (see `SpotlightDimmer.WindowsClient.csproj:5`)
 - Requires `AllowUnsafeBlocks` for P/Invoke (line 8)
-- Core layer is platform-agnostic but WindowsBindings requires Windows
+- Core layer is platform-agnostic but WindowsClient requires Windows
 
 ### Native AOT Constraints
 - Code must be AOT-compatible (see csproj lines 12-20)

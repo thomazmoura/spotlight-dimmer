@@ -22,7 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SpotlightDimmer\SpotlightDimmer.csproj" />
+    <ProjectReference Include="..\SpotlightDimmer.Core\SpotlightDimmer.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

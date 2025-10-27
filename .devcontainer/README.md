@@ -99,15 +99,21 @@ dotnet publish -c Release -r win-x64
 
 ```
 /workspaces/spotlight-dimmer/
-├── dotnet/                    # .NET 10 PoC implementation
-│   ├── WinApi.cs             # Windows API P/Invoke declarations
-│   ├── FocusTracker.cs       # Event-driven focus tracking
-│   ├── MonitorManager.cs     # Multi-monitor detection
-│   ├── OverlayWindow.cs      # Semi-transparent overlays
-│   ├── Program.cs            # Main application
-│   └── SpotlightDimmer.csproj
-├── rust/                      # Original Rust implementation (reference)
-└── .devcontainer/            # This dev container configuration
+├── SpotlightDimmer.sln              # Main solution file
+├── SpotlightDimmer.Core/            # Core business logic (platform-agnostic)
+│   ├── AppState.cs                  # State management
+│   ├── OverlayDefinition.cs         # Overlay calculations
+│   └── SpotlightDimmer.Core.csproj
+├── SpotlightDimmer.WindowsClient/   # Windows-specific application
+│   ├── Program.cs                   # Main entry point
+│   ├── FocusTracker.cs              # Event-driven focus tracking
+│   ├── OverlayRenderer.cs           # Overlay window management
+│   └── SpotlightDimmer.WindowsClient.csproj
+├── SpotlightDimmer.Config/          # Configuration GUI utility
+│   └── SpotlightDimmer.Config.csproj
+├── SpotlightDimmer.Tests/           # Unit tests
+│   └── SpotlightDimmer.Tests.csproj
+└── .devcontainer/                   # Dev container configuration
 ```
 
 ## Available Aliases
