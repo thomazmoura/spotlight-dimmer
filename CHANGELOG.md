@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Automatic version extraction in Build-Installer.ps1**: Build script now automatically extracts version from Directory.Build.props
+  - Version parameter is now optional - defaults to version from Directory.Build.props with "-dev" suffix
+  - Eliminates manual version synchronization when building local installers
+  - Example: With version 0.8.2 in Directory.Build.props, running `.\Build-Installer.ps1` creates installer version "0.8.2-dev"
+  - Can still override with explicit version: `.\Build-Installer.ps1 -Version 1.0.0`
+  - PowerShell XML parsing extracts `<Version>` element directly from centralized version file
+  - Friendly console messages indicate extracted version or fallback to default if file not found
+
 ### Added
 - **Auto-start at login**: New system tray menu option to automatically start SpotlightDimmer when Windows boots
   - "Start at Login" checkbox menu item in system tray context menu
@@ -55,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Professional user experience matching modern Windows applications
 
 ---
+
+### Melhorado
+- **Extração automática de versão no Build-Installer.ps1**: Script de build agora extrai automaticamente a versão do Directory.Build.props
+  - Parâmetro de versão agora é opcional - padrão é a versão do Directory.Build.props com sufixo "-dev"
+  - Elimina sincronização manual de versão ao construir instaladores locais
+  - Exemplo: Com versão 0.8.2 no Directory.Build.props, executar `.\Build-Installer.ps1` cria instalador versão "0.8.2-dev"
+  - Ainda pode sobrescrever com versão explícita: `.\Build-Installer.ps1 -Version 1.0.0`
+  - Análise XML do PowerShell extrai elemento `<Version>` diretamente do arquivo de versão centralizado
+  - Mensagens amigáveis no console indicam versão extraída ou fallback para padrão se arquivo não encontrado
 
 ### Adicionado
 - **Início automático no login**: Nova opção no menu da bandeja do sistema para iniciar automaticamente o SpotlightDimmer quando o Windows inicializa

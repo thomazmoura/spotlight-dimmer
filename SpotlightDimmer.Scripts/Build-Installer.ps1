@@ -4,8 +4,9 @@
 # Usage:
 #   .\Build-Installer.ps1 [-Version <version>]
 #
-# Example:
-#   .\Build-Installer.ps1 -Version 0.9.0
+# Examples:
+#   .\Build-Installer.ps1                    # Uses version from Directory.Build.props with -dev suffix (e.g., 0.8.2-dev)
+#   .\Build-Installer.ps1 -Version 0.9.0     # Uses explicit version
 #
 # Prerequisites:
 #   - Visual Studio C++ Build Tools (for Native AOT)
@@ -14,10 +15,29 @@
 
 param(
     [Parameter(Mandatory = $false)]
-    [string]$Version = "0.0.0-dev"
+    [string]$Version
 )
 
 $ErrorActionPreference = "Stop"
+
+# Extract version from Directory.Build.props if not provided
+if (-not $Version) {
+    $buildPropsPath = Join-Path (Split-Path -Parent $PSScriptRoot) "Directory.Build.props"
+    if (Test-Path $buildPropsPath) {
+        [xml]$buildProps = Get-Content $buildPropsPath
+        $extractedVersion = $buildProps.Project.PropertyGroup.Version
+        if ($extractedVersion) {
+            $Version = "$extractedVersion-dev"
+            Write-Host "Extracted version from Directory.Build.props: $Version" -ForegroundColor Gray
+        } else {
+            $Version = "0.0.0-dev"
+            Write-Host "Warning: Could not extract version from Directory.Build.props, using default: $Version" -ForegroundColor Yellow
+        }
+    } else {
+        $Version = "0.0.0-dev"
+        Write-Host "Warning: Directory.Build.props not found, using default version: $Version" -ForegroundColor Yellow
+    }
+}
 
 Write-Host "`n=========================================" -ForegroundColor Cyan
 Write-Host "  Spotlight Dimmer Installer Build" -ForegroundColor Cyan
