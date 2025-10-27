@@ -220,6 +220,20 @@ Understanding these APIs is essential for working with the WindowsBindings layer
 - Use XML doc comments (`///`) for all public APIs
 - Keep Core layer pure - no Windows dependencies
 
+## Documentation Guidelines
+
+**IMPORTANT**: All documentation files (*.md files other than README.md and CONFIGURATION.md in the root) should be created in the `docs/` folder unless explicitly instructed otherwise.
+
+- ✅ Place new documentation in `docs/` directory
+- ✅ Root-level README.md and CONFIGURATION.md are exceptions
+- ❌ Do NOT create new .md files in the root directory
+- ❌ Do NOT create documentation in `.github/` directory unless it's GitHub-specific (like PULL_REQUEST_TEMPLATE.md)
+
+Examples:
+- Setup guides → `docs/WINGET_SETUP.md`
+- Architecture docs → `docs/ARCHITECTURE.md`
+- Troubleshooting → `docs/TROUBLESHOOTING.md`
+
 ## Git Commit Messages
 
 **IMPORTANT**: Do NOT include any references to Claude, Claude Code, AI tools, or co-authorship attributions in git commit messages.

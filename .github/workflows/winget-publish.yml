@@ -1,0 +1,132 @@
+name: Publish to Winget
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.9.0)'
+        required: true
+        type: string
+
+jobs:
+  publish-winget:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[a-zA-Z0-9\.]+)?$') {
+            Write-Error "Invalid version format: $version. Expected format: x.y.z or x.y.z-prerelease"
+            exit 1
+          }
+          Write-Host "✅ Version format validated: $version"
+
+      - name: Check if release exists
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $releaseUrl = "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$version"
+
+          try {
+            $headers = @{
+              "Accept" = "application/vnd.github+json"
+              "X-GitHub-Api-Version" = "2022-11-28"
+            }
+            $response = Invoke-RestMethod -Uri $releaseUrl -Headers $headers
+            Write-Host "✅ Release v$version found"
+            Write-Host "   Release URL: $($response.html_url)"
+            Write-Host "   Published: $($response.published_at)"
+          } catch {
+            Write-Error "❌ Release v$version not found. Please create and publish the release first."
+            Write-Host "   Checked URL: $releaseUrl"
+            exit 1
+          }
+
+      - name: Install winget-create
+        shell: pwsh
+        run: |
+          Write-Host "Installing winget-create..."
+          Invoke-WebRequest -Uri https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+
+          if (Test-Path wingetcreate.exe) {
+            $fileInfo = Get-Item wingetcreate.exe
+            Write-Host "✅ winget-create downloaded successfully ($($fileInfo.Length) bytes)"
+          } else {
+            Write-Error "Failed to download winget-create"
+            exit 1
+          }
+
+      - name: Update Winget manifest
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer.exe"
+
+          Write-Host "`n========================================="
+          Write-Host "Updating Winget manifest"
+          Write-Host "=========================================`n"
+          Write-Host "Package ID: ThomazMoura.SpotlightDimmer"
+          Write-Host "Version: $version"
+          Write-Host "Installer URL: $installerUrl"
+          Write-Host ""
+
+          # Run winget-create update command
+          # -u: Installer URL (winget-create will download and analyze it)
+          # -v: Version number
+          # -t: GitHub token for authentication
+          # -s: Submit PR automatically to microsoft/winget-pkgs
+          # --submit: Same as -s, creates PR automatically
+          .\wingetcreate.exe update ThomazMoura.SpotlightDimmer `
+            --urls "$installerUrl" `
+            --version "$version" `
+            --token "${{ secrets.WINGET_TOKEN }}" `
+            --submit
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ winget-create failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "`n✅ Winget manifest update completed successfully!"
+
+      - name: Summary
+        if: always()
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+
+          Write-Host "`n========================================="
+          Write-Host "Winget Publication Summary"
+          Write-Host "=========================================`n"
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ SUCCESS: Manifest updated and PR submitted"
+            Write-Host ""
+            Write-Host "📋 Next Steps:"
+            Write-Host "  1. Check your microsoft/winget-pkgs fork for the new PR"
+            Write-Host "  2. The PR should be automatically created by winget-create"
+            Write-Host "  3. Wait for automated validation checks to complete"
+            Write-Host "  4. Address any validation failures if they occur"
+            Write-Host "  5. Once checks pass, a maintainer will review and merge"
+            Write-Host ""
+            Write-Host "🔗 Useful Links:"
+            Write-Host "  - Your fork: https://github.com/YOUR_USERNAME/winget-pkgs/pulls"
+            Write-Host "  - Main repo: https://github.com/microsoft/winget-pkgs/pulls"
+            Write-Host "  - Package page: https://github.com/microsoft/winget-pkgs/tree/master/manifests/t/ThomazMoura/SpotlightDimmer"
+          } else {
+            Write-Host "❌ FAILED: Manifest update encountered errors"
+            Write-Host ""
+            Write-Host "🔍 Troubleshooting:"
+            Write-Host "  - Verify WINGET_TOKEN secret is configured correctly"
+            Write-Host "  - Check that you have forked microsoft/winget-pkgs"
+            Write-Host "  - Ensure the release v$version exists and is published"
+            Write-Host "  - Review the workflow logs above for specific errors"
+          }
+
+          Write-Host "`n========================================="
