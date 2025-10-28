@@ -431,6 +431,35 @@ internal static partial class WinApi
     public const int GR_GDIOBJECTS = 0;
     public const int GR_USEROBJECTS = 1;
 
+    // Process and window enumeration APIs for UWP detection
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    public static partial IntPtr OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
+
+    [DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool QueryFullProcessImageName(IntPtr hProcess, uint dwFlags, System.Text.StringBuilder lpExeName, ref uint lpdwSize);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool CloseHandle(IntPtr hObject);
+
+    // Process access rights
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    // EnumChildWindows callback delegate
+    public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool IsWindowVisible(IntPtr hWnd);
+
     // System Tray / NotifyIcon constants
     public const uint NIM_ADD = 0x00000000;
     public const uint NIM_MODIFY = 0x00000001;
@@ -544,5 +573,111 @@ internal static partial class WinApi
 
         // Fallback to GetWindowRect if DWM call fails
         return GetWindowRect(hWnd, out rect);
+    }
+
+    /// <summary>
+    /// Gets the process name (executable file name) for a window.
+    /// Returns null if unable to get the process name.
+    /// </summary>
+    public static string? GetProcessName(IntPtr hWnd)
+    {
+        try
+        {
+            // Get process ID
+            uint processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            if (processId == 0)
+                return null;
+
+            // Open process with limited query rights
+            IntPtr hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+            if (hProcess == IntPtr.Zero)
+                return null;
+
+            try
+            {
+                // Query full process image name
+                var buffer = new System.Text.StringBuilder(1024);
+                uint size = (uint)buffer.Capacity;
+
+                if (QueryFullProcessImageName(hProcess, 0, buffer, ref size))
+                {
+                    string fullPath = buffer.ToString();
+                    // Extract just the filename
+                    return System.IO.Path.GetFileName(fullPath);
+                }
+
+                return null;
+            }
+            finally
+            {
+                CloseHandle(hProcess);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Finds the actual content window (CoreWindow) for UWP apps running in ApplicationFrameHost.
+    /// For non-UWP apps, returns the original window handle.
+    /// </summary>
+    public static IntPtr GetUwpContentWindow(IntPtr hWnd, Action<string>? logger = null)
+    {
+        // Check if this is ApplicationFrameHost
+        string? processName = GetProcessName(hWnd);
+        logger?.Invoke($"[UWP] Window handle {hWnd:X}, Process: {processName ?? "null"}");
+
+        if (processName == null || !processName.Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            // Not a UWP app - return original handle
+            logger?.Invoke($"[UWP] Not ApplicationFrameHost, using original window");
+            return hWnd;
+        }
+
+        logger?.Invoke($"[UWP] Detected ApplicationFrameHost! Enumerating child windows...");
+
+        // This is a UWP app - find the largest visible child window (likely the content)
+        IntPtr largestChild = IntPtr.Zero;
+        int largestArea = 0;
+        int childCount = 0;
+
+        EnumChildWindows(hWnd, (childHWnd, lParam) =>
+        {
+            childCount++;
+
+            // Only consider visible windows
+            bool isVisible = IsWindowVisible(childHWnd);
+            logger?.Invoke($"[UWP]   Child {childCount}: {childHWnd:X}, Visible: {isVisible}");
+
+            if (!isVisible)
+                return true; // Continue enumeration
+
+            // Get window rectangle
+            if (GetExtendedWindowRect(childHWnd, out RECT childRect))
+            {
+                int area = childRect.Width * childRect.Height;
+                logger?.Invoke($"[UWP]   Child {childCount} rect: ({childRect.Left},{childRect.Top}) {childRect.Width}x{childRect.Height}, Area: {area}");
+
+                // Track the largest child window
+                if (area > largestArea)
+                {
+                    largestArea = area;
+                    largestChild = childHWnd;
+                    logger?.Invoke($"[UWP]   New largest child: {childHWnd:X}");
+                }
+            }
+
+            return true; // Continue enumeration
+        }, IntPtr.Zero);
+
+        logger?.Invoke($"[UWP] Enumeration complete. Found {childCount} children. Largest: {largestChild:X} (area: {largestArea})");
+
+        // Return the largest child if found, otherwise return original window
+        IntPtr result = largestChild != IntPtr.Zero ? largestChild : hWnd;
+        logger?.Invoke($"[UWP] Returning window: {result:X}");
+        return result;
     }
 }

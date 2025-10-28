@@ -129,11 +129,15 @@ internal class FocusTracker : IDisposable
         if (foregroundWindow == IntPtr.Zero)
             return;
 
-        var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
+        // CRITICAL: For UWP apps (ApplicationFrameHost), get the actual content window
+        // The foreground window is just the frame - the content is in a child window
+        var contentWindow = WinApi.GetUwpContentWindow(foregroundWindow, msg => _logger.LogDebug(msg));
+
+        var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(contentWindow);
 
         // Get window rectangle (excluding invisible borders) and convert to Core.Rectangle
         Core.Rectangle? currentRect = null;
-        if (WinApi.GetExtendedWindowRect(foregroundWindow, out var winRect))
+        if (WinApi.GetExtendedWindowRect(contentWindow, out var winRect))
         {
             currentRect = WinApi.ToRectangle(winRect);
         }

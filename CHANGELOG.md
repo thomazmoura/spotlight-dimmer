@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **UWP app overlay positioning**: System Settings and other UWP apps now correctly position overlays on first launch
+  - UWP apps run inside ApplicationFrameHost.exe container process
+  - GetForegroundWindow() returns the container window, which reports 0x0 or incorrect dimensions
+  - Solution: Detect ApplicationFrameHost and enumerate child windows to find actual content window (CoreWindow)
+  - Use content window dimensions instead of container for overlay calculations
+  - Fixes mispositioned overlays when launching apps from Start Menu, PowerToys.Run, etc.
+  - Works for all UWP/modern apps: Settings, Calculator, modern Office apps, etc.
+
 - **Flickering during invalid window bounds**: Overlays now remain stable when Windows temporarily reports 0x0 window dimensions
   - Windows temporarily reports 0x0 dimensions during focus changes and window transitions
   - Early return prevents unnecessary overlay recalculation when bounds are invalid (width or height = 0)
@@ -75,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Corrigido
+- **Posicionamento de sobreposição em apps UWP**: Configurações do Sistema e outros apps UWP agora posicionam sobreposições corretamente no primeiro lançamento
+  - Apps UWP executam dentro do processo contêiner ApplicationFrameHost.exe
+  - GetForegroundWindow() retorna a janela contêiner, que reporta dimensões 0x0 ou incorretas
+  - Solução: Detectar ApplicationFrameHost e enumerar janelas filhas para encontrar janela de conteúdo real (CoreWindow)
+  - Usar dimensões da janela de conteúdo em vez do contêiner para cálculos de sobreposição
+  - Corrige sobreposições mal posicionadas ao lançar apps do Menu Iniciar, PowerToys.Run, etc.
+  - Funciona para todos os apps UWP/modernos: Configurações, Calculadora, apps modernos do Office, etc.
+
 - **Tremulação durante bounds de janela inválidos**: Sobreposições agora permanecem estáveis quando Windows temporariamente reporta dimensões 0x0 de janela
   - Windows temporariamente reporta dimensões 0x0 durante mudanças de foco e transições de janela
   - Retorno antecipado previne recálculo desnecessário de sobreposição quando bounds são inválidos (largura ou altura = 0)
