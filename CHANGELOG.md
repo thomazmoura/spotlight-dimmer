@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Flickering during invalid window bounds**: Overlays now remain stable when Windows temporarily reports 0x0 window dimensions
+  - Windows temporarily reports 0x0 dimensions during focus changes and window transitions
+  - Early return prevents unnecessary overlay recalculation when bounds are invalid (width or height = 0)
+  - Existing overlay state naturally persists due to in-place update architecture
+  - Eliminates flickering and visual artifacts during focus switches
+  - Zero allocations - simply skips update cycle until valid bounds arrive
+  - Works across all dimming modes (FullScreen, Partial, PartialWithActive)
+
 ### Improved
 - **Automatic version extraction in Build-Installer.ps1**: Build script now automatically extracts version from Directory.Build.props
   - Version parameter is now optional - defaults to version from Directory.Build.props with "-dev" suffix
@@ -64,6 +73,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Professional user experience matching modern Windows applications
 
 ---
+
+### Corrigido
+- **Tremulação durante bounds de janela inválidos**: Sobreposições agora permanecem estáveis quando Windows temporariamente reporta dimensões 0x0 de janela
+  - Windows temporariamente reporta dimensões 0x0 durante mudanças de foco e transições de janela
+  - Retorno antecipado previne recálculo desnecessário de sobreposição quando bounds são inválidos (largura ou altura = 0)
+  - Estado de sobreposição existente naturalmente persiste devido à arquitetura de atualização in-place
+  - Elimina tremulação e artefatos visuais durante trocas de foco
+  - Zero alocações - simplesmente pula ciclo de atualização até que bounds válidos cheguem
+  - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
 - **Extração automática de versão no Build-Installer.ps1**: Script de build agora extrai automaticamente a versão do Directory.Build.props

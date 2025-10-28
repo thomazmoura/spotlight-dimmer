@@ -138,6 +138,12 @@ internal class FocusTracker : IDisposable
             currentRect = WinApi.ToRectangle(winRect);
         }
 
+        if (currentRect?.Width == 0 && currentRect?.Height == 0)
+        {
+            _logger.LogDebug("0 sized window focused. Ignoring");
+            return;
+        }
+
         bool displayChanged = focusedDisplayIndex != _lastFocusedDisplayIndex;
         bool rectChanged = currentRect.HasValue && _lastWindowRect != currentRect;
 
@@ -163,8 +169,8 @@ internal class FocusTracker : IDisposable
             if (!displayChanged && reason != null)
             {
                 // Only log if display didn't change (to avoid double logging)
-                _logger.LogDebug("Window position/size changed: ({X},{Y}) {Width}x{Height} ({Reason})",
-                    currentRect.Value.X, currentRect.Value.Y, currentRect.Value.Width, currentRect.Value.Height, reason);
+                _logger.LogDebug("Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason})",
+                    currentRect.Value.X, currentRect.Value.Y, currentRect.Value.Width, currentRect.Value.Height, focusedDisplayIndex, reason);
             }
 
             WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);

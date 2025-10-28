@@ -44,6 +44,16 @@ public class AppState
         int focusedDisplayIndex,
         OverlayCalculationConfig config)
     {
+        // Check if focused window has invalid 0x0 dimensions
+        // This happens during focus changes and window transitions - skip update to prevent flickering
+        if (focusedWindowBounds.HasValue &&
+            (focusedWindowBounds.Value.Width == 0 || focusedWindowBounds.Value.Height == 0))
+        {
+            // Invalid bounds - return early without updating overlays
+            // Existing overlay state remains unchanged, preventing flickering
+            return;
+        }
+
         for (int i = 0; i < displays.Length; i++)
         {
             var display = displays[i];

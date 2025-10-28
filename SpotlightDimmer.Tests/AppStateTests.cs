@@ -170,6 +170,59 @@ public class AppStateTests
         }
     }
 
+    /// <summary>
+    /// Tests that when the focused window has 0x0 dimensions (invalid state),
+    /// the overlay state remains unchanged from the previous valid state.
+    /// This prevents flickering when Windows temporarily reports invalid window bounds.
+    /// </summary>
+    [Theory]
+    [InlineData(DimmingMode.FullScreen)]
+    [InlineData(DimmingMode.Partial)]
+    [InlineData(DimmingMode.PartialWithActive)]
+    public void Calculate_WhenFocusedWindowHasZeroDimensions_KeepsStateUnchanged(DimmingMode mode)
+    {
+        // Arrange
+        var displays = new[]
+        {
+            new DisplayInfo(0, new Rectangle(0, 0, 1920, 1080)),
+            new DisplayInfo(1, new Rectangle(1920, 0, 1920, 1080))
+        };
+
+        var appState = new AppState(displays);
+        var config = new OverlayCalculationConfig(
+            Mode: mode,
+            InactiveColor: Color.Black,
+            InactiveOpacity: 153,
+            ActiveColor: Color.Black,
+            ActiveOpacity: 102
+        );
+
+        // Set up initial valid state with a normal window
+        var initialValidBounds = new Rectangle(100, 100, 800, 600);
+        appState.Calculate(displays, initialValidBounds, 0, config);
+
+        // Capture the valid state
+        var validState = CaptureOverlayStates(appState);
+
+        // Act - Call Calculate with 0x0 focused window bounds (invalid state)
+        var zeroWidthBounds = new Rectangle(100, 100, 0, 600); // Width = 0
+        appState.Calculate(displays, zeroWidthBounds, 0, config);
+        var afterZeroWidthState = CaptureOverlayStates(appState);
+
+        var zeroHeightBounds = new Rectangle(100, 100, 800, 0); // Height = 0
+        appState.Calculate(displays, zeroHeightBounds, 0, config);
+        var afterZeroHeightState = CaptureOverlayStates(appState);
+
+        var zeroBothBounds = new Rectangle(100, 100, 0, 0); // Both 0
+        appState.Calculate(displays, zeroBothBounds, 0, config);
+        var afterZeroBothState = CaptureOverlayStates(appState);
+
+        // Assert - All states should remain unchanged from the initial valid state
+        AssertStatesEqual(validState, afterZeroWidthState);
+        AssertStatesEqual(validState, afterZeroHeightState);
+        AssertStatesEqual(validState, afterZeroBothState);
+    }
+
     #region Helper Methods
 
     /// <summary>
