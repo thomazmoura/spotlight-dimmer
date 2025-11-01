@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **UWP app overlay positioning**: System Settings and other UWP apps now correctly position overlays on first launch
-  - UWP apps run inside ApplicationFrameHost.exe container process
-  - GetForegroundWindow() returns the container window, which reports 0x0 or incorrect dimensions
-  - Solution: Detect ApplicationFrameHost and enumerate child windows to find actual content window (CoreWindow)
-  - Use content window dimensions instead of container for overlay calculations
+  - **Root cause**: UWP apps run inside ApplicationFrameHost.exe container. GetForegroundWindow() returns the container (reports 0x0/wrong dimensions), not the content window (CoreWindow)
+  - **Additional issue**: EVENT_SYSTEM_FOREGROUND doesn't fire when UWP apps finish launching - the app is already "foreground" by the time it's ready
+  - **Solution**: Two-part fix:
+    1. Detect ApplicationFrameHost and enumerate child windows to find actual content window with correct dimensions
+    2. Add lightweight polling (100ms) to catch foreground changes that don't fire events (hybrid event + polling approach)
+  - Event hooks handle 99% of cases; polling only catches edge cases like UWP launches
   - Fixes mispositioned overlays when launching apps from Start Menu, PowerToys.Run, etc.
   - Works for all UWP/modern apps: Settings, Calculator, modern Office apps, etc.
 
@@ -84,10 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Corrigido
 - **Posicionamento de sobreposição em apps UWP**: Configurações do Sistema e outros apps UWP agora posicionam sobreposições corretamente no primeiro lançamento
-  - Apps UWP executam dentro do processo contêiner ApplicationFrameHost.exe
-  - GetForegroundWindow() retorna a janela contêiner, que reporta dimensões 0x0 ou incorretas
-  - Solução: Detectar ApplicationFrameHost e enumerar janelas filhas para encontrar janela de conteúdo real (CoreWindow)
-  - Usar dimensões da janela de conteúdo em vez do contêiner para cálculos de sobreposição
+  - **Causa raiz**: Apps UWP executam dentro do contêiner ApplicationFrameHost.exe. GetForegroundWindow() retorna o contêiner (reporta dimensões 0x0/incorretas), não a janela de conteúdo (CoreWindow)
+  - **Problema adicional**: EVENT_SYSTEM_FOREGROUND não dispara quando apps UWP terminam de carregar - o app já está "em foco" quando está pronto
+  - **Solução**: Correção em duas partes:
+    1. Detectar ApplicationFrameHost e enumerar janelas filhas para encontrar janela de conteúdo real com dimensões corretas
+    2. Adicionar polling leve (100ms) para capturar mudanças de foco que não disparam eventos (abordagem híbrida evento + polling)
+  - Event hooks lidam com 99% dos casos; polling apenas captura casos extremos como lançamentos UWP
   - Corrige sobreposições mal posicionadas ao lançar apps do Menu Iniciar, PowerToys.Run, etc.
   - Funciona para todos os apps UWP/modernos: Configurações, Calculadora, apps modernos do Office, etc.
 

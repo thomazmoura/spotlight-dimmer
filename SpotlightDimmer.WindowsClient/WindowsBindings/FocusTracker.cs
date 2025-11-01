@@ -4,7 +4,8 @@ using SpotlightDimmer.Core;
 namespace SpotlightDimmer.WindowsBindings;
 
 /// <summary>
-/// Tracks window focus and movement changes using Windows event hooks (no polling!)
+/// Tracks window focus and movement changes using Windows event hooks + lightweight polling.
+/// Event hooks handle 99% of cases; polling (100ms) catches UWP app launches that don't fire events.
 /// </summary>
 internal class FocusTracker : IDisposable
 {
@@ -14,6 +15,11 @@ internal class FocusTracker : IDisposable
     private IntPtr _locationHook = IntPtr.Zero;
     private int _lastFocusedDisplayIndex = -1;
     private Core.Rectangle? _lastWindowRect;
+    private IntPtr _lastForegroundWindow = IntPtr.Zero;
+
+    // Polling timer to catch foreground changes that don't fire events (UWP app launches)
+    private System.Threading.Timer? _pollingTimer;
+    private const int POLLING_INTERVAL_MS = 100; // Poll every 100ms to catch missed events
 
     // Must keep a reference to prevent garbage collection
     private readonly WinApi.WinEventDelegate _hookDelegate;
@@ -85,10 +91,19 @@ internal class FocusTracker : IDisposable
         _logger.LogDebug("Focus tracking started:");
         _logger.LogDebug("  - EVENT_SYSTEM_FOREGROUND: Instant app switching");
         _logger.LogDebug("  - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
-        _logger.LogDebug("  - Fully event-driven, no polling!");
+        _logger.LogDebug("  - Polling (100ms): Catches UWP app launches that don't fire events");
 
         // Get the initial focused display
         UpdateFocusedDisplay();
+
+        // Start polling timer to catch foreground changes that don't fire events
+        // This is needed for UWP app launches where ApplicationFrameHost becomes foreground
+        // without firing EVENT_SYSTEM_FOREGROUND
+        _pollingTimer = new System.Threading.Timer(
+            PollingCallback,
+            null,
+            POLLING_INTERVAL_MS,
+            POLLING_INTERVAL_MS);
     }
 
     /// <summary>
@@ -121,6 +136,31 @@ internal class FocusTracker : IDisposable
     }
 
     /// <summary>
+    /// Polling callback that checks if the foreground window changed without an event.
+    /// This catches UWP app launches where ApplicationFrameHost becomes foreground
+    /// without firing EVENT_SYSTEM_FOREGROUND.
+    /// </summary>
+    private void PollingCallback(object? state)
+    {
+        try
+        {
+            var currentForegroundWindow = WinApi.GetForegroundWindow();
+
+            // Check if foreground window changed
+            if (currentForegroundWindow != _lastForegroundWindow && currentForegroundWindow != IntPtr.Zero)
+            {
+                _logger.LogDebug("[Polling] Detected foreground change from {Old:X} to {New:X}",
+                    _lastForegroundWindow, currentForegroundWindow);
+                UpdateFocusedDisplay("Polling detected");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in polling callback");
+        }
+    }
+
+    /// <summary>
     /// Updates which display currently has the focused window and tracks position/size changes.
     /// </summary>
     private void UpdateFocusedDisplay(string? reason = null)
@@ -128,6 +168,9 @@ internal class FocusTracker : IDisposable
         var foregroundWindow = WinApi.GetForegroundWindow();
         if (foregroundWindow == IntPtr.Zero)
             return;
+
+        // Track foreground window for polling detection
+        _lastForegroundWindow = foregroundWindow;
 
         // CRITICAL: For UWP apps (ApplicationFrameHost), get the actual content window
         // The foreground window is just the frame - the content is in a child window
@@ -199,6 +242,10 @@ internal class FocusTracker : IDisposable
             WinApi.UnhookWinEvent(_locationHook);
             _locationHook = IntPtr.Zero;
         }
+
+        // Stop polling timer
+        _pollingTimer?.Dispose();
+        _pollingTimer = null;
 
         _logger.LogDebug("Focus tracking stopped");
     }
