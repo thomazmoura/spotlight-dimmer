@@ -3,6 +3,28 @@ using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
 // ========================================================================
+// Helper Classes
+// ========================================================================
+
+/// <summary>
+/// Simple wrapper that implements IOverlayUpdateService using a delegate.
+/// </summary>
+sealed class OverlayUpdateServiceWrapper : IOverlayUpdateService
+{
+    private readonly Action<int, Rectangle> _updateAction;
+
+    public OverlayUpdateServiceWrapper(Action<int, Rectangle> updateAction)
+    {
+        _updateAction = updateAction ?? throw new ArgumentNullException(nameof(updateAction));
+    }
+
+    public void UpdateOverlays(int displayIndex, Rectangle windowBounds)
+    {
+        _updateAction(displayIndex, windowBounds);
+    }
+}
+
+// ========================================================================
 // Logging Initialization
 // ========================================================================
 
@@ -63,7 +85,6 @@ if (monitorManager.Monitors.Count == 0)
 
 logger.LogInformation("Detected {Count} monitor(s)", monitorManager.Monitors.Count);
 
-var focusTracker = new FocusTracker(monitorManager, focusTrackerLogger);
 var renderer = new OverlayRenderer();
 var displayChangeMonitor = new DisplayChangeMonitor(displayChangeMonitorLogger);
 logger.LogInformation("Display change monitor initialized");
@@ -108,6 +129,15 @@ void UpdateOverlays(int displayIndex, Rectangle windowBounds)
     appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
     renderer.UpdateOverlays(appState.DisplayStates);
 }
+
+// Create overlay update service wrapper
+var overlayUpdateService = new OverlayUpdateServiceWrapper(UpdateOverlays);
+
+// Create focus change handler with the update service
+var focusChangeHandler = new FocusChangeHandler(overlayUpdateService);
+
+// Create focus tracker with the handler
+var focusTracker = new FocusTracker(monitorManager, focusChangeHandler, focusTrackerLogger);
 
 // ========================================================================
 // System Tray Event Handlers
