@@ -686,7 +686,7 @@ internal static partial class WinApi
             {
                 logger?.Invoke($"[UWP]   Child {childCount} rect: ({childRect.Left},{childRect.Top}) {childRect.Width}x{childRect.Height}");
 
-                if(composedX == null)
+                if (composedX == null)
                 {
                     composedX = childRect.Left;
                     composedY = childRect.Top;
