@@ -69,7 +69,7 @@ public class FocusChangeHandler
     public FocusChangeResult ProcessFocusChange(int displayIndex, Rectangle? windowBounds)
     {
         // Ignore windows with zero dimensions
-        if (windowBounds.HasValue && windowBounds.Value.Width == 0 && windowBounds.Value.Height == 0)
+        if (windowBounds.HasValue && (windowBounds.Value.Width == 0 || windowBounds.Value.Height == 0))
         {
             return FocusChangeResult.Ignored;
         }

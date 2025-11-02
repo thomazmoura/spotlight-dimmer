@@ -249,7 +249,7 @@ public class FocusChangeHandlerTests
     }
 
     [Theory]
-    [InlineData(0, 1920, 0, 1080)] // Standard HD window
+    [InlineData(0, 0, 1920, 1080)] // Standard HD window
     [InlineData(100, 200, 800, 600)] // Offset window
     [InlineData(-100, -50, 500, 400)] // Negative coordinates (multi-monitor)
     [InlineData(0, 0, 3840, 2160)] // 4K window

@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables future testing of UWP window selection logic and other focus tracking scenarios
 
 ### Fixed
+- **Zero-dimension window detection**: Fixed incorrect handling of windows with zero width or zero height
+  - Bug: Code was using AND (&&) logic requiring BOTH width AND height to be zero before ignoring
+  - Fix: Changed to OR (||) logic to properly ignore windows with zero width OR zero height
+  - Impact: Prevents overlay updates on minimized windows, certain UI elements, and invalid window states
+  - Fixed in FocusChangeHandler.cs:72 - changed condition from `Width == 0 && Height == 0` to `Width == 0 || Height == 0`
+  - Also corrected test data bug in FocusChangeHandlerTests.cs:252 where test parameters were in wrong order
+
 - **UWP app overlay positioning**: System Settings and other UWP apps now correctly position overlays on first launch
   - **Root cause**: UWP apps run inside ApplicationFrameHost.exe container. GetForegroundWindow() returns the container (reports 0x0/wrong dimensions), not the content window (CoreWindow)
   - **Additional issue**: EVENT_SYSTEM_FOREGROUND doesn't fire when UWP apps finish launching - the app is already "foreground" by the time it's ready
@@ -109,6 +116,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Corrigido
+- **Detecção de janelas com dimensão zero**: Corrigido tratamento incorreto de janelas com largura ou altura zero
+  - Bug: Código estava usando lógica AND (&&) exigindo que AMBAS largura E altura fossem zero antes de ignorar
+  - Correção: Alterado para lógica OR (||) para ignorar adequadamente janelas com largura OU altura zero
+  - Impacto: Previne atualizações de sobreposição em janelas minimizadas, certos elementos de interface, e estados de janela inválidos
+  - Corrigido em FocusChangeHandler.cs:72 - alterada condição de `Width == 0 && Height == 0` para `Width == 0 || Height == 0`
+  - Também corrigido bug de dados de teste em FocusChangeHandlerTests.cs:252 onde parâmetros de teste estavam em ordem errada
+
 - **Posicionamento de sobreposição em apps UWP**: Configurações do Sistema e outros apps UWP agora posicionam sobreposições corretamente no primeiro lançamento
   - **Causa raiz**: Apps UWP executam dentro do contêiner ApplicationFrameHost.exe. GetForegroundWindow() retorna o contêiner (reporta dimensões 0x0/incorretas), não a janela de conteúdo (CoreWindow)
   - **Problema adicional**: EVENT_SYSTEM_FOREGROUND não dispara quando apps UWP terminam de carregar - o app já está "em foco" quando está pronto

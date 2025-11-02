@@ -3,28 +3,6 @@ using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
 
 // ========================================================================
-// Helper Classes
-// ========================================================================
-
-/// <summary>
-/// Simple wrapper that implements IOverlayUpdateService using a delegate.
-/// </summary>
-sealed class OverlayUpdateServiceWrapper : IOverlayUpdateService
-{
-    private readonly Action<int, Rectangle> _updateAction;
-
-    public OverlayUpdateServiceWrapper(Action<int, Rectangle> updateAction)
-    {
-        _updateAction = updateAction ?? throw new ArgumentNullException(nameof(updateAction));
-    }
-
-    public void UpdateOverlays(int displayIndex, Rectangle windowBounds)
-    {
-        _updateAction(displayIndex, windowBounds);
-    }
-}
-
-// ========================================================================
 // Logging Initialization
 // ========================================================================
 
@@ -552,3 +530,25 @@ finally
 }
 
 return 0;
+
+// ========================================================================
+// Helper Classes
+// ========================================================================
+
+/// <summary>
+/// Simple wrapper that implements IOverlayUpdateService using a delegate.
+/// </summary>
+sealed class OverlayUpdateServiceWrapper : IOverlayUpdateService
+{
+    private readonly Action<int, Rectangle> _updateAction;
+
+    public OverlayUpdateServiceWrapper(Action<int, Rectangle> updateAction)
+    {
+        _updateAction = updateAction ?? throw new ArgumentNullException(nameof(updateAction));
+    }
+
+    public void UpdateOverlays(int displayIndex, Rectangle windowBounds)
+    {
+        _updateAction(displayIndex, windowBounds);
+    }
+}
