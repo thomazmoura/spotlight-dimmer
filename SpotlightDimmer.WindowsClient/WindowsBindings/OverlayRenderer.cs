@@ -63,6 +63,34 @@ internal class OverlayRenderer : IDisposable
     }
 
     /// <summary>
+    /// Updates the screen capture exclusion setting for all overlay windows.
+    /// Uses SetWindowDisplayAffinity with WDA_EXCLUDEFROMCAPTURE to hide windows from screenshots.
+    /// Returns the count of windows that were successfully updated.
+    /// EXPERIMENTAL: May not work on all systems due to Windows API limitations with layered windows.
+    /// </summary>
+    public int UpdateScreenCaptureExclusion(bool exclude)
+    {
+        uint affinity = exclude ? WinApi.WDA_EXCLUDEFROMCAPTURE : WinApi.WDA_NONE;
+        int successCount = 0;
+        int failureCount = 0;
+
+        foreach (var window in _overlayPool.Values)
+        {
+            if (window.SetDisplayAffinity(affinity))
+            {
+                successCount++;
+            }
+            else
+            {
+                failureCount++;
+            }
+        }
+
+        // Return success count for logging purposes
+        return successCount;
+    }
+
+    /// <summary>
     /// Updates all overlay windows based on the calculated overlay states.
     /// All windows are pre-created, so this only updates their state.
     /// Uses deferred window positioning for atomic, flicker-free batch updates.
@@ -481,6 +509,22 @@ internal class OverlayRenderer : IDisposable
                 WinApi.ShowWindow(_hwnd, 0); // SW_HIDE
                 _localState.IsVisible = false; // Update our local state
             }
+        }
+
+        /// <summary>
+        /// Sets the display affinity for this window to control screen capture behavior.
+        /// Returns true if successful, false otherwise (e.g., due to layered window limitations).
+        /// </summary>
+        public bool SetDisplayAffinity(uint affinity)
+        {
+            if (_hwnd == IntPtr.Zero)
+                return false;
+
+            bool result = WinApi.SetWindowDisplayAffinity(_hwnd, affinity);
+
+            // Note: We don't log here to avoid polluting logs with repeated messages
+            // The caller (OverlayRenderer) will aggregate results and log appropriately
+            return result;
         }
 
         /// <summary>

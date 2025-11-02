@@ -84,6 +84,9 @@ public partial class ConfigForm : Form
             enableLoggingCheckBox.Checked = config.System.EnableLogging;
             logLevelComboBox.SelectedItem = config.System.LogLevel;
             logRetentionDaysNumericUpDown.Value = config.System.LogRetentionDays;
+
+            // Set experimental features
+            excludeFromScreenCaptureCheckBox.Checked = config.Overlay.ExcludeFromScreenCapture;
         }
         finally
         {
@@ -283,6 +286,16 @@ public partial class ConfigForm : Form
         }
     }
 
+    private void OnExcludeFromScreenCaptureChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            var config = _configManager.Current;
+            config.Overlay.ExcludeFromScreenCapture = excludeFromScreenCaptureCheckBox.Checked;
+            SaveConfiguration();
+        }
+    }
+
     private void OnOpenLogsFolderClicked(object? sender, EventArgs e)
     {
         try
@@ -404,9 +417,10 @@ public partial class ConfigForm : Form
             config.Overlay.InactiveOpacity = inactiveOpacityTrackBar.Value;
             config.Overlay.ActiveColor = ColorToHex(activeColorPanel.BackColor);
             config.Overlay.ActiveOpacity = activeOpacityTrackBar.Value;
+            config.Overlay.ExcludeFromScreenCapture = excludeFromScreenCaptureCheckBox.Checked;
 
-            _logger.LogDebug("Saving configuration: Mode={Mode}, InactiveOpacity={InactiveOpacity}, ActiveOpacity={ActiveOpacity}",
-                config.Overlay.Mode, config.Overlay.InactiveOpacity, config.Overlay.ActiveOpacity);
+            _logger.LogDebug("Saving configuration: Mode={Mode}, InactiveOpacity={InactiveOpacity}, ActiveOpacity={ActiveOpacity}, ExcludeFromScreenCapture={ExcludeFromScreenCapture}",
+                config.Overlay.Mode, config.Overlay.InactiveOpacity, config.Overlay.ActiveOpacity, config.Overlay.ExcludeFromScreenCapture);
 
             _configManager.SaveConfiguration(config);
         }

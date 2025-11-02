@@ -69,6 +69,11 @@ internal static partial class WinApi
     // DWM (Desktop Window Manager) constants
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
+    // SetWindowDisplayAffinity constants
+    public const uint WDA_NONE = 0x00000000;
+    public const uint WDA_MONITOR = 0x00000001;
+    public const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
     // Structures
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
@@ -282,6 +287,10 @@ internal static partial class WinApi
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetWindowDisplayAffinity(IntPtr hwnd, uint dwAffinity);
 
     [LibraryImport("user32.dll")]
     public static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);

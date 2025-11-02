@@ -97,6 +97,22 @@ var appState = new AppState(displays);
 // Pre-allocate brushes for configured colors - zero allocations during updates
 renderer.CreateOverlays(displays, config);
 
+// Apply screen capture exclusion setting if configured (experimental feature)
+if (configManager.Current.Overlay.ExcludeFromScreenCapture)
+{
+    var successCount = renderer.UpdateScreenCaptureExclusion(true);
+    var totalWindows = displays.Length * 6; // 6 overlays per display
+    if (successCount < totalWindows)
+    {
+        logger.LogWarning("Screen capture exclusion is EXPERIMENTAL and may not work on all systems");
+        logger.LogWarning("Successfully applied to {SuccessCount}/{TotalCount} overlay windows", successCount, totalWindows);
+    }
+    else
+    {
+        logger.LogInformation("Screen capture exclusion enabled for all overlay windows");
+    }
+}
+
 logger.LogInformation("Overlay configuration loaded");
 logger.LogInformation("  Config file: {ConfigPath}", ConfigurationManager.GetDefaultConfigPath());
 logger.LogInformation("  Mode: {Mode}", config.Mode);
@@ -359,6 +375,25 @@ configManager.ConfigurationChanged += (newAppConfig) =>
     // Update brush colors for all windows
     renderer.UpdateBrushColors(cachedConfig);
 
+    // Update screen capture exclusion setting (experimental feature)
+    var successCount = renderer.UpdateScreenCaptureExclusion(newAppConfig.Overlay.ExcludeFromScreenCapture);
+    var totalWindows = cachedDisplays.Length * 6; // 6 overlays per display
+    if (newAppConfig.Overlay.ExcludeFromScreenCapture)
+    {
+        if (successCount < totalWindows)
+        {
+            logger.LogWarning("Screen capture exclusion enabled but only applied to {SuccessCount}/{TotalCount} windows (EXPERIMENTAL feature)", successCount, totalWindows);
+        }
+        else
+        {
+            logger.LogInformation("Screen capture exclusion enabled for all overlay windows");
+        }
+    }
+    else
+    {
+        logger.LogInformation("Screen capture exclusion disabled");
+    }
+
     // If we have a focused window, trigger an update with the new config
     if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
     {
@@ -421,6 +456,12 @@ displayChangeMonitor.CheckDisplaysRequested += () =>
 
     // Recreate all overlays with current configuration
     renderer.CreateOverlays(newDisplays, cachedConfig);
+
+    // Reapply screen capture exclusion if configured
+    if (configManager.Current.Overlay.ExcludeFromScreenCapture)
+    {
+        renderer.UpdateScreenCaptureExclusion(true);
+    }
 
     logger.LogInformation("Overlays recreated: {OldCount} -> {NewCount} display(s)", oldDisplayCount, newDisplays.Length);
 

@@ -56,6 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - No administrator privileges required - uses per-user registry key
   - Based on proven Rust implementation design
 
+- **Screenshot exclusion (EXPERIMENTAL)**: Optional setting to exclude overlay windows from screen captures
+  - New configuration option: `ExcludeFromScreenCapture` in `Overlay` section (default: false)
+  - Uses Windows `SetWindowDisplayAffinity` API with `WDA_EXCLUDEFROMCAPTURE` flag
+  - When enabled, overlays are excluded from screenshots taken with PrintScreen, Snipping Tool, Greenshot, etc.
+  - Checkbox in config app under "Experimental Features" section with clear disclaimer
+  - Dynamically toggleable via config file - applies immediately without restart via hot-reload
+  - Graceful fallback: If API fails (layered window incompatibility), overlays continue working normally
+  - Diagnostic logging shows success/failure count when enabled
+  - **Known limitation**: May not work on all Windows systems due to API restrictions with `WS_EX_LAYERED` windows
+  - Success rate varies by Windows version and system configuration (works better on Windows 10 2004+ and Windows 11)
+  - Particularly useful for creating demos, tutorials, or documentation without dimming artifacts in screenshots
+
 - **System tray keyboard accessibility**: Full keyboard support for system tray icon navigation
   - Press **Space** to toggle pause/resume (same as double-click)
   - Press **Enter**, **Apps key**, or **Shift+F10** to open the context menu (same as right-click)
@@ -136,6 +148,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mensagens amigáveis no console indicam versão extraída ou fallback para padrão se arquivo não encontrado
 
 ### Adicionado
+- **Exclusão de screenshots (EXPERIMENTAL)**: Configuração opcional para excluir janelas de sobreposição de capturas de tela
+  - Nova opção de configuração: `ExcludeFromScreenCapture` na seção `Overlay` (padrão: false)
+  - Usa a API `SetWindowDisplayAffinity` do Windows com flag `WDA_EXCLUDEFROMCAPTURE`
+  - Quando habilitado, sobreposições são excluídas de screenshots tiradas com PrintScreen, Ferramenta de Captura, Greenshot, etc.
+  - Checkbox no app de configuração na seção "Experimental Features" com aviso claro
+  - Alternável dinamicamente via arquivo de configuração - aplica imediatamente sem reiniciar via hot-reload
+  - Fallback gracioso: Se a API falhar (incompatibilidade com janelas em camadas), sobreposições continuam funcionando normalmente
+  - Logging de diagnóstico mostra contagem de sucesso/falha quando habilitado
+  - **Limitação conhecida**: Pode não funcionar em todos os sistemas Windows devido a restrições da API com janelas `WS_EX_LAYERED`
+  - Taxa de sucesso varia por versão do Windows e configuração do sistema (funciona melhor no Windows 10 2004+ e Windows 11)
+  - Particularmente útil para criar demos, tutoriais, ou documentação sem artefatos de escurecimento em screenshots
+
 - **Início automático no login**: Nova opção no menu da bandeja do sistema para iniciar automaticamente o SpotlightDimmer quando o Windows inicializa
   - Item de menu com checkbox "Start at Login" no menu de contexto da bandeja do sistema
   - Clicar alterna o início automático ligado/desligado via Registro do Windows (HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run)
