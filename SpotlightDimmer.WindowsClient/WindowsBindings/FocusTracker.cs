@@ -11,10 +11,9 @@ internal class FocusTracker : IDisposable
 {
     private readonly MonitorManager _monitorManager;
     private readonly ILogger<FocusTracker> _logger;
+    private readonly FocusChangeHandler _focusChangeHandler;
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _locationHook = IntPtr.Zero;
-    private int _lastFocusedDisplayIndex = -1;
-    private Core.Rectangle? _lastWindowRect;
     private IntPtr _lastForegroundWindow = IntPtr.Zero;
 
     // Polling timer to catch foreground changes that don't fire events (UWP app launches)
@@ -36,13 +35,14 @@ internal class FocusTracker : IDisposable
     /// </summary>
     public event Action<int, Core.Rectangle>? WindowPositionChanged;
 
-    public int CurrentFocusedDisplayIndex => _lastFocusedDisplayIndex;
-    public Core.Rectangle? CurrentWindowRect => _lastWindowRect;
-    public bool HasFocus => _lastFocusedDisplayIndex >= 0 && _lastWindowRect.HasValue;
+    public int CurrentFocusedDisplayIndex => _focusChangeHandler.CurrentFocusedDisplayIndex;
+    public Core.Rectangle? CurrentWindowRect => _focusChangeHandler.CurrentWindowRect;
+    public bool HasFocus => _focusChangeHandler.HasFocus;
 
-    public FocusTracker(MonitorManager monitorManager, ILogger<FocusTracker> logger)
+    public FocusTracker(MonitorManager monitorManager, FocusChangeHandler focusChangeHandler, ILogger<FocusTracker> logger)
     {
         _monitorManager = monitorManager;
+        _focusChangeHandler = focusChangeHandler ?? throw new ArgumentNullException(nameof(focusChangeHandler));
         _logger = logger;
         _hookDelegate = OnWinEvent;
     }
@@ -185,47 +185,40 @@ internal class FocusTracker : IDisposable
             currentRect = WinApi.ToRectangle(winRect);
         }
 
-        if (currentRect?.Width == 0 && currentRect?.Height == 0)
+        // Process the focus change through the Core handler
+        var result = _focusChangeHandler.ProcessFocusChange(focusedDisplayIndex, currentRect);
+
+        // Handle the result and fire appropriate events
+        switch (result)
         {
-            _logger.LogDebug("0 sized window focused. Ignoring");
-            return;
-        }
+            case FocusChangeResult.Ignored:
+                _logger.LogDebug("Focus change ignored (likely 0x0 window or invalid bounds)");
+                break;
 
-        bool displayChanged = focusedDisplayIndex != _lastFocusedDisplayIndex;
-        bool rectChanged = currentRect.HasValue && _lastWindowRect != currentRect;
+            case FocusChangeResult.DisplayChanged:
+                if (focusedDisplayIndex >= 0 && currentRect.HasValue)
+                {
+                    var reasonText = reason != null ? $" ({reason})" : "";
+                    _logger.LogDebug("Display {DisplayIndex} is now active{ReasonText}", focusedDisplayIndex, reasonText);
+                    FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
+                }
+                break;
 
-        // Fire display change event if display actually changed
-        if (displayChanged && currentRect.HasValue)
-        {
-            _lastFocusedDisplayIndex = focusedDisplayIndex;
+            case FocusChangeResult.PositionChanged:
+                if (currentRect.HasValue && reason != null)
+                {
+                    _logger.LogDebug("Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason})",
+                        currentRect.Value.X, currentRect.Value.Y, currentRect.Value.Width, currentRect.Value.Height, focusedDisplayIndex, reason);
+                }
+                if (currentRect.HasValue)
+                {
+                    WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
+                }
+                break;
 
-            if (focusedDisplayIndex >= 0)
-            {
-                var reasonText = reason != null ? $" ({reason})" : "";
-                _logger.LogDebug("Display {DisplayIndex} is now active{ReasonText}", focusedDisplayIndex, reasonText);
-            }
-
-            FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
-        }
-
-        // Fire position change event if window moved/resized (even on same display)
-        if (rectChanged && currentRect.HasValue)
-        {
-            _lastWindowRect = currentRect;
-
-            if (!displayChanged && reason != null)
-            {
-                // Only log if display didn't change (to avoid double logging)
-                _logger.LogDebug("Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason})",
-                    currentRect.Value.X, currentRect.Value.Y, currentRect.Value.Width, currentRect.Value.Height, focusedDisplayIndex, reason);
-            }
-
-            WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
-        }
-        else if (displayChanged && currentRect.HasValue)
-        {
-            // Update rect even if it didn't trigger an event (for initial state)
-            _lastWindowRect = currentRect;
+            case FocusChangeResult.NoChange:
+                // No action needed
+                break;
         }
     }
 

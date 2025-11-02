@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
+  - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic
+  - New `FocusChangeHandler` class in Core layer contains platform-agnostic decision logic
+  - Zero-dimension window filtering (0x0 windows) now has test coverage to prevent regressions
+  - Display change detection logic now fully testable without Windows dependencies
+  - FocusTracker simplified to thin adapter that translates Windows events to Core domain objects
+  - Added NSubstitute for mocking in tests - enables verification of overlay update calls
+  - 20+ comprehensive unit tests covering edge cases: zero dimensions, display changes, position changes, state tracking
+  - Separation of concerns: WindowsBindings handles platform I/O, Core handles business logic
+  - Enables future testing of UWP window selection logic and other focus tracking scenarios
+
 ### Fixed
 - **UWP app overlay positioning**: System Settings and other UWP apps now correctly position overlays on first launch
   - **Root cause**: UWP apps run inside ApplicationFrameHost.exe container. GetForegroundWindow() returns the container (reports 0x0/wrong dimensions), not the content window (CoreWindow)
@@ -104,6 +116,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
+- **Arquitetura de rastreamento de foco testável**: Lógica de mudança de foco refatorada para camada Core para testes unitários abrangentes
+  - Criada interface `IOverlayUpdateService` para abstrair atualizações de sobreposição da lógica de rastreamento de foco
+  - Nova classe `FocusChangeHandler` na camada Core contém lógica de decisão independente de plataforma
+  - Filtragem de janelas com dimensão zero (janelas 0x0) agora tem cobertura de testes para prevenir regressões
+  - Lógica de detecção de mudança de display agora totalmente testável sem dependências do Windows
+  - FocusTracker simplificado para adaptador fino que traduz eventos do Windows para objetos de domínio Core
+  - Adicionado NSubstitute para mocking em testes - permite verificação de chamadas de atualização de sobreposição
+  - Mais de 20 testes unitários abrangentes cobrindo casos extremos: dimensões zero, mudanças de display, mudanças de posição, rastreamento de estado
+  - Separação de responsabilidades: WindowsBindings lida com I/O de plataforma, Core lida com lógica de negócio
+  - Permite testes futuros de lógica de seleção de janela UWP e outros cenários de rastreamento de foco
+
 - **Extração automática de versão no Build-Installer.ps1**: Script de build agora extrai automaticamente a versão do Directory.Build.props
   - Parâmetro de versão agora é opcional - padrão é a versão do Directory.Build.props com sufixo "-dev"
   - Elimina sincronização manual de versão ao construir instaladores locais
