@@ -222,9 +222,38 @@ partial class ConfigForm
         loggingGroupBox.Controls.Add(logRetentionDaysNumericUpDown);
         loggingGroupBox.Controls.Add(openLogsFolderButton);
 
+        // Experimental Features Section
+        var experimentalGroupBox = new GroupBox
+        {
+            Text = "Experimental Features",
+            Location = new Point(20, 510),
+            Size = new Size(440, 100)
+        };
+
+        excludeFromScreenCaptureCheckBox = new CheckBox
+        {
+            Text = "Exclude overlays from screenshots",
+            Location = new Point(10, 25),
+            Size = new Size(420, 24),
+            AutoSize = true
+        };
+        excludeFromScreenCaptureCheckBox.CheckedChanged += OnExcludeFromScreenCaptureChanged;
+
+        var experimentalDisclaimerLabel = new Label
+        {
+            Text = "⚠ This feature may not work on all Windows systems due to API limitations.\nOverlays will function normally even if exclusion fails.",
+            Location = new Point(30, 50),
+            Size = new Size(390, 40),
+            AutoSize = false,
+            ForeColor = System.Drawing.Color.DarkOrange
+        };
+
+        experimentalGroupBox.Controls.Add(excludeFromScreenCaptureCheckBox);
+        experimentalGroupBox.Controls.Add(experimentalDisclaimerLabel);
+
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(480, 520);
+        ClientSize = new Size(480, 625);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -249,6 +278,7 @@ partial class ConfigForm
         Controls.Add(activeOpacityTrackBar);
         Controls.Add(activeOpacityValueLabel);
         Controls.Add(loggingGroupBox);
+        Controls.Add(experimentalGroupBox);
     }
 
     #endregion
@@ -267,4 +297,5 @@ partial class ConfigForm
     private ComboBox logLevelComboBox = null!;
     private NumericUpDown logRetentionDaysNumericUpDown = null!;
     private Button openLogsFolderButton = null!;
+    private CheckBox excludeFromScreenCaptureCheckBox = null!;
 }

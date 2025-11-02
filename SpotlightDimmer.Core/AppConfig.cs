@@ -94,6 +94,17 @@ public class OverlayConfig
     /// Default: 102 (~40% opacity)
     /// </summary>
     public int ActiveOpacity { get; set; } = 102;
+
+    /// <summary>
+    /// Exclude overlay windows from screen captures (screenshots).
+    /// Uses Windows SetWindowDisplayAffinity API with WDA_EXCLUDEFROMCAPTURE flag.
+    /// Default: false (overlays appear in screenshots)
+    ///
+    /// EXPERIMENTAL: This feature may not work on all systems due to Windows API limitations
+    /// with layered windows. Success rate varies by Windows version and system configuration.
+    /// When enabled but not supported, overlays will still function normally but may appear in screenshots.
+    /// </summary>
+    public bool ExcludeFromScreenCapture { get; set; } = false;
 }
 
 /// <summary>
