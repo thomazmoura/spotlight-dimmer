@@ -10,4 +10,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <NoWarn>CA1873</NoWarn> <!-- Suppress logger may be expensive warning -->
+  </PropertyGroup>
+
 </Project>

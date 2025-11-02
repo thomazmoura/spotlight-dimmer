@@ -159,7 +159,8 @@ public class FocusChangeHandlerTests
 
         // Assert
         Assert.Equal(FocusChangeResult.Ignored, result1);
-        Assert.Equal(FocusChangeResult.DisplayChanged, result2);
+        // After tracking display 0 from zero-dimension window, valid window on same display is PositionChanged
+        Assert.Equal(FocusChangeResult.PositionChanged, result2);
         mockUpdateService.Received(1).UpdateOverlays(0, validWindow);
     }
 
@@ -273,5 +274,68 @@ public class FocusChangeHandlerTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new FocusChangeHandler(null!));
+    }
+
+    [Fact]
+    public void ProcessFocusChange_ZeroDimensionOnDisplayChange_TracksDisplayAndUpdatesOnValidBounds()
+    {
+        // This test simulates popup window behavior (e.g., system tray context menu):
+        // 1. Popup appears with focus on display 1 but reports 0x0 dimensions during initialization
+        // 2. Shortly after, another event arrives with valid dimensions
+        // Expected: Display change is tracked, and overlays update when valid dimensions arrive
+
+        // Arrange
+        var mockUpdateService = Substitute.For<IOverlayUpdateService>();
+        var handler = new FocusChangeHandler(mockUpdateService);
+        var window1 = new Rectangle(0, 0, 800, 600);
+        var zeroWindow = new Rectangle(1920, 100, 0, 500); // Zero width popup on display 1
+        var validPopupWindow = new Rectangle(1920, 100, 200, 500); // Valid popup dimensions
+
+        // Start on display 0 with a valid window
+        handler.ProcessFocusChange(displayIndex: 0, windowBounds: window1);
+
+        // Act - Popup appears on display 1 with zero width (common during popup initialization)
+        var result1 = handler.ProcessFocusChange(displayIndex: 1, windowBounds: zeroWindow);
+
+        // Popup reports valid dimensions shortly after
+        var result2 = handler.ProcessFocusChange(displayIndex: 1, windowBounds: validPopupWindow);
+
+        // Assert
+        Assert.Equal(FocusChangeResult.Ignored, result1); // Zero-dimension ignored for overlay update
+        Assert.Equal(FocusChangeResult.PositionChanged, result2); // Valid dimensions trigger update
+        Assert.Equal(1, handler.CurrentFocusedDisplayIndex); // Display change was tracked
+        Assert.Equal(validPopupWindow, handler.CurrentWindowRect); // Valid bounds stored
+
+        // Verify overlay update was called only once (for valid dimensions, not zero-dimension)
+        mockUpdateService.Received(1).UpdateOverlays(0, window1); // Initial window
+        mockUpdateService.DidNotReceive().UpdateOverlays(1, zeroWindow); // Zero-dimension skipped
+        mockUpdateService.Received(1).UpdateOverlays(1, validPopupWindow); // Valid popup
+    }
+
+    [Fact]
+    public void ProcessFocusChange_ZeroDimensionOnSameDisplay_DoesNotUpdateOverlays()
+    {
+        // Verify that zero-dimension windows on the same display don't cause overlay updates
+        // (prevents flickering during window transitions)
+
+        // Arrange
+        var mockUpdateService = Substitute.For<IOverlayUpdateService>();
+        var handler = new FocusChangeHandler(mockUpdateService);
+        var validWindow = new Rectangle(100, 100, 800, 600);
+        var zeroWindow = new Rectangle(100, 100, 0, 0);
+
+        // Act
+        handler.ProcessFocusChange(displayIndex: 0, windowBounds: validWindow);
+        var result = handler.ProcessFocusChange(displayIndex: 0, windowBounds: zeroWindow);
+
+        // Assert
+        Assert.Equal(FocusChangeResult.Ignored, result);
+        Assert.Equal(0, handler.CurrentFocusedDisplayIndex); // Display stays same
+        // Rect is preserved on same display to prevent flickering - overlays stay at last valid position
+        Assert.Equal(validWindow, handler.CurrentWindowRect);
+
+        // Verify overlay was updated only once (for the valid window, not the zero-dimension)
+        mockUpdateService.Received(1).UpdateOverlays(0, validWindow);
+        mockUpdateService.DidNotReceive().UpdateOverlays(0, zeroWindow);
     }
 }

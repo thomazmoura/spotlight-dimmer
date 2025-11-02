@@ -30,6 +30,10 @@ internal static partial class WinApi
     public const uint WM_DISPLAYCHANGE = 0x007E;
     public const uint WM_SETICON = 0x0080;
 
+    // Custom application messages
+    public const uint WM_USER = 0x0400;
+    public const uint WM_FOCUS_UPDATE = WM_USER + 1;  // Posted by polling thread to trigger focus update on UI thread
+
     // SetWindowLong/GetWindowLong constants
     public const int GWL_EXSTYLE = -20;
     public const int GWL_STYLE = -16;
@@ -408,6 +412,13 @@ internal static partial class WinApi
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     public static partial IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    // Special window handles
+    public static readonly IntPtr HWND_MESSAGE = new IntPtr(-3);  // For message-only windows
+
     // Virtual key codes
     public const int VK_RETURN = 0x0D;
     public const int VK_SPACE = 0x20;
@@ -633,24 +644,30 @@ internal static partial class WinApi
     /// Finds the actual content window (CoreWindow) for UWP apps running in ApplicationFrameHost.
     /// For non-UWP apps, returns the original window handle.
     /// </summary>
-    public static IntPtr GetUwpContentWindow(IntPtr hWnd, Action<string>? logger = null)
+    public static Rectangle GetUwpContentBounds(IntPtr hWnd, Action<string>? logger = null, string? processName = null)
     {
         // Check if this is ApplicationFrameHost
-        string? processName = GetProcessName(hWnd);
         logger?.Invoke($"[UWP] Window handle {hWnd:X}, Process: {processName ?? "null"}");
 
         if (processName == null || !processName.Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
         {
             // Not a UWP app - return original handle
             logger?.Invoke($"[UWP] Not ApplicationFrameHost, using original window");
-            return hWnd;
+
+            if (GetExtendedWindowRect(hWnd, out var winRect))
+            {
+                return WinApi.ToRectangle(winRect);
+            }
         }
 
         logger?.Invoke($"[UWP] Detected ApplicationFrameHost! Enumerating child windows...");
 
         // This is a UWP app - find the largest visible child window (likely the content)
         IntPtr largestChild = IntPtr.Zero;
-        int largestArea = 0;
+        int? composedX = null;
+        int? composedY = null;
+        int? composedWidth = null;
+        int? composedHeight = null;
         int childCount = 0;
 
         EnumChildWindows(hWnd, (childHWnd, lParam) =>
@@ -667,26 +684,35 @@ internal static partial class WinApi
             // Get window rectangle
             if (GetExtendedWindowRect(childHWnd, out RECT childRect))
             {
-                int area = childRect.Width * childRect.Height;
-                logger?.Invoke($"[UWP]   Child {childCount} rect: ({childRect.Left},{childRect.Top}) {childRect.Width}x{childRect.Height}, Area: {area}");
+                logger?.Invoke($"[UWP]   Child {childCount} rect: ({childRect.Left},{childRect.Top}) {childRect.Width}x{childRect.Height}");
 
-                // Track the largest child window
-                if (area > largestArea)
+                if(composedX == null)
                 {
-                    largestArea = area;
-                    largestChild = childHWnd;
-                    logger?.Invoke($"[UWP]   New largest child: {childHWnd:X}");
+                    composedX = childRect.Left;
+                    composedY = childRect.Top;
+                    composedWidth = childRect.Width;
+                    composedHeight = childRect.Height;
+                }
+                else
+                {
+                    // Compose bounding rectangle of all children
+                    int left = Math.Min(composedX.Value, childRect.Left);
+                    int top = Math.Min(composedY.Value, childRect.Top);
+                    int right = Math.Max(composedX.Value + composedWidth.Value, childRect.Right);
+                    int bottom = Math.Max(composedY.Value + composedHeight.Value, childRect.Bottom);
+
+                    composedX = left;
+                    composedY = top;
+                    composedWidth = right - left;
+                    composedHeight = bottom - top;
                 }
             }
 
             return true; // Continue enumeration
         }, IntPtr.Zero);
 
-        logger?.Invoke($"[UWP] Enumeration complete. Found {childCount} children. Largest: {largestChild:X} (area: {largestArea})");
+        logger?.Invoke($"[UWP] Enumeration complete. Found {childCount} children. Bounds: ({composedX},{composedY}) {composedWidth}x{composedHeight}");
+        return new Rectangle(composedX ?? 0, composedY ?? 0, composedWidth ?? 0, composedHeight ?? 0);
 
-        // Return the largest child if found, otherwise return original window
-        IntPtr result = largestChild != IntPtr.Zero ? largestChild : hWnd;
-        logger?.Invoke($"[UWP] Returning window: {result:X}");
-        return result;
     }
 }

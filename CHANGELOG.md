@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables future testing of UWP window selection logic and other focus tracking scenarios
 
 ### Fixed
+- **Popup window highlighting regression (v0.8.3)**: Fixed system tray menus and popup windows not being highlighted correctly
+  - **Symptom**: When opening popup windows (context menus, dropdowns), overlays dimmed randomly instead of highlighting the popup
+  - **Root cause**: Zero-dimension filtering was too aggressive - popup windows temporarily report 0x0 dimensions during initialization
+  - **Impact**: The zero-dimension check caused early return without tracking display changes, leaving overlays in wrong position
+  - **Solution**: Modified FocusChangeHandler to track display changes even for zero-dimension windows, but defer overlay updates until valid dimensions arrive
+  - Restores v0.8.2 behavior where popups are correctly highlighted
+  - Maintains flickering prevention for truly invalid window states
+  - Added comprehensive test coverage for popup window scenarios
+
 - **Zero-dimension window detection**: Fixed incorrect handling of windows with zero width or zero height
   - Bug: Code was using AND (&&) logic requiring BOTH width AND height to be zero before ignoring
   - Fix: Changed to OR (||) logic to properly ignore windows with zero width OR zero height
@@ -36,6 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Event hooks handle 99% of cases; polling only catches edge cases like UWP launches
   - Fixes mispositioned overlays when launching apps from Start Menu, PowerToys.Run, etc.
   - Works for all UWP/modern apps: Settings, Calculator, modern Office apps, etc.
+
+- **Threading bug causing duplicate overlays with polling detection**: Fixed issue where UWP apps opened via polling showed both old and new overlays simultaneously
+  - **Symptom**: When opening fullscreen UWP apps (SystemSettings, etc.) while PowerToys Run or other apps were open, both old partial overlays and new overlays appeared at the same time
+  - **Root cause**: Polling timer runs on ThreadPool background thread. When it called `SetWindowPos()`, those GDI operations were queued in the message loop but didn't execute until the next message arrived, creating a race condition where old and new overlays were both visible
+  - **Solution**: Created a message-only window to marshal polling updates to the UI thread via `PostMessage(WM_FOCUS_UPDATE)`, ensuring all overlay updates execute synchronously on the thread that owns the windows
+  - Impact: Eliminates visual artifacts and duplicate overlays when UWP apps are detected through polling
+  - All GDI operations now run on the correct thread, preventing message queue backlog
+  - Event-driven updates continue working as before (they already ran on the UI thread)
 
 - **Flickering during invalid window bounds**: Overlays now remain stable when Windows temporarily reports 0x0 window dimensions
   - Windows temporarily reports 0x0 dimensions during focus changes and window transitions
@@ -116,6 +133,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Corrigido
+- **Regressão de destaque de janelas popup (v0.8.3)**: Corrigido menus da bandeja do sistema e janelas popup não sendo destacadas corretamente
+  - **Sintoma**: Ao abrir janelas popup (menus de contexto, dropdowns), sobreposições escureciam aleatoriamente ao invés de destacar o popup
+  - **Causa raiz**: Filtragem de dimensão zero era muito agressiva - janelas popup temporariamente reportam dimensões 0x0 durante inicialização
+  - **Impacto**: A verificação de dimensão zero causava retorno antecipado sem rastrear mudanças de display, deixando sobreposições na posição errada
+  - **Solução**: Modificado FocusChangeHandler para rastrear mudanças de display mesmo para janelas com dimensão zero, mas adiar atualizações de sobreposição até dimensões válidas chegarem
+  - Restaura comportamento v0.8.2 onde popups são corretamente destacados
+  - Mantém prevenção de tremulação para estados de janela verdadeiramente inválidos
+  - Adicionada cobertura de testes abrangente para cenários de janelas popup
+
 - **Detecção de janelas com dimensão zero**: Corrigido tratamento incorreto de janelas com largura ou altura zero
   - Bug: Código estava usando lógica AND (&&) exigindo que AMBAS largura E altura fossem zero antes de ignorar
   - Correção: Alterado para lógica OR (||) para ignorar adequadamente janelas com largura OU altura zero
@@ -132,6 +158,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Event hooks lidam com 99% dos casos; polling apenas captura casos extremos como lançamentos UWP
   - Corrige sobreposições mal posicionadas ao lançar apps do Menu Iniciar, PowerToys.Run, etc.
   - Funciona para todos os apps UWP/modernos: Configurações, Calculadora, apps modernos do Office, etc.
+
+- **Bug de threading causando sobreposições duplicadas com detecção por polling**: Corrigido problema onde apps UWP abertos via polling mostravam sobreposições antigas e novas simultaneamente
+  - **Sintoma**: Ao abrir apps UWP em tela cheia (Configurações do Sistema, etc.) enquanto PowerToys Run ou outros apps estavam abertos, sobreposições parciais antigas e novas apareciam ao mesmo tempo
+  - **Causa raiz**: Timer de polling executa em thread de background do ThreadPool. Quando chamava `SetWindowPos()`, essas operações GDI eram enfileiradas no message loop mas não executavam até a próxima mensagem chegar, criando uma condição de corrida onde sobreposições antigas e novas ficavam visíveis simultaneamente
+  - **Solução**: Criada janela message-only para organizar atualizações de polling para a thread UI via `PostMessage(WM_FOCUS_UPDATE)`, garantindo que todas as atualizações de sobreposição executem sincronamente na thread que possui as janelas
+  - Impacto: Elimina artefatos visuais e sobreposições duplicadas quando apps UWP são detectados através de polling
+  - Todas as operações GDI agora executam na thread correta, prevenindo acúmulo na fila de mensagens
+  - Atualizações orientadas a eventos continuam funcionando como antes (já executavam na thread UI)
 
 - **Tremulação durante bounds de janela inválidos**: Sobreposições agora permanecem estáveis quando Windows temporariamente reporta dimensões 0x0 de janela
   - Windows temporariamente reporta dimensões 0x0 durante mudanças de foco e transições de janela

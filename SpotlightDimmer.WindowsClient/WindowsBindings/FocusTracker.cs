@@ -15,13 +15,15 @@ internal class FocusTracker : IDisposable
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _locationHook = IntPtr.Zero;
     private IntPtr _lastForegroundWindow = IntPtr.Zero;
+    private IntPtr _messageWindow = IntPtr.Zero;
 
     // Polling timer to catch foreground changes that don't fire events (UWP app launches)
     private System.Threading.Timer? _pollingTimer;
     private const int POLLING_INTERVAL_MS = 100; // Poll every 100ms to catch missed events
 
-    // Must keep a reference to prevent garbage collection
+    // Must keep references to prevent garbage collection
     private readonly WinApi.WinEventDelegate _hookDelegate;
+    private readonly WinApi.WndProc _wndProcDelegate;
 
     /// <summary>
     /// Fired when the focused display changes (window moved to different monitor).
@@ -45,6 +47,7 @@ internal class FocusTracker : IDisposable
         _focusChangeHandler = focusChangeHandler ?? throw new ArgumentNullException(nameof(focusChangeHandler));
         _logger = logger;
         _hookDelegate = OnWinEvent;
+        _wndProcDelegate = MessageWindowProc;
     }
 
     /// <summary>
@@ -88,10 +91,14 @@ internal class FocusTracker : IDisposable
             throw new InvalidOperationException("Failed to set EVENT_OBJECT_LOCATIONCHANGE hook");
         }
 
-        _logger.LogDebug("Focus tracking started:");
-        _logger.LogDebug("  - EVENT_SYSTEM_FOREGROUND: Instant app switching");
-        _logger.LogDebug("  - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
-        _logger.LogDebug("  - Polling (100ms): Catches UWP app launches that don't fire events");
+        _logger.LogDebug("[FOCUS] Focus tracking started:");
+        _logger.LogDebug("[FOCUS]   - EVENT_SYSTEM_FOREGROUND: Instant app switching");
+        _logger.LogDebug("[FOCUS]   - EVENT_OBJECT_LOCATIONCHANGE: Window movement detection");
+        _logger.LogDebug("[FOCUS]   - Polling (100ms): Catches UWP app launches that don't fire events");
+
+        // Create message-only window for marshalling polling updates to UI thread
+        // This ensures all SetWindowPos calls happen on the thread that owns the overlay windows
+        CreateMessageWindow();
 
         // Get the initial focused display
         UpdateFocusedDisplay();
@@ -136,9 +143,66 @@ internal class FocusTracker : IDisposable
     }
 
     /// <summary>
+    /// Creates a message-only window for handling focus update messages from the polling thread.
+    /// </summary>
+    private void CreateMessageWindow()
+    {
+        // Register window class
+        var wc = new WinApi.WNDCLASSEX
+        {
+            cbSize = System.Runtime.InteropServices.Marshal.SizeOf<WinApi.WNDCLASSEX>(),
+            lpfnWndProc = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
+            hInstance = WinApi.GetModuleHandle(null),
+            lpszClassName = "SpotlightDimmer_FocusTracker_MessageWindow"
+        };
+
+        ushort classAtom = WinApi.RegisterClassEx(wc);
+        if (classAtom == 0)
+        {
+            throw new InvalidOperationException("Failed to register message window class");
+        }
+
+        // Create message-only window (HWND_MESSAGE parent = message-only)
+        _messageWindow = WinApi.CreateWindowEx(
+            0,
+            wc.lpszClassName,
+            "SpotlightDimmer Focus Message Window",
+            0,
+            0, 0, 0, 0,
+            WinApi.HWND_MESSAGE,
+            IntPtr.Zero,
+            wc.hInstance,
+            IntPtr.Zero);
+
+        if (_messageWindow == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Failed to create message window");
+        }
+
+        _logger.LogDebug("[FOCUS] Created message window for thread marshalling: {Handle:X}", _messageWindow);
+    }
+
+    /// <summary>
+    /// Window procedure for the message-only window.
+    /// Handles WM_FOCUS_UPDATE by calling UpdateFocusedDisplay on the UI thread.
+    /// </summary>
+    private IntPtr MessageWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (msg == WinApi.WM_FOCUS_UPDATE)
+        {
+            // This now runs on the UI thread (the thread that owns the overlay windows)
+            UpdateFocusedDisplay("Polling detected");
+            return IntPtr.Zero;
+        }
+
+        return WinApi.DefWindowProc(hWnd, msg, wParam, lParam);
+    }
+
+    /// <summary>
     /// Polling callback that checks if the foreground window changed without an event.
     /// This catches UWP app launches where ApplicationFrameHost becomes foreground
     /// without firing EVENT_SYSTEM_FOREGROUND.
+    /// Posts a message to the UI thread instead of calling UpdateFocusedDisplay directly.
     /// </summary>
     private void PollingCallback(object? state)
     {
@@ -149,9 +213,15 @@ internal class FocusTracker : IDisposable
             // Check if foreground window changed
             if (currentForegroundWindow != _lastForegroundWindow && currentForegroundWindow != IntPtr.Zero)
             {
-                _logger.LogDebug("[Polling] Detected foreground change from {Old:X} to {New:X}",
+                _logger.LogDebug("[FOCUS] [Polling] Detected foreground change from {Old:X} to {New:X}",
                     _lastForegroundWindow, currentForegroundWindow);
-                UpdateFocusedDisplay("Polling detected");
+
+                // Post message to UI thread instead of calling UpdateFocusedDisplay directly
+                // This ensures SetWindowPos calls happen on the thread that owns the overlay windows
+                if (_messageWindow != IntPtr.Zero)
+                {
+                    WinApi.PostMessage(_messageWindow, WinApi.WM_FOCUS_UPDATE, IntPtr.Zero, IntPtr.Zero);
+                }
             }
         }
         catch (Exception ex)
@@ -167,23 +237,24 @@ internal class FocusTracker : IDisposable
     {
         var foregroundWindow = WinApi.GetForegroundWindow();
         if (foregroundWindow == IntPtr.Zero)
+        {
+            _logger.LogDebug(
+                "There is no foreground window, skipping {MethodName}",
+                nameof(UpdateFocusedDisplay)
+            );
             return;
+        }
 
         // Track foreground window for polling detection
         _lastForegroundWindow = foregroundWindow;
 
+        var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
+
+        string? processName = WinApi.GetProcessName(foregroundWindow) ?? "unknown";
+
         // CRITICAL: For UWP apps (ApplicationFrameHost), get the actual content window
         // The foreground window is just the frame - the content is in a child window
-        var contentWindow = WinApi.GetUwpContentWindow(foregroundWindow, msg => _logger.LogDebug(msg));
-
-        var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(contentWindow);
-
-        // Get window rectangle (excluding invisible borders) and convert to Core.Rectangle
-        Core.Rectangle? currentRect = null;
-        if (WinApi.GetExtendedWindowRect(contentWindow, out var winRect))
-        {
-            currentRect = WinApi.ToRectangle(winRect);
-        }
+        var currentRect = WinApi.GetUwpContentBounds(foregroundWindow, msg => _logger.LogDebug(msg), processName);
 
         // Process the focus change through the Core handler
         var result = _focusChangeHandler.ProcessFocusChange(focusedDisplayIndex, currentRect);
@@ -192,32 +263,29 @@ internal class FocusTracker : IDisposable
         switch (result)
         {
             case FocusChangeResult.Ignored:
-                _logger.LogDebug("Focus change ignored (likely 0x0 window or invalid bounds)");
+                _logger.LogDebug("[FOCUS] Focus change ignored (likely 0x0 window or invalid bounds) - {Process}", processName);
                 break;
 
             case FocusChangeResult.DisplayChanged:
-                if (focusedDisplayIndex >= 0 && currentRect.HasValue)
+                if (focusedDisplayIndex >= 0)
                 {
                     var reasonText = reason != null ? $" ({reason})" : "";
-                    _logger.LogDebug("Display {DisplayIndex} is now active{ReasonText}", focusedDisplayIndex, reasonText);
-                    FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
+                    _logger.LogDebug("[FOCUS] Display {DisplayIndex} is now active ({ReasonText}), ({X},{Y}) {Width}x{Height} - {Process}", focusedDisplayIndex, reasonText, currentRect.X, currentRect.Y, currentRect.Width, currentRect.Height, processName);
+                    FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect);
                 }
                 break;
 
             case FocusChangeResult.PositionChanged:
-                if (currentRect.HasValue && reason != null)
+                if (reason != null)
                 {
-                    _logger.LogDebug("Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason})",
-                        currentRect.Value.X, currentRect.Value.Y, currentRect.Value.Width, currentRect.Value.Height, focusedDisplayIndex, reason);
+                    _logger.LogDebug("[FOCUS] Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason}), - {Process}",
+                        currentRect.X, currentRect.Y, currentRect.Width, currentRect.Height, focusedDisplayIndex, reason, processName);
                 }
-                if (currentRect.HasValue)
-                {
-                    WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect.Value);
-                }
+                WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect);
                 break;
 
             case FocusChangeResult.NoChange:
-                // No action needed
+                _logger.LogDebug("[FOCUS] Focus changed ({reason}) ignored because no change is needed - {Process}", reason, processName);
                 break;
         }
     }
@@ -240,6 +308,13 @@ internal class FocusTracker : IDisposable
         _pollingTimer?.Dispose();
         _pollingTimer = null;
 
-        _logger.LogDebug("Focus tracking stopped");
+        // Destroy message window
+        if (_messageWindow != IntPtr.Zero)
+        {
+            WinApi.DestroyWindow(_messageWindow);
+            _messageWindow = IntPtr.Zero;
+        }
+
+        _logger.LogDebug("[FOCUS] Focus tracking stopped");
     }
 }

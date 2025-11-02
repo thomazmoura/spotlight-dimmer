@@ -68,9 +68,17 @@ public class FocusChangeHandler
     /// <returns>A FocusChangeResult indicating what action was taken.</returns>
     public FocusChangeResult ProcessFocusChange(int displayIndex, Rectangle? windowBounds)
     {
-        // Ignore windows with zero dimensions
+        // Handle windows with zero dimensions (e.g., popups during initialization, minimized windows)
+        // Track display changes but don't update overlays until we get valid dimensions
         if (windowBounds.HasValue && (windowBounds.Value.Width == 0 || windowBounds.Value.Height == 0))
         {
+            // Check if display changed - track it but wait for valid dimensions before updating overlays
+            if (displayIndex != _lastFocusedDisplayIndex)
+            {
+                _lastFocusedDisplayIndex = displayIndex;
+                _lastWindowRect = null; // Clear last rect to ensure next valid bounds trigger an update
+            }
+
             return FocusChangeResult.Ignored;
         }
 
