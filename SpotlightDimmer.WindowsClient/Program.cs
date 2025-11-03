@@ -75,6 +75,20 @@ var appState = new AppState(displays);
 // Pre-allocate brushes for configured colors - zero allocations during updates
 renderer.CreateOverlays(displays, config);
 
+// Apply VSync setting if configured
+var vsyncSuccess = renderer.UpdateVSyncEnabled(configManager.Current.Overlay.EnableVSync);
+if (configManager.Current.Overlay.EnableVSync)
+{
+    if (vsyncSuccess)
+    {
+        logger.LogInformation("VSync enabled for overlay updates (DwmFlush)");
+    }
+    else
+    {
+        logger.LogWarning("VSync requested but Desktop Window Manager composition is not available");
+    }
+}
+
 // Apply screen capture exclusion setting if configured (experimental feature)
 if (configManager.Current.Overlay.ExcludeFromScreenCapture)
 {
@@ -396,6 +410,24 @@ configManager.ConfigurationChanged += (newAppConfig) =>
 
     // Update brush colors for all windows
     renderer.UpdateBrushColors(cachedConfig);
+
+    // Update VSync setting
+    var vsyncSuccess = renderer.UpdateVSyncEnabled(newAppConfig.Overlay.EnableVSync);
+    if (newAppConfig.Overlay.EnableVSync)
+    {
+        if (vsyncSuccess)
+        {
+            logger.LogInformation("VSync enabled for overlay updates");
+        }
+        else
+        {
+            logger.LogWarning("VSync requested but Desktop Window Manager composition is not available");
+        }
+    }
+    else
+    {
+        logger.LogInformation("VSync disabled for overlay updates");
+    }
 
     // Update screen capture exclusion setting (experimental feature)
     var successCount = renderer.UpdateScreenCaptureExclusion(newAppConfig.Overlay.ExcludeFromScreenCapture);

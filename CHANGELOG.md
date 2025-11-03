@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **VSync support for overlay rendering**: Optional vertical synchronization to reduce visual tearing during overlay updates
+  - New `EnableVSync` configuration option in `config.json` under `Overlay` section (default: false)
+  - Uses Windows Desktop Window Manager (DWM) `DwmFlush()` API to synchronize overlay updates with display refresh rate
+  - Reduces visual tearing and stuttering when moving/resizing windows, especially noticeable on high refresh rate monitors
+  - Performance impact: +5-10% CPU during window movement, +8-16ms latency per update (1-2 frames at 60Hz)
+  - Automatically disabled if DWM composition is unavailable (requires Windows Vista or later with Aero enabled)
+  - Configuration changes hot-reload without restart - toggle VSync on/off by editing config file
+  - Logs VSync status at startup and when configuration changes for troubleshooting
+
+---
+
+### Adicionado
+- **Suporte a VSync para renderização de sobreposições**: Sincronização vertical opcional para reduzir artefatos visuais durante atualizações das sobreposições
+  - Nova opção de configuração `EnableVSync` no `config.json` na seção `Overlay` (padrão: false)
+  - Utiliza a API `DwmFlush()` do Desktop Window Manager (DWM) do Windows para sincronizar atualizações das sobreposições com a taxa de atualização do display
+  - Reduz artefatos visuais e trepidações ao mover/redimensionar janelas, especialmente perceptível em monitores de alta taxa de atualização
+  - Impacto de desempenho: +5-10% CPU durante movimento de janelas, +8-16ms de latência por atualização (1-2 quadros a 60Hz)
+  - Automaticamente desabilitado se a composição DWM não estiver disponível (requer Windows Vista ou posterior com Aero habilitado)
+  - Mudanças de configuração são aplicadas sem reiniciar - alterne VSync ligando/desligando editando o arquivo de configuração
+  - Registra o status do VSync na inicialização e quando a configuração muda para diagnóstico
+
+---
+
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
   - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic

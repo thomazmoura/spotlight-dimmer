@@ -450,6 +450,22 @@ internal static partial class WinApi
     [LibraryImport("dwmapi.dll")]
     public static partial int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
 
+    /// <summary>
+    /// Waits for the Desktop Window Manager (DWM) to finish compositing the next frame.
+    /// This provides explicit VSync control for smoother overlay updates.
+    /// Returns S_OK (0) on success, or an error code on failure.
+    /// </summary>
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmFlush();
+
+    /// <summary>
+    /// Determines whether Desktop Window Manager (DWM) composition is enabled.
+    /// VSync via DwmFlush only works when composition is enabled.
+    /// </summary>
+    [LibraryImport("dwmapi.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DwmIsCompositionEnabled();
+
     // Diagnostic helper for detecting GDI object leaks
     [LibraryImport("user32.dll")]
     public static partial int GetGuiResources(IntPtr hProcess, int uiFlags);

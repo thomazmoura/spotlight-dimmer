@@ -22,9 +22,16 @@ internal class OverlayRenderer : IDisposable
     // Pre-allocated list for batching updates (reused every frame to avoid allocations)
     private readonly List<(OverlayWindow window, OverlayDefinition definition)> _updateBatch = new();
 
+    // VSync state
+    private bool _vsyncEnabled = false;
+    private bool _dwmCompositionAvailable = false;
+
     public OverlayRenderer()
     {
         EnsureWindowClassRegistered();
+
+        // Check if DWM composition is available (required for VSync via DwmFlush)
+        _dwmCompositionAvailable = WinApi.DwmIsCompositionEnabled();
     }
 
     /// <summary>
@@ -60,6 +67,24 @@ internal class OverlayRenderer : IDisposable
         {
             window.UpdateBrushColors(config);
         }
+    }
+
+    /// <summary>
+    /// Updates the VSync setting for overlay rendering.
+    /// VSync synchronizes overlay updates to the display's refresh rate to reduce tearing.
+    /// Returns true if VSync was successfully enabled, false otherwise (e.g., DWM not available).
+    /// </summary>
+    public bool UpdateVSyncEnabled(bool enabled)
+    {
+        if (enabled && !_dwmCompositionAvailable)
+        {
+            // VSync requires DWM composition - can't enable
+            _vsyncEnabled = false;
+            return false;
+        }
+
+        _vsyncEnabled = enabled;
+        return true;
     }
 
     /// <summary>
@@ -129,9 +154,16 @@ internal class OverlayRenderer : IDisposable
     /// <summary>
     /// Applies updates to multiple windows atomically using DeferWindowPos.
     /// This reduces flicker by applying all position/size/visibility changes in a single operation.
+    /// If VSync is enabled, waits for the next DWM frame before applying updates.
     /// </summary>
     private void BatchUpdateWindows(List<(OverlayWindow window, OverlayDefinition definition)> updates)
     {
+        // Wait for next VSync if enabled (synchronizes updates to display refresh rate)
+        if (_vsyncEnabled)
+        {
+            WinApi.DwmFlush();
+        }
+
         // Begin deferred window positioning for all windows
         var hdwp = WinApi.BeginDeferWindowPos(updates.Count);
         if (hdwp == IntPtr.Zero)
