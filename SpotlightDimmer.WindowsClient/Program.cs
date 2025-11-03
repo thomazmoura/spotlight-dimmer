@@ -334,6 +334,50 @@ systemTray.LoggingToggled += (enableLogging) =>
     // Logging reconfiguration will happen automatically via ConfigurationChanged event
 };
 
+// Handle About request from system tray
+systemTray.AboutRequested += () =>
+{
+    try
+    {
+        var assembly = typeof(Program).Assembly;
+        var version = assembly.GetName().Version?.ToString() ?? "Unknown";
+
+        var aboutMessage = $"SpotlightDimmer\n" +
+                          $"Version {version}\n\n" +
+                          $"Author: Thomaz Moura\n\n" +
+                          $"Technology:\n" +
+                          $".NET, WinForms and Windows APIs\n\n" +
+                          $"GitHub:\n" +
+                          $"github.com/thomazmoura/spotlight-dimmer";
+
+        logger.LogInformation("Showing About dialog");
+        WinApi.MessageBox(IntPtr.Zero,
+            aboutMessage,
+            "About SpotlightDimmer",
+            WinApi.MB_OK | WinApi.MB_ICONINFORMATION);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to show About dialog");
+    }
+};
+
+// Handle Visit GitHub request from system tray
+systemTray.VisitGithubRequested += () =>
+{
+    try
+    {
+        var githubUrl = "https://github.com/thomazmoura/spotlight-dimmer";
+        logger.LogInformation("Opening GitHub page: {Url}", githubUrl);
+
+        WinApi.ShellExecute(IntPtr.Zero, "open", githubUrl, null, null, WinApi.SW_SHOW);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to open GitHub page");
+    }
+};
+
 // ========================================================================
 // Configuration and Focus Event Handlers
 // ========================================================================

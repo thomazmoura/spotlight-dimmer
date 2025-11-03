@@ -374,6 +374,13 @@ internal static partial class WinApi
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER identifier, out RECT iconLocation);
 
+    // ShellExecute for opening URLs/files
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr ShellExecute(IntPtr hwnd, string lpOperation, string lpFile, string? lpParameters, string? lpDirectory, int nShowCmd);
+
+    // ShowWindow constants for ShellExecute
+    public const int SW_SHOW = 5;
+
     [LibraryImport("user32.dll", EntryPoint = "LoadImageW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial IntPtr LoadImage(IntPtr hInst, string lpszName, uint uType, int cxDesired, int cyDesired, uint fuLoad);
 

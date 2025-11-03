@@ -114,7 +114,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Logs stored in `%AppData%\SpotlightDimmer\logs\` with daily rotation
   - Intelligent error handling: shows message box if logging disabled and no logs exist
 
+- **Help menu with About and GitHub access**: New Help submenu in system tray for app information and support
+  - "About Spotlight Dimmer" - Shows dialog with version, author (Thomaz Moura), technology stack (.NET, WinForms, Windows APIs), and GitHub URL
+  - "Visit Github page" - Opens the project's GitHub repository (github.com/thomazmoura/spotlight-dimmer) in default browser
+  - Version automatically extracted from assembly metadata
+  - Clean, informative MessageBox interface with proper icon
+  - Direct browser integration using ShellExecute API
+
 ### Changed
+- **System tray menu reorganization**: Menu structure improved with logical grouping into Settings and Help
+  - New "Settings" submenu consolidates configuration and system options:
+    - Configuration... and Open Config File moved to top for easy access
+    - Start at Login option moved from top level
+    - Diagnostics items (View Logs Folder, View Latest Log, Enable Logging) moved from submenu and flattened into Settings
+  - New "Help" submenu for support and information:
+    - About Spotlight Dimmer
+    - Visit Github page
+  - Simplified menu hierarchy reduces nesting depth for better accessibility
+  - More intuitive organization following Windows UI conventions
 - **File-based logging system replaces console output**: Professional structured logging with Serilog
   - Logs written to `%AppData%\SpotlightDimmer\logs\spotlight-YYYY-MM-DD.log`
   - Configurable log levels: Error, Information, Debug (default: Information)
@@ -238,7 +255,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Logs armazenados em `%AppData%\SpotlightDimmer\logs\` com rotação diária
   - Tratamento inteligente de erros: mostra caixa de mensagem se logging desabilitado e não há logs existentes
 
+- **Menu de Ajuda com Sobre e acesso ao GitHub**: Novo submenu Ajuda na bandeja do sistema para informações e suporte do app
+  - "About Spotlight Dimmer" - Mostra diálogo com versão, autor (Thomaz Moura), stack de tecnologia (.NET, WinForms, Windows APIs), e URL do GitHub
+  - "Visit Github page" - Abre o repositório GitHub do projeto (github.com/thomazmoura/spotlight-dimmer) no navegador padrão
+  - Versão extraída automaticamente dos metadados do assembly
+  - Interface MessageBox limpa e informativa com ícone apropriado
+  - Integração direta com navegador usando API ShellExecute
+
 ### Alterado
+- **Reorganização do menu da bandeja do sistema**: Estrutura do menu melhorada com agrupamento lógico em Configurações e Ajuda
+  - Novo submenu "Settings" consolida configurações e opções do sistema:
+    - Configuration... e Open Config File movidos para o topo para fácil acesso
+    - Opção Start at Login movida do nível superior
+    - Itens de Diagnósticos (View Logs Folder, View Latest Log, Enable Logging) movidos do submenu e achatados em Settings
+  - Novo submenu "Help" para suporte e informações:
+    - About Spotlight Dimmer
+    - Visit Github page
+  - Hierarquia de menu simplificada reduz profundidade de aninhamento para melhor acessibilidade
+  - Organização mais intuitiva seguindo as convenções de UI do Windows
 - **Sistema de logging baseado em arquivos substitui saída de console**: Logging estruturado profissional com Serilog
   - Logs escritos em `%AppData%\SpotlightDimmer\logs\spotlight-YYYY-MM-DD.log`
   - Níveis de log configuráveis: Error, Information, Debug (padrão: Information)

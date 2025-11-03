@@ -21,6 +21,8 @@ internal class SystemTrayManager : IDisposable
     private const uint MENU_VIEW_LOGS_FOLDER = 1006;
     private const uint MENU_VIEW_LATEST_LOG = 1007;
     private const uint MENU_ENABLE_LOGGING = 1008;
+    private const uint MENU_ABOUT = 1009;
+    private const uint MENU_VISIT_GITHUB = 1010;
 
     // Profile menu IDs (2000-2999)
     private const uint MENU_PROFILE_START = 2000;
@@ -47,6 +49,8 @@ internal class SystemTrayManager : IDisposable
     public event Action? ViewLogsFolderRequested;
     public event Action? ViewLatestLogRequested;
     public event Action<bool>? LoggingToggled;
+    public event Action? AboutRequested;
+    public event Action? VisitGithubRequested;
 
     public bool IsPaused => _isPaused;
 
@@ -296,41 +300,52 @@ internal class SystemTrayManager : IDisposable
                 WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
             }
 
-            // Add "Start at Login" menu item with checkbox
-            bool isAutoStartEnabled = _instance?._autoStartManager.IsEnabled() ?? false;
-            uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
-            WinApi.AppendMenu(hMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
+            // Add Settings submenu
+            var hSettingsMenu = WinApi.CreatePopupMenu();
+            if (hSettingsMenu != IntPtr.Zero)
+            {
+                // Configuration items first
+                var appDirectory = AppContext.BaseDirectory;
+                var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
+                bool configAppExists = File.Exists(configAppPath);
+
+                uint configAppFlags = WinApi.MF_STRING | (configAppExists ? 0 : WinApi.MF_GRAYED);
+                WinApi.AppendMenu(hSettingsMenu, configAppFlags, MENU_OPEN_CONFIG_APP, "Configuration...");
+                WinApi.AppendMenu(hSettingsMenu, WinApi.MF_STRING, MENU_OPEN_CONFIG_FILE, "Open Config File");
+
+                WinApi.AppendMenu(hSettingsMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+
+                // Start at Login
+                bool isAutoStartEnabled = _instance?._autoStartManager.IsEnabled() ?? false;
+                uint autoStartFlags = WinApi.MF_STRING | (isAutoStartEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
+                WinApi.AppendMenu(hSettingsMenu, autoStartFlags, MENU_AUTOSTART, "Start at Login");
+
+                WinApi.AppendMenu(hSettingsMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+
+                // Diagnostics items (flattened from old submenu)
+                WinApi.AppendMenu(hSettingsMenu, WinApi.MF_STRING, MENU_VIEW_LOGS_FOLDER, "View Logs Folder");
+                WinApi.AppendMenu(hSettingsMenu, WinApi.MF_STRING, MENU_VIEW_LATEST_LOG, "View Latest Log");
+
+                bool isLoggingEnabled = _currentConfig.System.EnableLogging;
+                uint loggingFlags = WinApi.MF_STRING | (isLoggingEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
+                WinApi.AppendMenu(hSettingsMenu, loggingFlags, MENU_ENABLE_LOGGING, "Enable Logging");
+
+                // Add Settings submenu to main menu
+                WinApi.AppendMenu(hMenu, WinApi.MF_POPUP, (uint)hSettingsMenu, "Settings");
+            }
 
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
 
-            // Add Diagnostics submenu
-            var hDiagnosticsMenu = WinApi.CreatePopupMenu();
-            if (hDiagnosticsMenu != IntPtr.Zero)
+            // Add Help submenu
+            var hHelpMenu = WinApi.CreatePopupMenu();
+            if (hHelpMenu != IntPtr.Zero)
             {
-                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_STRING, MENU_VIEW_LOGS_FOLDER, "View Logs Folder");
-                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_STRING, MENU_VIEW_LATEST_LOG, "View Latest Log");
-                WinApi.AppendMenu(hDiagnosticsMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
+                WinApi.AppendMenu(hHelpMenu, WinApi.MF_STRING, MENU_ABOUT, "About Spotlight Dimmer");
+                WinApi.AppendMenu(hHelpMenu, WinApi.MF_STRING, MENU_VISIT_GITHUB, "Visit Github page");
 
-                // Add "Enable Logging" checkbox
-                bool isLoggingEnabled = _currentConfig.System.EnableLogging;
-                uint loggingFlags = WinApi.MF_STRING | (isLoggingEnabled ? WinApi.MF_CHECKED : WinApi.MF_UNCHECKED);
-                WinApi.AppendMenu(hDiagnosticsMenu, loggingFlags, MENU_ENABLE_LOGGING, "Enable Logging");
-
-                // Add Diagnostics submenu to main menu
-                WinApi.AppendMenu(hMenu, WinApi.MF_POPUP, (uint)hDiagnosticsMenu, "Diagnostics");
+                // Add Help submenu to main menu
+                WinApi.AppendMenu(hMenu, WinApi.MF_POPUP, (uint)hHelpMenu, "Help");
             }
-
-            // Add config menu items
-            var appDirectory = AppContext.BaseDirectory;
-            var configAppPath = Path.Combine(appDirectory, "SpotlightDimmer.Config.exe");
-            bool configAppExists = File.Exists(configAppPath);
-
-            // Add "Configuration..." menu item (disabled if exe doesn't exist)
-            uint configAppFlags = WinApi.MF_STRING | (configAppExists ? 0 : WinApi.MF_GRAYED);
-            WinApi.AppendMenu(hMenu, configAppFlags, MENU_OPEN_CONFIG_APP, "Configuration...");
-
-            // Add "Open Config File" menu item (always enabled)
-            WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_OPEN_CONFIG_FILE, "Open Config File");
 
             WinApi.AppendMenu(hMenu, WinApi.MF_SEPARATOR, 0, string.Empty);
             WinApi.AppendMenu(hMenu, WinApi.MF_STRING, MENU_QUIT, "Quit");
@@ -388,6 +403,14 @@ internal class SystemTrayManager : IDisposable
                     string profileName = _currentConfig.Profiles[profileIndex].Name;
                     ProfileSelected?.Invoke(profileName);
                 }
+            }
+            else if (cmd == MENU_ABOUT)
+            {
+                AboutRequested?.Invoke();
+            }
+            else if (cmd == MENU_VISIT_GITHUB)
+            {
+                VisitGithubRequested?.Invoke();
             }
             else if (cmd == MENU_QUIT)
             {
