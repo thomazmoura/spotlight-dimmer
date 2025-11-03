@@ -379,8 +379,19 @@ Each display can have up to 6 overlays (one per `OverlayRegion` enum value):
 1. Add property to `Core/AppConfig.cs`
 2. Update `ToOverlayConfig()` method to map to `OverlayCalculationConfig`
 3. Handle in `Program.cs` ConfigurationChanged event if needed
-4. Document in `CONFIGURATION.md`
-5. **Update CHANGELOG.md** with configuration changes (including Portuguese translation)
+4. **Regenerate JSON schema**: Run `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
+5. Document in `CONFIGURATION.md`
+6. **Update CHANGELOG.md** with configuration changes (including Portuguese translation)
+
+### Regenerating JSON Schema
+When configuration classes change (`AppConfig`, `OverlayConfig`, `SystemConfig`, `Profile`, or `DimmingMode`):
+1. Run `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
+2. Review changes to `config.schema.json`
+3. Commit both code and schema changes together
+
+**Why regenerate**: The JSON schema provides IntelliSense and validation in VS Code. It's automatically generated from C# types using NJsonSchema to ensure it stays in sync with the code.
+
+**See**: `SpotlightDimmer.SchemaGenerator/README.md` for implementation details.
 
 ### Debugging Focus Tracking Issues
 1. Run with `--verbose` flag to see all focus events

@@ -31,6 +31,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona com referências de URL do GitHub e caminho relativo local
   - Melhora a experiência de edição de configuração e reduz erros do usuário
 
+- **Automated schema generation**: Created tool to automatically generate JSON schema from C# configuration classes
+  - New `SpotlightDimmer.SchemaGenerator` console app uses NJsonSchema to generate schema via reflection
+  - PowerShell script `Generate-Schema.ps1` provides one-command schema regeneration
+  - Ensures JSON schema stays synchronized with C# types automatically
+  - Eliminates manual schema maintenance and prevents drift between code and schema
+  - Documented in `SpotlightDimmer.SchemaGenerator/README.md` and `AGENTS.md`
+  - Schema regenerates with single command: `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
+  - Maintains single source of truth: C# classes drive the schema
+
+---
+
+### Adicionado
+- **Geração automatizada de schema**: Criada ferramenta para gerar automaticamente JSON schema a partir das classes de configuração C#
+  - Novo console app `SpotlightDimmer.SchemaGenerator` usa NJsonSchema para gerar schema via reflexão
+  - Script PowerShell `Generate-Schema.ps1` fornece regeneração de schema com um único comando
+  - Garante que JSON schema permaneça sincronizado com tipos C# automaticamente
+  - Elimina manutenção manual do schema e previne divergência entre código e schema
+  - Documentado em `SpotlightDimmer.SchemaGenerator/README.md` e `AGENTS.md`
+  - Schema regenera com comando único: `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
+  - Mantém fonte única de verdade: classes C# direcionam o schema
+
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
   - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic
