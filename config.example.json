@@ -1,5 +1,6 @@
 {
-  "$schema": "./config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json",
+  "ConfigVersion": "0.8.5",
   "Overlay": {
     "Mode": "PartialWithActive",
     "InactiveColor": "#000000",

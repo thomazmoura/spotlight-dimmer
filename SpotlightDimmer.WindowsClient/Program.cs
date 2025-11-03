@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
 using SpotlightDimmer.WindowsBindings;
@@ -11,12 +12,17 @@ using SpotlightDimmer.WindowsBindings;
 var loggerFactory = LoggingConfiguration.Initialize(AppConfig.Default);
 var logger = loggerFactory.CreateLogger<Program>();
 
-logger.LogInformation("SpotlightDimmer starting...");
+// Get application version for schema URL generation
+var appVersion = Assembly.GetExecutingAssembly()
+    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+    .InformationalVersion ?? "0.0.0";
+
+logger.LogInformation("SpotlightDimmer v{Version} starting...", appVersion);
 logger.LogInformation("Logs directory: {LogsDirectory}", LoggingConfiguration.GetLogsDirectory());
 
 // Configuration: Load from file with hot-reload support
 // Now ConfigurationManager can log properly during initialization
-var configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>());
+var configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>(), appVersion);
 
 // Reconfigure logging based on actual loaded settings (if different from defaults)
 LoggingConfiguration.Reconfigure(configManager.Current);

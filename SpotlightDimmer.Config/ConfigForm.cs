@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
@@ -20,10 +21,15 @@ public partial class ConfigForm : Form
         var loggerFactory = LoggingConfiguration.Initialize(AppConfig.Default);
         _logger = loggerFactory.CreateLogger<ConfigForm>();
 
-        _logger.LogInformation("SpotlightDimmer Config App starting");
+        // Get application version for schema URL generation
+        var appVersion = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "0.0.0";
+
+        _logger.LogInformation("SpotlightDimmer Config App v{Version} starting", appVersion);
 
         // Create ConfigurationManager with proper logging
-        _configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>());
+        _configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>(), appVersion);
 
         // Reconfigure logging based on loaded settings
         LoggingConfiguration.Reconfigure(_configManager.Current);

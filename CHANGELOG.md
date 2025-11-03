@@ -40,6 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Schema regenerates with single command: `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
   - Maintains single source of truth: C# classes drive the schema
 
+- **Automatic schema injection and version-aware URLs**: Configuration files automatically get IntelliSense support without manual intervention
+  - Application automatically injects `$schema` property into config.json on first run
+  - Uses version-specific schema URLs (e.g., `v0.8.5`) for accurate autocomplete
+  - Automatically updates schema URL when upgrading to newer versions
+  - Added `ConfigVersion` property to track configuration file version
+  - Created `SchemaInjector` class for manipulating JSON while preserving formatting
+  - Older config files point to their original version's schema (prevents confusion from newer properties)
+  - Seamless user experience: IntelliSense works immediately after installation
+  - ConfigurationManager logs schema injection and version updates for transparency
+
 ---
 
 ### Adicionado
@@ -51,6 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documentado em `SpotlightDimmer.SchemaGenerator/README.md` e `AGENTS.md`
   - Schema regenera com comando único: `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
   - Mantém fonte única de verdade: classes C# direcionam o schema
+
+- **Injeção automática de schema e URLs versionadas**: Arquivos de configuração obtêm suporte IntelliSense automaticamente sem intervenção manual
+  - Aplicação injeta automaticamente propriedade `$schema` no config.json na primeira execução
+  - Usa URLs de schema específicas por versão (ex.: `v0.8.5`) para autocomplete preciso
+  - Atualiza automaticamente URL do schema ao atualizar para versões mais recentes
+  - Adicionada propriedade `ConfigVersion` para rastrear versão do arquivo de configuração
+  - Criada classe `SchemaInjector` para manipular JSON preservando formatação
+  - Arquivos de configuração antigos apontam para schema de sua versão original (previne confusão com propriedades mais recentes)
+  - Experiência de usuário perfeita: IntelliSense funciona imediatamente após instalação
+  - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing

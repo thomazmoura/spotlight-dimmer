@@ -21,28 +21,46 @@ If the configuration file doesn't exist when SpotlightDimmer starts, it will be 
 
 SpotlightDimmer includes a **JSON schema file** (`config.schema.json`) that provides IntelliSense, autocomplete, and inline documentation when editing the configuration file in VS Code.
 
-### Enabling Schema Validation
+### Automatic Schema Injection
 
-To enable schema validation for your configuration file:
+**Good news**: SpotlightDimmer **automatically** adds the `$schema` property to your configuration file on first run! You don't need to do anything manually.
 
-1. **Add `$schema` property** at the top of your `config.json`:
+When the application starts, it:
+- ✅ Detects if `$schema` is missing and adds it automatically
+- ✅ Uses **version-specific schema URLs** (e.g., `v0.8.5`) matching your app version
+- ✅ Updates the schema URL when you upgrade to a newer version
+- ✅ Ensures you always get autocomplete for the features available in your version
+
+### Version-Aware Schema URLs
+
+The schema URL is version-specific:
+```
+https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json
+```
+
+**Why version-specific?**
+- **Older versions** point to schemas matching their feature set (no confusion from newer properties)
+- **Automatic upgrades** update the schema URL when you install a new version
+- **Backwards compatibility** ensures old config files work with their original schema
+
+### Manual Schema Configuration (Optional)
+
+If you prefer to manually control the schema reference:
+
+1. **Use versioned GitHub URL** (recommended):
    ```json
    {
-     "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/config.schema.json",
-     "Overlay": {
-       "Mode": "PartialWithActive",
-       ...
-     }
+     "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json",
+     "ConfigVersion": "0.8.5",
+     ...
    }
    ```
 
-2. **Alternative: Use relative path** if you have the repository cloned locally:
+2. **Use relative path** if you have the repository cloned locally:
    ```json
    {
      "$schema": "./config.schema.json",
-     "Overlay": {
-       ...
-     }
+     ...
    }
    ```
 
@@ -61,7 +79,8 @@ With the schema enabled, you get:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json",
+  "ConfigVersion": "0.8.5",
   "Overlay": {
     "Mode": "PartialWithActive",
     "InactiveColor": "#000000",
