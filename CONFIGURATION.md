@@ -17,17 +17,75 @@ This location works consistently whether you run the application:
 
 If the configuration file doesn't exist when SpotlightDimmer starts, it will be **automatically created** with default values.
 
+## IntelliSense and Autocomplete (VS Code)
+
+SpotlightDimmer includes a **JSON schema file** (`config.schema.json`) that provides IntelliSense, autocomplete, and inline documentation when editing the configuration file in VS Code.
+
+### Enabling Schema Validation
+
+To enable schema validation for your configuration file:
+
+1. **Add `$schema` property** at the top of your `config.json`:
+   ```json
+   {
+     "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/config.schema.json",
+     "Overlay": {
+       "Mode": "PartialWithActive",
+       ...
+     }
+   }
+   ```
+
+2. **Alternative: Use relative path** if you have the repository cloned locally:
+   ```json
+   {
+     "$schema": "./config.schema.json",
+     "Overlay": {
+       ...
+     }
+   }
+   ```
+
+### Benefits of Schema Validation
+
+With the schema enabled, you get:
+- ✅ **Autocomplete** - Press `Ctrl+Space` to see available properties
+- ✅ **Validation** - Real-time error highlighting for invalid values
+- ✅ **Documentation** - Hover over properties to see descriptions
+- ✅ **Enum suggestions** - Dropdown for `Mode`, `LogLevel`, etc.
+- ✅ **Type checking** - Ensures colors are valid hex codes, opacity is 0-255, etc.
+
 ## Configuration Options
 
 ### Example Configuration
 
 ```json
 {
-  "Mode": "PartialWithActive",
-  "InactiveColor": "#000000",
-  "InactiveOpacity": 153,
-  "ActiveColor": "#000000",
-  "ActiveOpacity": 102
+  "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/config.schema.json",
+  "Overlay": {
+    "Mode": "PartialWithActive",
+    "InactiveColor": "#000000",
+    "InactiveOpacity": 153,
+    "ActiveColor": "#000000",
+    "ActiveOpacity": 102,
+    "ExcludeFromScreenCapture": false
+  },
+  "System": {
+    "EnableLogging": true,
+    "LogLevel": "Information",
+    "LogRetentionDays": 7
+  },
+  "Profiles": [
+    {
+      "Name": "Light Mode",
+      "Mode": "Partial",
+      "InactiveColor": "#000000",
+      "InactiveOpacity": 128,
+      "ActiveColor": "#000000",
+      "ActiveOpacity": 102
+    }
+  ],
+  "CurrentProfile": null
 }
 ```
 

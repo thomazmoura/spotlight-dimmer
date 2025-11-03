@@ -1,7 +1,35 @@
 {
-  "Mode": "PartialWithActive",
-  "InactiveColor": "#000000",
-  "InactiveOpacity": 153,
-  "ActiveColor": "#000000",
-  "ActiveOpacity": 102
+  "$schema": "./config.schema.json",
+  "Overlay": {
+    "Mode": "PartialWithActive",
+    "InactiveColor": "#000000",
+    "InactiveOpacity": 153,
+    "ActiveColor": "#000000",
+    "ActiveOpacity": 102,
+    "ExcludeFromScreenCapture": false
+  },
+  "System": {
+    "EnableLogging": true,
+    "LogLevel": "Information",
+    "LogRetentionDays": 7
+  },
+  "Profiles": [
+    {
+      "Name": "Light Mode",
+      "Mode": "Partial",
+      "InactiveColor": "#000000",
+      "InactiveOpacity": 128,
+      "ActiveColor": "#000000",
+      "ActiveOpacity": 102
+    },
+    {
+      "Name": "Dark Mode",
+      "Mode": "PartialWithActive",
+      "InactiveColor": "#000000",
+      "InactiveOpacity": 204,
+      "ActiveColor": "#000000",
+      "ActiveOpacity": 128
+    }
+  ],
+  "CurrentProfile": null
 }

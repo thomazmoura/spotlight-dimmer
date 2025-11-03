@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **JSON schema for configuration**: Added comprehensive JSON schema file for IntelliSense and validation in VS Code
+  - Schema file `config.schema.json` provides autocomplete, validation, and inline documentation
+  - Hover over properties to see descriptions, allowed values, and recommended settings
+  - Dropdown suggestions for enum values (Mode: FullScreen/Partial/PartialWithActive, LogLevel: Error/Warning/Information/Debug)
+  - Real-time validation for hex color codes, opacity ranges (0-255), and required properties
+  - Example configuration updated to reference schema via `$schema` property
+  - Documentation in CONFIGURATION.md explains how to enable schema validation
+  - Works with both GitHub URL and local relative path references
+  - Improves configuration editing experience and reduces user errors
+
+---
+
+### Adicionado
+- **JSON schema para configuração**: Adicionado arquivo JSON schema abrangente para IntelliSense e validação no VS Code
+  - Arquivo de schema `config.schema.json` fornece autocomplete, validação e documentação inline
+  - Passe o mouse sobre propriedades para ver descrições, valores permitidos e configurações recomendadas
+  - Sugestões dropdown para valores enum (Mode: FullScreen/Partial/PartialWithActive, LogLevel: Error/Warning/Information/Debug)
+  - Validação em tempo real para códigos de cor hex, intervalos de opacidade (0-255) e propriedades obrigatórias
+  - Configuração de exemplo atualizada para referenciar o schema via propriedade `$schema`
+  - Documentação em CONFIGURATION.md explica como habilitar validação de schema
+  - Funciona com referências de URL do GitHub e caminho relativo local
+  - Melhora a experiência de edição de configuração e reduz erros do usuário
+
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
   - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic
