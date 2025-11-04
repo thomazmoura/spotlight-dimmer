@@ -6,17 +6,19 @@
 
 ## What this command does:
 
-1. Runs `git status` and `git diff` to understand changes
-2. Generates a descriptive commit message based on the changes
-3. Creates a git commit with all pending changes
-4. Pushes the commit to the main branch
+1. Regenerates the JSON schema from the C# configuration classes
+2. Runs `git status` and `git diff` to understand changes
+3. Generates a descriptive commit message based on the changes
+4. Creates a git commit with all pending changes
+5. Pushes the commit to the main branch
 
 ## Process:
 
 The agent will:
-1. Run `git status` and `git diff` to understand changes
-2. Generate a descriptive commit message based on the changes and CHANGELOG.md
-3. Execute a **single bash command** that does all of the following:
+1. Run the schema generator: `pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1`
+2. Run `git status` and `git diff` to understand changes
+3. Generate a descriptive commit message based on the changes and CHANGELOG.md
+4. Execute a **single bash command** that does all of the following:
    ```bash
    git add . && git commit -m "message" && git pull --rebase origin main && git push origin main
    ```

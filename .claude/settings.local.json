@@ -7,7 +7,8 @@
       "Bash(dotnet build:*)",
       "Bash(gh run:*)",
       "Bash(git mv:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)"
     ],
     "deny": [],
     "ask": []

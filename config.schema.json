@@ -1,180 +1,119 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/thomazmoura/spotlight-dimmer/config.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "https://github.com/thomazmoura/spotlight-dimmer/config.schema.json",
   "title": "SpotlightDimmer Configuration",
-  "description": "Configuration schema for SpotlightDimmer overlay settings, system options, and profiles",
   "type": "object",
+  "description": "Configuration schema for SpotlightDimmer overlay settings, system options, and profiles",
+  "additionalProperties": false,
   "properties": {
+    "ConfigVersion": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
     "Overlay": {
-      "type": "object",
-      "description": "Overlay configuration settings for dimming behavior",
-      "properties": {
-        "Mode": {
-          "type": "string",
-          "description": "The dimming mode controlling overlay behavior",
-          "enum": [
-            "FullScreen",
-            "Partial",
-            "PartialWithActive"
-          ],
-          "default": "FullScreen",
-          "enumDescriptions": [
-            "Dims entire inactive displays (most efficient mode)",
-            "Creates a spotlight around the active window with 4-sided overlays",
-            "Like Partial mode, but adds a lighter overlay on the active window for enhanced spotlight effect"
-          ]
-        },
-        "InactiveColor": {
-          "type": "string",
-          "description": "Inactive overlay color in hex format (e.g., '#000000' for black, '#1A1A1A' for dark gray)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "default": "#000000"
-        },
-        "InactiveOpacity": {
-          "type": "integer",
-          "description": "Inactive overlay opacity (0 = fully transparent, 255 = fully opaque). Recommended: 153 (~60% opacity)",
-          "minimum": 0,
-          "maximum": 255,
-          "default": 153
-        },
-        "ActiveColor": {
-          "type": "string",
-          "description": "Active overlay color in hex format (used only in PartialWithActive mode)",
-          "pattern": "^#[0-9A-Fa-f]{6}$",
-          "default": "#000000"
-        },
-        "ActiveOpacity": {
-          "type": "integer",
-          "description": "Active overlay opacity (used only in PartialWithActive mode). Should be less than InactiveOpacity for spotlight effect. Recommended: 102 (~40% opacity)",
-          "minimum": 0,
-          "maximum": 255,
-          "default": 102
-        },
-        "ExcludeFromScreenCapture": {
-          "type": "boolean",
-          "description": "EXPERIMENTAL: Exclude overlay windows from screen captures/screenshots. May not work on all systems due to Windows API limitations with layered windows.",
-          "default": false
-        }
-      },
-      "additionalProperties": false
+      "$ref": "#/definitions/OverlayConfig"
     },
     "System": {
-      "type": "object",
-      "description": "System configuration settings for logging and maintenance",
-      "properties": {
-        "EnableLogging": {
-          "type": "boolean",
-          "description": "Enable file-based logging to %AppData%\\SpotlightDimmer\\logs",
-          "default": true
-        },
-        "LogLevel": {
-          "type": "string",
-          "description": "Log level for file output",
-          "enum": [
-            "Error",
-            "Warning",
-            "Information",
-            "Debug"
-          ],
-          "default": "Information",
-          "enumDescriptions": [
-            "Only log errors",
-            "Log warnings and errors",
-            "Log informational messages, warnings, and errors (recommended)",
-            "Log all messages including debug information (verbose)"
-          ]
-        },
-        "LogRetentionDays": {
-          "type": "integer",
-          "description": "Number of days to retain log files. Older logs are automatically deleted.",
-          "minimum": 1,
-          "maximum": 365,
-          "default": 7
-        }
-      },
-      "additionalProperties": false
+      "$ref": "#/definitions/SystemConfig"
     },
     "Profiles": {
       "type": "array",
       "description": "List of saved profiles for quick overlay configuration switching",
       "items": {
-        "type": "object",
-        "description": "A saved overlay configuration preset",
-        "properties": {
-          "Name": {
-            "type": "string",
-            "description": "The name of the profile (e.g., 'Light Mode', 'Dark Mode', 'Night Mode')",
-            "minLength": 1
-          },
-          "Mode": {
-            "type": "string",
-            "description": "The dimming mode for this profile",
-            "enum": [
-              "FullScreen",
-              "Partial",
-              "PartialWithActive"
-            ]
-          },
-          "InactiveColor": {
-            "type": "string",
-            "description": "Inactive overlay color in hex format",
-            "pattern": "^#[0-9A-Fa-f]{6}$"
-          },
-          "InactiveOpacity": {
-            "type": "integer",
-            "description": "Inactive overlay opacity (0-255)",
-            "minimum": 0,
-            "maximum": 255
-          },
-          "ActiveColor": {
-            "type": "string",
-            "description": "Active overlay color in hex format",
-            "pattern": "^#[0-9A-Fa-f]{6}$"
-          },
-          "ActiveOpacity": {
-            "type": "integer",
-            "description": "Active overlay opacity (0-255)",
-            "minimum": 0,
-            "maximum": 255
-          }
-        },
-        "required": [
-          "Name",
-          "Mode",
-          "InactiveColor",
-          "InactiveOpacity",
-          "ActiveColor",
-          "ActiveOpacity"
-        ],
-        "additionalProperties": false
-      },
-      "default": [
-        {
-          "Name": "Light Mode",
-          "Mode": "Partial",
-          "InactiveColor": "#000000",
-          "InactiveOpacity": 128,
-          "ActiveColor": "#000000",
-          "ActiveOpacity": 102
-        },
-        {
-          "Name": "Dark Mode",
-          "Mode": "PartialWithActive",
-          "InactiveColor": "#000000",
-          "InactiveOpacity": 204,
-          "ActiveColor": "#000000",
-          "ActiveOpacity": 128
-        }
-      ]
+        "$ref": "#/definitions/Profile"
+      }
     },
     "CurrentProfile": {
       "type": [
-        "string",
-        "null"
+        "null",
+        "string"
       ],
-      "description": "The name of the currently active profile, or null if using custom settings",
-      "default": null
+      "description": "The name of the currently active profile, or null if using custom settings"
     }
   },
-  "additionalProperties": false
+  "definitions": {
+    "OverlayConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Mode": {
+          "type": "string",
+          "description": "The dimming mode controlling overlay behavior"
+        },
+        "InactiveColor": {
+          "type": "string",
+          "description": "Inactive overlay color in hex format (e.g., '#000000' for black, '#1A1A1A' for dark gray)",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "InactiveOpacity": {
+          "type": "integer",
+          "description": "Inactive overlay opacity (0 = fully transparent, 255 = fully opaque). Recommended: 153 (~60% opacity)",
+          "format": "int32"
+        },
+        "ActiveColor": {
+          "type": "string",
+          "description": "Active overlay color in hex format (used only in PartialWithActive mode)",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "ActiveOpacity": {
+          "type": "integer",
+          "description": "Active overlay opacity (used only in PartialWithActive mode). Should be less than InactiveOpacity for spotlight effect. Recommended: 102 (~40% opacity)",
+          "format": "int32"
+        },
+        "ExcludeFromScreenCapture": {
+          "type": "boolean",
+          "description": "EXPERIMENTAL: Exclude overlay windows from screen captures/screenshots. May not work on all systems due to Windows API limitations with layered windows."
+        }
+      }
+    },
+    "SystemConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "EnableLogging": {
+          "type": "boolean",
+          "description": "Enable file-based logging to %AppData%\\SpotlightDimmer\\logs"
+        },
+        "LogLevel": {
+          "type": "string",
+          "description": "Log level for file output"
+        },
+        "LogRetentionDays": {
+          "type": "integer",
+          "description": "Number of days to retain log files. Older logs are automatically deleted.",
+          "format": "int32"
+        }
+      }
+    },
+    "Profile": {
+      "type": "object",
+      "description": "A saved overlay configuration preset",
+      "additionalProperties": false,
+      "properties": {
+        "Name": {
+          "type": "string",
+          "description": "The name of the profile (e.g., 'Light Mode', 'Dark Mode', 'Night Mode')"
+        },
+        "Mode": {
+          "type": "string"
+        },
+        "InactiveColor": {
+          "type": "string"
+        },
+        "InactiveOpacity": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "ActiveColor": {
+          "type": "string"
+        },
+        "ActiveOpacity": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    }
+  }
 }

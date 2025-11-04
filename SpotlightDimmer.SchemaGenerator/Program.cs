@@ -27,7 +27,7 @@ class Program
             Console.WriteLine($"Output path: {outputPath}\n");
 
             // Configure schema generation settings
-            var settings = new JsonSchemaGeneratorSettings
+            var settings = new SystemTextJsonSchemaGeneratorSettings
             {
                 DefaultReferenceTypeNullHandling = ReferenceTypeNullHandling.NotNull,
                 GenerateAbstractProperties = false,

@@ -9,12 +9,13 @@
 1. Checks current version in `Directory.Build.props`
 2. Increments the minor version and resets patch to 0 (e.g., 0.8.1 → 0.9.0, or 0.8.1-beta → 0.9.0)
 3. Updates version in `Directory.Build.props`
-4. **Runs pre-commit validation**: build and tests
-5. **If validation fails**: Cancels the release and prompts user to fix issues first
-6. Generates a commit message based on git diff and changelog
-7. Creates a git commit with all pending changes
-8. Creates a git tag with the new minor version
-9. Pushes both the commit and the tag to the main branch
+4. **Regenerates the JSON schema** from C# configuration classes
+5. **Runs pre-commit validation**: build and tests
+6. **If validation fails**: Cancels the release and prompts user to fix issues first
+7. Generates a commit message based on git diff and changelog
+8. Creates a git commit with all pending changes
+9. Creates a git tag with the new minor version
+10. Pushes both the commit and the tag to the main branch
 
 ## Process:
 
@@ -29,19 +30,20 @@ The agent will:
    - `<AssemblyVersion>X.(Y+1).0</AssemblyVersion>`
    - `<FileVersion>X.(Y+1).0</FileVersion>`
    - `<InformationalVersion>X.(Y+1).0</InformationalVersion>`
-4. **Run pre-commit validation in order**:
+4. **Regenerate JSON schema**: Run `pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1`
+5. **Run pre-commit validation in order**:
    - `dotnet build -c Release` - Build release binaries
    - `dotnet test` - Run all tests (if any test projects exist)
-5. **If any validation step fails**:
+6. **If any validation step fails**:
    - **STOP immediately** and cancel the release
    - Revert version changes in `Directory.Build.props`
    - Display error output to user
    - Instruct user to fix errors first
    - **DO NOT proceed with release** and **DO NOT attempt to fix errors**
-6. Once validation passes, run `dotnet format` to ensure code is properly formatted
-7. Run `git status` and `git diff` to understand changes
-8. Generate a descriptive commit message based on the changes and CHANGELOG.md
-9. Execute a **single bash command** that does all of the following:
+7. Once validation passes, run `dotnet format` to ensure code is properly formatted
+8. Run `git status` and `git diff` to understand changes
+9. Generate a descriptive commit message based on the changes and CHANGELOG.md
+10. Execute a **single bash command** that does all of the following:
    ```bash
    git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.0 && git push origin main && git push origin vX.Y.0
    ```
