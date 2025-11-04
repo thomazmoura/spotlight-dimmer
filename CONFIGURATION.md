@@ -17,17 +17,94 @@ This location works consistently whether you run the application:
 
 If the configuration file doesn't exist when SpotlightDimmer starts, it will be **automatically created** with default values.
 
+## IntelliSense and Autocomplete (VS Code)
+
+SpotlightDimmer includes a **JSON schema file** (`config.schema.json`) that provides IntelliSense, autocomplete, and inline documentation when editing the configuration file in VS Code.
+
+### Automatic Schema Injection
+
+**Good news**: SpotlightDimmer **automatically** adds the `$schema` property to your configuration file on first run! You don't need to do anything manually.
+
+When the application starts, it:
+- ✅ Detects if `$schema` is missing and adds it automatically
+- ✅ Uses **version-specific schema URLs** (e.g., `v0.8.5`) matching your app version
+- ✅ Updates the schema URL when you upgrade to a newer version
+- ✅ Ensures you always get autocomplete for the features available in your version
+
+### Version-Aware Schema URLs
+
+The schema URL is version-specific:
+```
+https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json
+```
+
+**Why version-specific?**
+- **Older versions** point to schemas matching their feature set (no confusion from newer properties)
+- **Automatic upgrades** update the schema URL when you install a new version
+- **Backwards compatibility** ensures old config files work with their original schema
+
+### Manual Schema Configuration (Optional)
+
+If you prefer to manually control the schema reference:
+
+1. **Use versioned GitHub URL** (recommended):
+   ```json
+   {
+     "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json",
+     "ConfigVersion": "0.8.5",
+     ...
+   }
+   ```
+
+2. **Use relative path** if you have the repository cloned locally:
+   ```json
+   {
+     "$schema": "./config.schema.json",
+     ...
+   }
+   ```
+
+### Benefits of Schema Validation
+
+With the schema enabled, you get:
+- ✅ **Autocomplete** - Press `Ctrl+Space` to see available properties
+- ✅ **Validation** - Real-time error highlighting for invalid values
+- ✅ **Documentation** - Hover over properties to see descriptions
+- ✅ **Enum suggestions** - Dropdown for `Mode`, `LogLevel`, etc.
+- ✅ **Type checking** - Ensures colors are valid hex codes, opacity is 0-255, etc.
+
 ## Configuration Options
 
 ### Example Configuration
 
 ```json
 {
-  "Mode": "PartialWithActive",
-  "InactiveColor": "#000000",
-  "InactiveOpacity": 153,
-  "ActiveColor": "#000000",
-  "ActiveOpacity": 102
+  "$schema": "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v0.8.5/config.schema.json",
+  "ConfigVersion": "0.8.5",
+  "Overlay": {
+    "Mode": "PartialWithActive",
+    "InactiveColor": "#000000",
+    "InactiveOpacity": 153,
+    "ActiveColor": "#000000",
+    "ActiveOpacity": 102,
+    "ExcludeFromScreenCapture": false
+  },
+  "System": {
+    "EnableLogging": true,
+    "LogLevel": "Information",
+    "LogRetentionDays": 7
+  },
+  "Profiles": [
+    {
+      "Name": "Light Mode",
+      "Mode": "Partial",
+      "InactiveColor": "#000000",
+      "InactiveOpacity": 128,
+      "ActiveColor": "#000000",
+      "ActiveOpacity": 102
+    }
+  ],
+  "CurrentProfile": null
 }
 ```
 

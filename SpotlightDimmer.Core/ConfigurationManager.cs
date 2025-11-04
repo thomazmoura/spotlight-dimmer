@@ -29,6 +29,7 @@ public class ConfigurationManager : IDisposable
     private DateTime _lastReloadTime = DateTime.MinValue;
     private const int DebounceMilliseconds = 100; // Debounce rapid file changes
     private readonly ILogger<ConfigurationManager> _logger;
+    private readonly string _appVersion;
 
     /// <summary>
     /// Event fired when the configuration changes.
@@ -56,7 +57,8 @@ public class ConfigurationManager : IDisposable
     /// Default path: %AppData%\SpotlightDimmer\config.json
     /// </summary>
     /// <param name="logger">Logger instance for configuration operations.</param>
-    public ConfigurationManager(ILogger<ConfigurationManager> logger) : this(GetDefaultConfigPath(), logger)
+    /// <param name="appVersion">Application version for schema URL generation.</param>
+    public ConfigurationManager(ILogger<ConfigurationManager> logger, string appVersion) : this(GetDefaultConfigPath(), logger, appVersion)
     {
     }
 
@@ -65,10 +67,12 @@ public class ConfigurationManager : IDisposable
     /// </summary>
     /// <param name="configFilePath">Path to the configuration JSON file.</param>
     /// <param name="logger">Logger instance for configuration operations.</param>
-    public ConfigurationManager(string configFilePath, ILogger<ConfigurationManager> logger)
+    /// <param name="appVersion">Application version for schema URL generation.</param>
+    public ConfigurationManager(string configFilePath, ILogger<ConfigurationManager> logger, string appVersion)
     {
         _logger = logger;
         _configFilePath = configFilePath;
+        _appVersion = appVersion;
 
         // Ensure the directory exists
         var directory = Path.GetDirectoryName(_configFilePath);
@@ -109,6 +113,7 @@ public class ConfigurationManager : IDisposable
 
     /// <summary>
     /// Loads the configuration from disk, or creates a default one if it doesn't exist.
+    /// Automatically injects or updates the $schema property to enable IntelliSense.
     /// </summary>
     private AppConfig LoadOrCreateConfig()
     {
@@ -116,6 +121,7 @@ public class ConfigurationManager : IDisposable
         {
             _logger.LogInformation("Config file not found. Creating default config at: {ConfigFilePath}", _configFilePath);
             var defaultConfig = AppConfig.Default;
+            defaultConfig.ConfigVersion = _appVersion;
             SaveConfig(defaultConfig);
             return defaultConfig;
         }
@@ -128,7 +134,39 @@ public class ConfigurationManager : IDisposable
             if (config == null)
             {
                 _logger.LogWarning("Failed to parse config file. Using default configuration");
-                return AppConfig.Default;
+                var fallbackConfig = AppConfig.Default;
+                fallbackConfig.ConfigVersion = _appVersion;
+                return fallbackConfig;
+            }
+
+            // Check if schema injection/update is needed
+            bool schemaUpdated = false;
+            if (!SchemaInjector.HasSchema(json))
+            {
+                _logger.LogInformation("Config file missing $schema property. Adding schema reference for IntelliSense support");
+                json = SchemaInjector.InjectOrUpdateSchema(json, _appVersion);
+                schemaUpdated = true;
+            }
+            else if (SchemaInjector.ShouldUpdateSchema(config.ConfigVersion, _appVersion))
+            {
+                _logger.LogInformation("Updating schema URL from config version {ConfigVersion} to app version {AppVersion}",
+                    config.ConfigVersion ?? "unknown", _appVersion);
+                json = SchemaInjector.InjectOrUpdateSchema(json, _appVersion);
+                schemaUpdated = true;
+            }
+
+            // Update ConfigVersion to current app version
+            if (config.ConfigVersion != _appVersion)
+            {
+                config.ConfigVersion = _appVersion;
+                schemaUpdated = true;
+            }
+
+            // Save updated config if schema or version changed
+            if (schemaUpdated)
+            {
+                File.WriteAllText(_configFilePath, json);
+                _logger.LogDebug("Saved updated configuration with schema reference");
             }
 
             _logger.LogDebug("Loaded configuration from: {ConfigFilePath}", _configFilePath);
@@ -137,18 +175,28 @@ public class ConfigurationManager : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading config. Using default configuration");
-            return AppConfig.Default;
+            var fallbackConfig = AppConfig.Default;
+            fallbackConfig.ConfigVersion = _appVersion;
+            return fallbackConfig;
         }
     }
 
     /// <summary>
-    /// Saves the configuration to disk.
+    /// Saves the configuration to disk with schema reference.
     /// </summary>
     private void SaveConfig(AppConfig config)
     {
         try
         {
+            // Ensure config has current version
+            config.ConfigVersion = _appVersion;
+
+            // Serialize config
             var json = JsonSerializer.Serialize(config, AppConfigJsonContext.Default.AppConfig);
+
+            // Inject schema reference
+            json = SchemaInjector.InjectOrUpdateSchema(json, _appVersion);
+
             File.WriteAllText(_configFilePath, json);
             _logger.LogDebug("Saved configuration to: {ConfigFilePath}", _configFilePath);
         }

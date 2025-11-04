@@ -114,6 +114,12 @@ public class OverlayConfig
 public class AppConfig
 {
     /// <summary>
+    /// Configuration version (matches the application version that last saved this file).
+    /// Used to track schema compatibility and enable automatic schema URL updates.
+    /// </summary>
+    public string? ConfigVersion { get; set; }
+
+    /// <summary>
     /// Overlay configuration settings.
     /// </summary>
     public OverlayConfig Overlay { get; set; } = new();
