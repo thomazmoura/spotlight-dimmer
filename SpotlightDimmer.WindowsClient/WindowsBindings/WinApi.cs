@@ -72,6 +72,7 @@ internal static partial class WinApi
 
     // DWM (Desktop Window Manager) constants
     public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+    public const int DWMWA_TRANSITIONS_FORCEDISABLED = 3;
 
     // SetWindowDisplayAffinity constants
     public const uint WDA_NONE = 0x00000000;
@@ -449,6 +450,9 @@ internal static partial class WinApi
     // Dwmapi.dll imports
     [LibraryImport("dwmapi.dll")]
     public static partial int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
+    [LibraryImport("dwmapi.dll")]
+    public static partial int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
     // Diagnostic helper for detecting GDI object leaks
     [LibraryImport("user32.dll")]

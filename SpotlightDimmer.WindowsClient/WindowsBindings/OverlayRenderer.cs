@@ -369,7 +369,7 @@ internal class OverlayRenderer : IDisposable
                     source.Bounds.Y,
                     source.Bounds.Width,
                     source.Bounds.Height,
-                    WinApi.SWP_NOACTIVATE | WinApi.SWP_NOZORDER
+                    WinApi.SWP_NOACTIVATE | WinApi.SWP_NOZORDER | WinApi.SWP_NOCOPYBITS
                 );
             }
 
@@ -434,7 +434,7 @@ internal class OverlayRenderer : IDisposable
             if (!boundsChanged && !visibilityChanged)
                 return hdwp;
 
-            uint flags = WinApi.SWP_NOACTIVATE | WinApi.SWP_NOZORDER;
+            uint flags = WinApi.SWP_NOACTIVATE | WinApi.SWP_NOZORDER | WinApi.SWP_NOCOPYBITS;
 
             // Handle visibility changes
             if (visibilityChanged)
@@ -553,6 +553,11 @@ internal class OverlayRenderer : IDisposable
             {
                 throw new InvalidOperationException($"Failed to create overlay window. Error: {Marshal.GetLastWin32Error()}");
             }
+
+            // Disable DWM transitions for instant resize without animation
+            // This prevents the Desktop Window Manager from smoothing resize operations
+            int disableTransitions = 1; // TRUE
+            WinApi.DwmSetWindowAttribute(_hwnd, WinApi.DWMWA_TRANSITIONS_FORCEDISABLED, ref disableTransitions, sizeof(int));
 
             // Set initial opacity to 0 (will be updated on first Update call)
             WinApi.SetLayeredWindowAttributes(_hwnd, 0, 0, WinApi.LWA_ALPHA);

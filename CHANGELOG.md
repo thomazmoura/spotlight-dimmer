@@ -73,6 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
 ### Improved
+- **Overlay resize performance**: Eliminated resize lag during window movement by disabling DWM animations and BitBlt operations
+  - Added DwmSetWindowAttribute call to disable Desktop Window Manager transitions on overlay windows
+  - Included SWP_NOCOPYBITS flag in SetWindowPos calls to prevent unnecessary pixel copying during resize
+  - Overlays now resize instantly alongside moving windows without visible gaps on right/bottom edges
+  - Particularly noticeable improvement when dragging windows or using Win+Arrow keyboard shortcuts
+  - Technical details: Layered windows (WS_EX_LAYERED) were subject to DWM smoothing that delayed size updates while position updates were immediate
+
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
   - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic
   - New `FocusChangeHandler` class in Core layer contains platform-agnostic decision logic
@@ -258,6 +265,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
+- **Performance de redimensionamento de sobreposição**: Eliminado lag de redimensionamento durante movimento de janelas ao desabilitar animações DWM e operações BitBlt
+  - Adicionada chamada DwmSetWindowAttribute para desabilitar transições do Desktop Window Manager em janelas de sobreposição
+  - Incluída flag SWP_NOCOPYBITS nas chamadas SetWindowPos para prevenir cópia desnecessária de pixels durante redimensionamento
+  - Sobreposições agora redimensionam instantaneamente junto com janelas em movimento sem lacunas visíveis nas bordas direita/inferior
+  - Melhoria particularmente perceptível ao arrastar janelas ou usar atalhos de teclado Win+Seta
+  - Detalhes técnicos: Janelas em camadas (WS_EX_LAYERED) estavam sujeitas à suavização DWM que atrasava atualizações de tamanho enquanto atualizações de posição eram imediatas
+
 - **Arquitetura de rastreamento de foco testável**: Lógica de mudança de foco refatorada para camada Core para testes unitários abrangentes
   - Criada interface `IOverlayUpdateService` para abstrair atualizações de sobreposição da lógica de rastreamento de foco
   - Nova classe `FocusChangeHandler` na camada Core contém lógica de decisão independente de plataforma
