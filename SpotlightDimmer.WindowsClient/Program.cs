@@ -596,15 +596,25 @@ static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
     {
         return rendererBackend.ToLowerInvariant() switch
         {
+            "composition" => CreateRendererWithLogging<CompositionRenderer>("Composition", logger),
             "updatelayeredwindow" => CreateRendererWithLogging<UpdateLayeredWindowRenderer>("UpdateLayeredWindow", logger),
             "legacy" => CreateRendererWithLogging<LegacyLayeredWindowRenderer>("Legacy", logger),
             _ => CreateRendererWithFallback(rendererBackend, logger)
         };
     }
+    catch (NotSupportedException ex) when (ex.Message.Contains("COM"))
+    {
+        logger.LogWarning("Composition renderer is not compatible with Native AOT builds. " +
+                         "COM interop is disabled when PublishAot=true. " +
+                         "Falling back to UpdateLayeredWindow renderer for better performance than Legacy.");
+        logger.LogInformation("Using UpdateLayeredWindow renderer (fallback from Composition)");
+        return new UpdateLayeredWindowRenderer();
+    }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Failed to create {Backend} renderer, falling back to Legacy", rendererBackend);
-        return new LegacyLayeredWindowRenderer();
+        logger.LogWarning(ex, "Failed to create {Backend} renderer, falling back to UpdateLayeredWindow", rendererBackend);
+        logger.LogInformation("Using UpdateLayeredWindow renderer (fallback)");
+        return new UpdateLayeredWindowRenderer();
     }
 }
 
@@ -617,7 +627,7 @@ static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger
 static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
 {
     logger.LogWarning("Unknown renderer backend '{Backend}', falling back to Legacy", unknownBackend);
-    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow");
+    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow, Composition");
     return new LegacyLayeredWindowRenderer();
 }
 

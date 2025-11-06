@@ -376,12 +376,56 @@ Each display can have up to 6 overlays (one per `OverlayRegion` enum value):
 5. **Update CHANGELOG.md** with improvements (including Portuguese translation)
 
 ### Adding Configuration Options
-1. Add property to `Core/AppConfig.cs`
-2. Update `ToOverlayConfig()` method to map to `OverlayCalculationConfig`
-3. Handle in `Program.cs` ConfigurationChanged event if needed
-4. **Regenerate JSON schema**: Run `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
-5. Document in `CONFIGURATION.md`
-6. **Update CHANGELOG.md** with configuration changes (including Portuguese translation)
+
+**CRITICAL**: When adding new configuration options, you MUST update BOTH the JSON config AND the Config GUI app.
+
+1. **Add property to `Core/AppConfig.cs`**
+   - Add the new configuration property to the appropriate class (`OverlayConfig`, `SystemConfig`, etc.)
+   - Include XML documentation comments explaining the purpose and valid values
+
+2. **Update the Config GUI app** (`SpotlightDimmer.Config`)
+   - Add UI control to `ConfigForm.Designer.cs`:
+     - Create the control (ComboBox, CheckBox, NumericUpDown, etc.)
+     - Position it appropriately in the form
+     - Add event handler registration
+     - Declare field at bottom of class
+   - Add event handler to `ConfigForm.cs`:
+     - Create `On[PropertyName]Changed` method
+     - Check `if (!_isLoading)` to prevent recursion
+     - Update `config.[Section].[Property]` value
+     - Call `SaveConfiguration()`
+   - Update `LoadConfiguration()` method:
+     - Load the value from config and set the control's value
+   - Adjust form size if needed to accommodate new controls
+
+3. **Update `ToOverlayConfig()` method** (if overlay-related)
+   - Map the new property to `OverlayCalculationConfig` if it affects rendering
+
+4. **Handle in `Program.cs`** (if needed)
+   - Add logic in `ConfigurationChanged` event handler if the change requires special handling
+
+5. **Regenerate JSON schema**: Run `.\SpotlightDimmer.Scripts\Generate-Schema.ps1`
+   - This ensures IntelliSense and validation in VS Code stay in sync
+
+6. **Document in `CONFIGURATION.md`**
+   - Add section explaining the new configuration option
+   - Include valid values, defaults, and examples
+   - Explain when users should use this option
+
+7. **Update CHANGELOG.md** with configuration changes (including Portuguese translation)
+   - Document the new option under "### Added" section
+   - Include both English and Portuguese descriptions
+
+**Example**: Adding a new `RendererBackend` option to `SystemConfig`:
+- ✅ Added property to `AppConfig.cs` (`SystemConfig.RendererBackend`)
+- ✅ Added ComboBox to `ConfigForm.Designer.cs` with "Legacy", "UpdateLayeredWindow", "Composition" options
+- ✅ Added `OnRendererBackendChanged` event handler to `ConfigForm.cs`
+- ✅ Updated `LoadConfiguration()` to load the value: `rendererBackendComboBox.SelectedItem = config.System.RendererBackend`
+- ✅ Regenerated JSON schema
+- ✅ Documented in CONFIGURATION.md with performance comparison chart
+- ✅ Updated CHANGELOG.md (English + Portuguese)
+
+**Why this matters**: The Config GUI is the primary way most users interact with configuration. If you only update `AppConfig.cs` without updating the GUI, users won't be able to change the setting through the UI.
 
 ### Regenerating JSON Schema
 When configuration classes change (`AppConfig`, `OverlayConfig`, `SystemConfig`, `Profile`, or `DimmingMode`):

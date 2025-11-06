@@ -18,6 +18,7 @@ internal static partial class WinApi
     public const int WS_EX_TRANSPARENT = 0x00000020;
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_NOACTIVATE = 0x08000000;
+    public const int WS_EX_NOREDIRECTIONBITMAP = 0x00200000;
 
     // Window message constants
     public const uint WM_CREATE = 0x0001;

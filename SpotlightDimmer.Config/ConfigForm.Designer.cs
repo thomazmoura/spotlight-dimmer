@@ -155,12 +155,12 @@ partial class ConfigForm
             AutoSize = true
         };
 
-        // Logging Section
-        var loggingGroupBox = new GroupBox
+        // System Configuration Section
+        var systemGroupBox = new GroupBox
         {
-            Text = "Logging",
+            Text = "System Configuration",
             Location = new Point(20, 360),
-            Size = new Size(440, 140)
+            Size = new Size(440, 185)
         };
 
         enableLoggingCheckBox = new CheckBox
@@ -215,18 +215,47 @@ partial class ConfigForm
         };
         openLogsFolderButton.Click += OnOpenLogsFolderClicked;
 
-        loggingGroupBox.Controls.Add(enableLoggingCheckBox);
-        loggingGroupBox.Controls.Add(logLevelLabel);
-        loggingGroupBox.Controls.Add(logLevelComboBox);
-        loggingGroupBox.Controls.Add(retentionLabel);
-        loggingGroupBox.Controls.Add(logRetentionDaysNumericUpDown);
-        loggingGroupBox.Controls.Add(openLogsFolderButton);
+        var rendererBackendLabel = new Label
+        {
+            Text = "Renderer:",
+            Location = new Point(10, 125),
+            Size = new Size(80, 23),
+            AutoSize = true
+        };
+
+        rendererBackendComboBox = new ComboBox
+        {
+            Location = new Point(100, 122),
+            Size = new Size(150, 28),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        rendererBackendComboBox.Items.AddRange(new object[] { "Legacy", "UpdateLayeredWindow", "Composition" });
+        rendererBackendComboBox.SelectedIndexChanged += OnRendererBackendChanged;
+
+        var rendererInfoLabel = new Label
+        {
+            Text = "💡 Composition: Best performance (<1ms)\n   UpdateLayeredWindow: Balanced\n   Legacy: Most compatible",
+            Location = new Point(10, 150),
+            Size = new Size(410, 28),
+            AutoSize = false,
+            ForeColor = System.Drawing.Color.DarkBlue
+        };
+
+        systemGroupBox.Controls.Add(enableLoggingCheckBox);
+        systemGroupBox.Controls.Add(logLevelLabel);
+        systemGroupBox.Controls.Add(logLevelComboBox);
+        systemGroupBox.Controls.Add(retentionLabel);
+        systemGroupBox.Controls.Add(logRetentionDaysNumericUpDown);
+        systemGroupBox.Controls.Add(openLogsFolderButton);
+        systemGroupBox.Controls.Add(rendererBackendLabel);
+        systemGroupBox.Controls.Add(rendererBackendComboBox);
+        systemGroupBox.Controls.Add(rendererInfoLabel);
 
         // Experimental Features Section
         var experimentalGroupBox = new GroupBox
         {
             Text = "Experimental Features",
-            Location = new Point(20, 510),
+            Location = new Point(20, 555),
             Size = new Size(440, 100)
         };
 
@@ -253,7 +282,7 @@ partial class ConfigForm
 
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(480, 625);
+        ClientSize = new Size(480, 670);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -277,7 +306,7 @@ partial class ConfigForm
         Controls.Add(activeOpacityLabel);
         Controls.Add(activeOpacityTrackBar);
         Controls.Add(activeOpacityValueLabel);
-        Controls.Add(loggingGroupBox);
+        Controls.Add(systemGroupBox);
         Controls.Add(experimentalGroupBox);
     }
 
@@ -297,5 +326,6 @@ partial class ConfigForm
     private ComboBox logLevelComboBox = null!;
     private NumericUpDown logRetentionDaysNumericUpDown = null!;
     private Button openLogsFolderButton = null!;
+    private ComboBox rendererBackendComboBox = null!;
     private CheckBox excludeFromScreenCaptureCheckBox = null!;
 }

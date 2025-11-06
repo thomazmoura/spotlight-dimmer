@@ -91,6 +91,9 @@ public partial class ConfigForm : Form
             logLevelComboBox.SelectedItem = config.System.LogLevel;
             logRetentionDaysNumericUpDown.Value = config.System.LogRetentionDays;
 
+            // Set renderer backend
+            rendererBackendComboBox.SelectedItem = config.System.RendererBackend;
+
             // Set experimental features
             excludeFromScreenCaptureCheckBox.Checked = config.Overlay.ExcludeFromScreenCapture;
         }
@@ -289,6 +292,28 @@ public partial class ConfigForm : Form
             var config = _configManager.Current;
             config.System.LogRetentionDays = (int)logRetentionDaysNumericUpDown.Value;
             SaveConfiguration();
+        }
+    }
+
+    private void OnRendererBackendChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            var config = _configManager.Current;
+            var newBackend = rendererBackendComboBox.SelectedItem?.ToString() ?? "Legacy";
+            config.System.RendererBackend = newBackend;
+            SaveConfiguration();
+
+            // Show info message about needing to restart
+            _logger.LogInformation("Renderer backend changed to: {Backend}", config.System.RendererBackend);
+
+            MessageBox.Show(
+                $"Renderer backend changed to '{newBackend}'.\n\n" +
+                "⚠ You must restart SpotlightDimmer for this change to take effect.",
+                "Restart Required",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
         }
     }
 

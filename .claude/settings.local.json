@@ -8,7 +8,10 @@
       "Bash(gh run:*)",
       "Bash(git mv:*)",
       "Bash(git log:*)",
-      "Bash(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)"
+      "Bash(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.nuget.org)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

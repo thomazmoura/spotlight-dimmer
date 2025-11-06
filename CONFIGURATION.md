@@ -164,6 +164,80 @@ Opacity for the active window overlay (used only in `PartialWithActive` mode).
 - Should be **less than** `InactiveOpacity` to create a spotlight effect
 - **Default**: `102` (~40% opacity)
 
+### System Configuration
+
+The `System` section controls application behavior, logging, and rendering options.
+
+#### `EnableLogging` (boolean)
+Whether to write log files to disk.
+
+- **Default**: `true`
+- Log location: `%AppData%\SpotlightDimmer\logs\`
+
+#### `LogLevel` (string)
+The minimum severity level for log messages.
+
+- Options: `"Error"`, `"Warning"`, `"Information"`, `"Debug"`
+- **Default**: `"Information"`
+- Higher levels show more details (Debug shows everything)
+
+#### `LogRetentionDays` (integer)
+Number of days to keep log files before automatic deletion.
+
+- Range: `1` to `365`
+- **Default**: `7`
+- Older log files are automatically cleaned up on startup
+
+#### `RendererBackend` (string)
+The rendering technology used for overlay windows.
+
+- Options:
+  - **`"Legacy"`** - SetWindowPos + SetLayeredWindowAttributes
+    - ✅ Most compatible (all Windows versions)
+    - ⚠️ Slight lag during window movement (~16-32ms)
+    - Good for: Older systems or compatibility testing
+
+  - **`"UpdateLayeredWindow"`** - UpdateLayeredWindow API
+    - ✅ Better performance than Legacy (~8-16ms latency)
+    - ✅ Atomic position+size+content updates
+    - ✅ Recommended for most users
+    - Good for: Balance of compatibility and performance
+
+  - **`"Composition"`** - DirectComposition GPU rendering
+    - ✅ Best performance (<1ms update latency)
+    - ✅ Zero CPU-GPU sync overhead (GPU-only rendering)
+    - ✅ Eliminates window movement lag completely
+    - ⚠️ Requires Windows 8 or later
+    - ⚠️ **Not compatible with Native AOT builds** (auto-falls back to UpdateLayeredWindow)
+    - ⚠️ May have compatibility issues on some systems
+    - ✅ Works in development/debug builds
+    - Good for: Development, testing, high-refresh-rate monitors
+
+- **Default**: `"Legacy"`
+- **Recommended**: Try `"Composition"` first for best performance, fall back to `"UpdateLayeredWindow"` if issues occur
+
+**Performance Comparison:**
+```
+Window Movement Lag:
+┌────────────────────────────────────────┐
+│ Legacy               ████████████ 16-32ms │
+│ UpdateLayeredWindow  ██████       8-16ms  │
+│ Composition          █            <1ms    │
+└────────────────────────────────────────┘
+```
+
+**Example System Configuration:**
+```json
+{
+  "System": {
+    "EnableLogging": true,
+    "LogLevel": "Information",
+    "LogRetentionDays": 7,
+    "RendererBackend": "Composition"
+  }
+}
+```
+
 ## Hot-Reload Behavior
 
 When you edit and save the configuration file:

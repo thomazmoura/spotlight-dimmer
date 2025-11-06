@@ -84,6 +84,9 @@
           "type": "integer",
           "description": "Number of days to retain log files. Older logs are automatically deleted.",
           "format": "int32"
+        },
+        "RendererBackend": {
+          "type": "string"
         }
       }
     },

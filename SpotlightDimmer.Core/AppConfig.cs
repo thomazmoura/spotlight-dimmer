@@ -64,8 +64,9 @@ public class SystemConfig
     /// Options:
     /// - "Legacy": SetWindowPos + SetLayeredWindowAttributes (most compatible, current default)
     /// - "UpdateLayeredWindow": UpdateLayeredWindow API (better performance, may reduce resize lag)
+    /// - "Composition": DirectComposition API (best performance, <1ms updates, Windows 8+ required)
     /// Default: "Legacy"
-    /// Future: "Composition" for DirectComposition/Windows.UI.Composition (best performance, Windows 10+ only)
+    /// Recommended: "Composition" for best performance, "UpdateLayeredWindow" for compatibility
     /// </summary>
     public string RendererBackend { get; set; } = "Legacy";
 }
