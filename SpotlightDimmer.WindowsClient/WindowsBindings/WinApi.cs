@@ -55,6 +55,19 @@ internal static partial class WinApi
     public const uint LWA_COLORKEY = 0x00000001;
     public const uint LWA_ALPHA = 0x00000002;
 
+    // UpdateLayeredWindow flags
+    public const uint ULW_ALPHA = 0x00000002;
+    public const uint ULW_COLORKEY = 0x00000001;
+    public const uint ULW_OPAQUE = 0x00000004;
+
+    // BLENDFUNCTION constants
+    public const byte AC_SRC_OVER = 0x00;
+    public const byte AC_SRC_ALPHA = 0x01;
+
+    // DIB color mode
+    public const uint DIB_RGB_COLORS = 0;
+    public const uint BI_RGB = 0;
+
     // Monitor constants
     public const int MONITOR_DEFAULTTONULL = 0;
     public const int MONITOR_DEFAULTTOPRIMARY = 1;
@@ -135,6 +148,51 @@ internal static partial class WinApi
     {
         public int X;
         public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE
+    {
+        public int cx;
+        public int cy;
+
+        public SIZE(int cx, int cy)
+        {
+            this.cx = cx;
+            this.cy = cy;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BLENDFUNCTION
+    {
+        public byte BlendOp;
+        public byte BlendFlags;
+        public byte SourceConstantAlpha;
+        public byte AlphaFormat;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct BITMAPINFO
+    {
+        public BITMAPINFOHEADER bmiHeader;
+        public uint bmiColors; // First color in palette, we use DIB_RGB_COLORS so this is unused
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -445,6 +503,32 @@ internal static partial class WinApi
     [LibraryImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool DeleteObject(IntPtr hObject);
+
+    [LibraryImport("gdi32.dll")]
+    public static partial IntPtr CreateCompatibleDC(IntPtr hdc);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool DeleteDC(IntPtr hdc);
+
+    [LibraryImport("gdi32.dll")]
+    public static partial IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+    [LibraryImport("gdi32.dll")]
+    public static partial IntPtr CreateDIBSection(IntPtr hdc, ref BITMAPINFO pbmi, uint iUsage, out IntPtr ppvBits, IntPtr hSection, uint dwOffset);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool UpdateLayeredWindow(
+        IntPtr hwnd,
+        IntPtr hdcDst,
+        ref POINT pptDst,
+        ref SIZE psize,
+        IntPtr hdcSrc,
+        ref POINT pptSrc,
+        uint crKey,
+        ref BLENDFUNCTION pblend,
+        uint dwFlags);
 
     // Dwmapi.dll imports
     [LibraryImport("dwmapi.dll")]

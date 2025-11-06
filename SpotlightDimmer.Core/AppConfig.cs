@@ -58,6 +58,16 @@ public class SystemConfig
     /// Default: 7
     /// </summary>
     public int LogRetentionDays { get; set; } = 7;
+
+    /// <summary>
+    /// Renderer backend to use for overlay windows.
+    /// Options:
+    /// - "Legacy": SetWindowPos + SetLayeredWindowAttributes (most compatible, current default)
+    /// - "UpdateLayeredWindow": UpdateLayeredWindow API (better performance, may reduce resize lag)
+    /// Default: "Legacy"
+    /// Future: "Composition" for DirectComposition/Windows.UI.Composition (best performance, Windows 10+ only)
+    /// </summary>
+    public string RendererBackend { get; set; } = "Legacy";
 }
 
 /// <summary>
