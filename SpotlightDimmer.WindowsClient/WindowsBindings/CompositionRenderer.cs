@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using DirectN;
 using SpotlightDimmer.Core;
 using static SpotlightDimmer.WindowsBindings.DirectCompositionApi;
 
@@ -6,9 +6,9 @@ namespace SpotlightDimmer.WindowsBindings;
 
 /// <summary>
 /// GPU-accelerated renderer using DirectComposition for zero-lag overlay updates.
-/// Uses WS_EX_NOREDIRECTIONBITMAP windows with DirectComposition visual layer.
+/// Uses DirectNAot package for Native AOT-compatible COM interop.
 ///
-/// IMPORTANT: This implementation uses raw COM pointers for Native AOT compatibility.
+/// IMPORTANT: This implementation uses DirectNAot's ComObject wrappers for safe lifetime management.
 /// This provides DirectComposition's positioning benefits (GPU-side updates)
 /// while keeping rendering simple using layered windows for solid colors.
 ///
@@ -20,8 +20,8 @@ internal class CompositionRenderer : IOverlayRenderer
     private static bool _classRegistered = false;
     private static readonly WinApi.WndProc _wndProcDelegate = WndProc;
 
-    // DirectComposition device (raw COM pointer)
-    private IntPtr _devicePtr = IntPtr.Zero;
+    // DirectComposition device (ComObject wrapper - AOT-compatible)
+    private ComObject<IDCompositionDevice>? _device = null;
 
     // Pool of overlay windows keyed by (displayIndex, region)
     private readonly Dictionary<(int displayIndex, OverlayRegion region), CompositionOverlay> _overlayPool = new();
@@ -33,13 +33,8 @@ internal class CompositionRenderer : IOverlayRenderer
 
     public void CreateOverlays(Core.DisplayInfo[] displays, OverlayCalculationConfig config)
     {
-        // Create DirectComposition device
-        _devicePtr = DirectCompositionApi.CreateDevice();
-
-        if (_devicePtr == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Failed to create DirectComposition device.");
-        }
+        // Create DirectComposition device using DirectNAot
+        _device = DirectCompositionApi.CreateDevice();
 
         foreach (var display in displays)
         {
@@ -50,21 +45,13 @@ internal class CompositionRenderer : IOverlayRenderer
                 var key = (display.Index, region);
 
                 // Create overlay with DirectComposition visual
-                var overlay = new CompositionOverlay(_devicePtr, region, display.Bounds, config);
+                var overlay = new CompositionOverlay(_device, region, display.Bounds, config);
                 _overlayPool[key] = overlay;
             }
         }
 
         // Initial commit to apply all setup
-        var device = (IDCompositionDevice)Marshal.GetObjectForIUnknown(_devicePtr);
-        try
-        {
-            device.Commit();
-        }
-        finally
-        {
-            Marshal.ReleaseComObject(device);
-        }
+        _device.Object.Commit();
     }
 
     public void UpdateBrushColors(OverlayCalculationConfig config)
@@ -131,11 +118,8 @@ internal class CompositionRenderer : IOverlayRenderer
         }
         _overlayPool.Clear();
 
-        if (_devicePtr != IntPtr.Zero)
-        {
-            Marshal.Release(_devicePtr);
-            _devicePtr = IntPtr.Zero;
-        }
+        _device?.Dispose();
+        _device = null;
     }
 
     public void Dispose()
@@ -145,18 +129,7 @@ internal class CompositionRenderer : IOverlayRenderer
 
     private void CommitChanges()
     {
-        if (_devicePtr == IntPtr.Zero)
-            return;
-
-        var device = (IDCompositionDevice)Marshal.GetObjectForIUnknown(_devicePtr);
-        try
-        {
-            device.Commit();
-        }
-        finally
-        {
-            Marshal.ReleaseComObject(device);
-        }
+        _device?.Object.Commit();
     }
 
     private static void EnsureWindowClassRegistered()
@@ -166,7 +139,7 @@ internal class CompositionRenderer : IOverlayRenderer
 
         var wndClass = new WinApi.WNDCLASSEX
         {
-            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
+            lpfnWndProc = System.Runtime.InteropServices.Marshal.GetFunctionPointerForDelegate(_wndProcDelegate),
             hInstance = WinApi.GetModuleHandle(null),
             lpszClassName = WINDOW_CLASS_NAME,
             hbrBackground = IntPtr.Zero,
@@ -176,7 +149,7 @@ internal class CompositionRenderer : IOverlayRenderer
         var atom = WinApi.RegisterClassEx(wndClass);
         if (atom == 0)
         {
-            throw new InvalidOperationException($"Failed to register window class. Error: {Marshal.GetLastWin32Error()}");
+            throw new InvalidOperationException($"Failed to register window class. Error: {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
         }
 
         _classRegistered = true;
@@ -211,18 +184,18 @@ internal class CompositionRenderer : IOverlayRenderer
     private class CompositionOverlay : IDisposable
     {
         private IntPtr _hwnd = IntPtr.Zero;
-        private readonly IntPtr _devicePtr;
-        private IntPtr _targetPtr = IntPtr.Zero;
-        private IntPtr _visualPtr = IntPtr.Zero;
+        private readonly ComObject<IDCompositionDevice> _device;
+        private ComObject<IDCompositionTarget>? _target = null;
+        private ComObject<IDCompositionVisual>? _visual = null;
 
         private OverlayDefinition _localState;
         private Core.Color _activeColor;
         private Core.Color _inactiveColor;
 
-        public CompositionOverlay(IntPtr devicePtr, OverlayRegion region,
+        public CompositionOverlay(ComObject<IDCompositionDevice> device, OverlayRegion region,
                                  Core.Rectangle displayBounds, OverlayCalculationConfig config)
         {
-            _devicePtr = devicePtr;
+            _device = device;
             _localState = new OverlayDefinition(region);
             _activeColor = config.ActiveColor;
             _inactiveColor = config.InactiveColor;
@@ -252,7 +225,7 @@ internal class CompositionRenderer : IOverlayRenderer
 
             if (_hwnd == IntPtr.Zero)
             {
-                throw new InvalidOperationException($"Failed to create overlay window. Error: {Marshal.GetLastWin32Error()}");
+                throw new InvalidOperationException($"Failed to create overlay window. Error: {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
             }
 
             // Set initial color using layered window attributes
@@ -261,33 +234,17 @@ internal class CompositionRenderer : IOverlayRenderer
 
         private void CreateCompositionResources()
         {
-            var device = (IDCompositionDevice)Marshal.GetObjectForIUnknown(_devicePtr);
-            try
-            {
-                // Create composition target for this window
-                int hr = device.CreateTargetForHwnd(_hwnd, true, out _targetPtr);
-                CheckHResult(hr, "CreateTargetForHwnd");
+            // Create composition target for this window
+            var hr = _device.Object.CreateTargetForHwnd(_hwnd, true, out _target);
+            CheckHResult(hr, "CreateTargetForHwnd");
 
-                // Create visual for rendering
-                hr = device.CreateVisual(out _visualPtr);
-                CheckHResult(hr, "CreateVisual");
+            // Create visual for rendering
+            hr = _device.Object.CreateVisual(out _visual);
+            CheckHResult(hr, "CreateVisual");
 
-                // Set visual as target root
-                var target = (IDCompositionTarget)Marshal.GetObjectForIUnknown(_targetPtr);
-                try
-                {
-                    hr = target.SetRoot(_visualPtr);
-                    CheckHResult(hr, "SetRoot");
-                }
-                finally
-                {
-                    Marshal.ReleaseComObject(target);
-                }
-            }
-            finally
-            {
-                Marshal.ReleaseComObject(device);
-            }
+            // Set visual as target root
+            hr = _target!.Object.SetRoot(_visual!.Object);
+            CheckHResult(hr, "SetRoot");
         }
 
         public void UpdateColors(OverlayCalculationConfig config)
@@ -304,20 +261,12 @@ internal class CompositionRenderer : IOverlayRenderer
 
         public void Update(OverlayDefinition source)
         {
-            if (_hwnd == IntPtr.Zero || _visualPtr == IntPtr.Zero)
+            if (_hwnd == IntPtr.Zero || _visual == null)
                 return;
 
             // Update visual position using DirectComposition (GPU-side, zero-copy, <1ms)
-            var visual = (IDCompositionVisual)Marshal.GetObjectForIUnknown(_visualPtr);
-            try
-            {
-                visual.SetOffsetX((float)source.Bounds.X);
-                visual.SetOffsetY((float)source.Bounds.Y);
-            }
-            finally
-            {
-                Marshal.ReleaseComObject(visual);
-            }
+            _visual.Object.SetOffsetX((float)source.Bounds.X);
+            _visual.Object.SetOffsetY((float)source.Bounds.Y);
 
             // Update size if changed
             if (source.Bounds.Width != _localState.Bounds.Width ||
@@ -375,17 +324,11 @@ internal class CompositionRenderer : IOverlayRenderer
 
         public void Dispose()
         {
-            if (_visualPtr != IntPtr.Zero)
-            {
-                Marshal.Release(_visualPtr);
-                _visualPtr = IntPtr.Zero;
-            }
+            _visual?.Dispose();
+            _visual = null;
 
-            if (_targetPtr != IntPtr.Zero)
-            {
-                Marshal.Release(_targetPtr);
-                _targetPtr = IntPtr.Zero;
-            }
+            _target?.Dispose();
+            _target = null;
 
             if (_hwnd != IntPtr.Zero)
             {

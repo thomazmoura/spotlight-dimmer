@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **DirectComposition GPU-accelerated renderer**: Implemented high-performance DirectComposition renderer for zero-lag overlay updates
-  - Created `CompositionRenderer` using raw P/Invoke declarations for DirectComposition COM APIs
+  - Created `CompositionRenderer` using DirectNAot package for Native AOT-compatible COM interop
   - Eliminates window resize lag completely with <1ms GPU-side updates (vs 8-16ms with UpdateLayeredWindow)
   - Uses `WS_EX_NOREDIRECTIONBITMAP` window style for DirectComposition visual layer integration
   - Hybrid approach: DirectComposition handles positioning (GPU), layered windows handle color rendering
@@ -17,10 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `RendererBackend` option: "Composition" for DirectComposition renderer
   - Requires Windows 8 or later (gracefully falls back to Legacy renderer if unavailable)
   - Atomic commit system batches all overlay updates into single GPU operation
-  - Proper COM reference counting with automatic cleanup to prevent memory leaks
-  - Custom `ComPtr<T>` wrapper for safe COM object lifetime management
+  - Uses ComWrappers-based DirectNAot (v1.3.2) for proper AOT support following Microsoft's recommended approach
+  - ComObject<T> wrappers for safe COM object lifetime management (automatic cleanup via IDisposable)
   - Ideal for high-refresh-rate monitors and maximum responsiveness
-  - Implementation uses zero external dependencies - only native Win32 COM APIs
+  - DirectNAot provides battle-tested implementation used in production applications
   - Documentation in CONFIGURATION.md explains performance characteristics and when to use each renderer
 
 - **Pluggable renderer architecture with UpdateLayeredWindow support**: Implemented abstraction layer allowing multiple rendering backends for overlay windows
@@ -44,19 +44,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with both GitHub URL and local relative path references
   - Improves configuration editing experience and reduces user errors
 
+### Changed
+- **DirectComposition renderer implementation approach**: Migrated from experimental built-in COM to DirectNAot package for proper Native AOT support
+  - Replaced `[ComImport]` interface definitions with DirectNAot's ComWrappers-based types
+  - Removed all `Marshal.GetObjectForIUnknown()` and `Marshal.ReleaseComObject()` manual reference counting
+  - Uses `ComObject<T>` wrapper pattern for safe, automatic COM lifetime management
+  - DirectComposition renderer now fully compatible with Native AOT compilation without workarounds
+  - Cleaner codebase: `.Object` property access pattern replaces verbose try/finally blocks
+  - Detailed implementation plan and decision rationale documented in `DIRECTCOMPOSITION_COMWRAPPERS_IMPLEMENTATION.md`
+
 ### Fixed
-- **DirectComposition renderer Native AOT compilation**: Enabled built-in COM interop support for DirectComposition renderer to work with Native AOT builds
-  - Added `<BuiltInComInteropSupport>true</BuiltInComInteropSupport>` property to project file
-  - Fixes "Built-in COM has been disabled via a feature switch" error during AOT compilation
-  - DirectComposition renderer now works in Release builds with full Native AOT optimization
-  - Trade-off: Slightly larger binary size (~5-10% increase) compared to disabled COM, but necessary for DirectComposition functionality
-  - Alternative approaches (ComWrappers API) would require complete rewrite of DirectComposition integration
+- **DirectComposition renderer Native AOT compatibility**: Fixed COM interop errors preventing Native AOT compilation
+  - Resolves "Built-in COM has been disabled via a feature switch" runtime error
+  - Eliminates IL trimming warnings related to COM interop (IL3052, IL3053)
+  - DirectComposition renderer fully functional in Release builds with AOT optimization
 
 ---
 
 ### Adicionado
 - **Renderizador acelerado por GPU DirectComposition**: Implementado renderizador DirectComposition de alta performance para atualizações de sobreposição sem atraso
-  - Criado `CompositionRenderer` usando declarações P/Invoke diretas para APIs COM DirectComposition
+  - Criado `CompositionRenderer` usando pacote DirectNAot para interop COM compatível com Native AOT
   - Elimina completamente atraso de redimensionamento de janela com atualizações no lado da GPU <1ms (vs 8-16ms com UpdateLayeredWindow)
   - Usa estilo de janela `WS_EX_NOREDIRECTIONBITMAP` para integração com camada visual DirectComposition
   - Abordagem híbrida: DirectComposition gerencia posicionamento (GPU), janelas em camadas gerenciam renderização de cor
@@ -64,10 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Nova opção `RendererBackend`: "Composition" para renderizador DirectComposition
   - Requer Windows 8 ou posterior (retorna graciosamente para renderizador Legacy se indisponível)
   - Sistema de commit atômico agrupa todas as atualizações de sobreposição em operação GPU única
-  - Contagem de referência COM adequada com limpeza automática para prevenir vazamentos de memória
-  - Wrapper `ComPtr<T>` customizado para gerenciamento seguro de tempo de vida de objetos COM
+  - Usa DirectNAot baseado em ComWrappers (v1.3.2) para suporte AOT adequado seguindo abordagem recomendada pela Microsoft
+  - Wrappers ComObject<T> para gerenciamento seguro de tempo de vida de objetos COM (limpeza automática via IDisposable)
   - Ideal para monitores de alta taxa de atualização e máxima responsividade
-  - Implementação usa zero dependências externas - apenas APIs COM Win32 nativas
+  - DirectNAot fornece implementação testada em produção usada em aplicações reais
   - Documentação em CONFIGURATION.md explica características de performance e quando usar cada renderizador
 
 - **Arquitetura de renderização plugável com suporte a UpdateLayeredWindow**: Implementada camada de abstração permitindo múltiplos backends de renderização para janelas de sobreposição
@@ -132,13 +139,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Experiência de usuário perfeita: IntelliSense funciona imediatamente após instalação
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
+### Alterado
+- **Abordagem de implementação do renderizador DirectComposition**: Migrado de COM integrado experimental para pacote DirectNAot para suporte AOT adequado
+  - Substituídas definições de interface `[ComImport]` por tipos baseados em ComWrappers do DirectNAot
+  - Removidas todas as chamadas de contagem manual de referência `Marshal.GetObjectForIUnknown()` e `Marshal.ReleaseComObject()`
+  - Usa padrão de wrapper `ComObject<T>` para gerenciamento seguro e automático de tempo de vida COM
+  - Renderizador DirectComposition agora totalmente compatível com compilação Native AOT sem soluções alternativas
+  - Base de código mais limpa: padrão de acesso de propriedade `.Object` substitui blocos try/finally verbosos
+  - Plano detalhado de implementação e justificativa de decisão documentados em `DIRECTCOMPOSITION_COMWRAPPERS_IMPLEMENTATION.md`
+
 ### Corrigido
-- **Compilação Native AOT do renderizador DirectComposition**: Habilitado suporte a interop COM integrado para que o renderizador DirectComposition funcione com builds Native AOT
-  - Adicionada propriedade `<BuiltInComInteropSupport>true</BuiltInComInteropSupport>` ao arquivo de projeto
-  - Corrige erro "Built-in COM has been disabled via a feature switch" durante compilação AOT
-  - Renderizador DirectComposition agora funciona em builds Release com otimização Native AOT completa
-  - Compromisso: Tamanho de binário ligeiramente maior (~5-10% de aumento) comparado ao COM desabilitado, mas necessário para funcionalidade DirectComposition
-  - Abordagens alternativas (API ComWrappers) exigiriam reescrita completa da integração DirectComposition
+- **Compatibilidade Native AOT do renderizador DirectComposition**: Corrigidos erros de interop COM impedindo compilação Native AOT
+  - Resolve erro de runtime "Built-in COM has been disabled via a feature switch"
+  - Elimina avisos de trimming IL relacionados a interop COM (IL3052, IL3053)
+  - Renderizador DirectComposition totalmente funcional em builds Release com otimização AOT
 
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
