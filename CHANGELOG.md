@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Pluggable renderer architecture with UpdateLayeredWindow support**: Implemented abstraction layer allowing multiple rendering backends for overlay windows
+  - Created `IOverlayRenderer` interface to decouple core logic from rendering implementation
+  - Refactored existing renderer to `LegacyLayeredWindowRenderer` (original SetWindowPos + SetLayeredWindowAttributes approach)
+  - Implemented `UpdateLayeredWindowRenderer` using Windows UpdateLayeredWindow API for atomic position+size+content updates
+  - New `RendererBackend` configuration option in `System` section: "Legacy" (default) or "UpdateLayeredWindow"
+  - UpdateLayeredWindow renderer may reduce resize lag during window movement through atomic bitmap updates
+  - Automatic fallback to Legacy renderer if configured backend fails or is unavailable
+  - Architecture designed for future DirectComposition support (Windows 10+ GPU-accelerated rendering)
+  - Zero-allocation bitmap reuse optimization - only recreates bitmap on size changes
+  - Both renderers share identical Core calculation logic ensuring consistent behavior
+
 - **JSON schema for configuration**: Added comprehensive JSON schema file for IntelliSense and validation in VS Code
   - Schema file `config.schema.json` provides autocomplete, validation, and inline documentation
   - Hover over properties to see descriptions, allowed values, and recommended settings
@@ -21,6 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Arquitetura de renderização plugável com suporte a UpdateLayeredWindow**: Implementada camada de abstração permitindo múltiplos backends de renderização para janelas de sobreposição
+  - Criada interface `IOverlayRenderer` para desacoplar lógica central da implementação de renderização
+  - Renderizador existente refatorado para `LegacyLayeredWindowRenderer` (abordagem original SetWindowPos + SetLayeredWindowAttributes)
+  - Implementado `UpdateLayeredWindowRenderer` usando API Windows UpdateLayeredWindow para atualizações atômicas de posição+tamanho+conteúdo
+  - Nova opção de configuração `RendererBackend` na seção `System`: "Legacy" (padrão) ou "UpdateLayeredWindow"
+  - Renderizador UpdateLayeredWindow pode reduzir atraso de redimensionamento durante movimento de janela através de atualizações atômicas de bitmap
+  - Fallback automático para renderizador Legacy se backend configurado falhar ou não estiver disponível
+  - Arquitetura projetada para suporte futuro a DirectComposition (renderização acelerada por GPU do Windows 10+)
+  - Otimização de reutilização de bitmap sem alocações - apenas recria bitmap quando tamanho muda
+  - Ambos os renderizadores compartilham lógica de cálculo Core idêntica garantindo comportamento consistente
+
 - **JSON schema para configuração**: Adicionado arquivo JSON schema abrangente para IntelliSense e validação no VS Code
   - Arquivo de schema `config.schema.json` fornece autocomplete, validação e documentação inline
   - Passe o mouse sobre propriedades para ver descrições, valores permitidos e configurações recomendadas

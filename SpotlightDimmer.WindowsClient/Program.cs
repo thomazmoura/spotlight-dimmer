@@ -69,7 +69,8 @@ if (monitorManager.Monitors.Count == 0)
 
 logger.LogInformation("Detected {Count} monitor(s)", monitorManager.Monitors.Count);
 
-var renderer = new OverlayRenderer();
+// Create renderer based on configuration
+var renderer = CreateRenderer(configManager.Current.System.RendererBackend, logger);
 var displayChangeMonitor = new DisplayChangeMonitor(displayChangeMonitorLogger);
 logger.LogInformation("Display change monitor initialized");
 
@@ -580,6 +581,45 @@ finally
 }
 
 return 0;
+
+// ========================================================================
+// Renderer Factory
+// ========================================================================
+
+/// <summary>
+/// Creates an overlay renderer based on the configured backend type.
+/// Falls back to Legacy renderer if the requested backend is unavailable or fails.
+/// </summary>
+static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
+{
+    try
+    {
+        return rendererBackend.ToLowerInvariant() switch
+        {
+            "updatelayeredwindow" => CreateRendererWithLogging<UpdateLayeredWindowRenderer>("UpdateLayeredWindow", logger),
+            "legacy" => CreateRendererWithLogging<LegacyLayeredWindowRenderer>("Legacy", logger),
+            _ => CreateRendererWithFallback(rendererBackend, logger)
+        };
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to create {Backend} renderer, falling back to Legacy", rendererBackend);
+        return new LegacyLayeredWindowRenderer();
+    }
+}
+
+static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger) where T : IOverlayRenderer, new()
+{
+    logger.LogInformation("Using {Backend} renderer", name);
+    return new T();
+}
+
+static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
+{
+    logger.LogWarning("Unknown renderer backend '{Backend}', falling back to Legacy", unknownBackend);
+    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow");
+    return new LegacyLayeredWindowRenderer();
+}
 
 // ========================================================================
 // Helper Classes

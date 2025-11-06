@@ -4,10 +4,13 @@ using SpotlightDimmer.Core;
 namespace SpotlightDimmer.WindowsBindings;
 
 /// <summary>
+/// Legacy renderer using SetWindowPos + SetLayeredWindowAttributes approach.
 /// Manages a pool of Windows overlay windows and renders DisplayOverlayState.
 /// Reuses windows instead of creating/destroying them for better performance.
+/// Uses WS_EX_LAYERED windows with GDI rendering and DeferWindowPos for batching.
+/// This is the original implementation with maximum compatibility.
 /// </summary>
-internal class OverlayRenderer : IDisposable
+internal class LegacyLayeredWindowRenderer : IOverlayRenderer
 {
     private const string WINDOW_CLASS_NAME = "SpotlightDimmerOverlay";
     private static bool _classRegistered = false;
@@ -22,7 +25,7 @@ internal class OverlayRenderer : IDisposable
     // Pre-allocated list for batching updates (reused every frame to avoid allocations)
     private readonly List<(OverlayWindow window, OverlayDefinition definition)> _updateBatch = new();
 
-    public OverlayRenderer()
+    public LegacyLayeredWindowRenderer()
     {
         EnsureWindowClassRegistered();
     }
