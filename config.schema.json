@@ -6,6 +6,9 @@
   "description": "Configuration schema for SpotlightDimmer overlay settings, system options, and profiles",
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string"
+    },
     "ConfigVersion": {
       "type": [
         "null",
@@ -84,6 +87,9 @@
           "type": "integer",
           "description": "Number of days to retain log files. Older logs are automatically deleted.",
           "format": "int32"
+        },
+        "RendererBackend": {
+          "type": "string"
         }
       }
     },

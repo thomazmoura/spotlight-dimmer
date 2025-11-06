@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SpotlightDimmer.Core;
 
 /// <summary>
@@ -123,10 +125,21 @@ public class OverlayConfig
 /// </summary>
 public class AppConfig
 {
+    private const string SchemaUrlTemplate = "https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/v{0}/config.schema.json";
+
+    /// <summary>
+    /// JSON Schema reference for editor IntelliSense and validation support.
+    /// Automatically set based on the application version.
+    /// </summary>
+    [JsonPropertyName("$schema")]
+    [JsonPropertyOrder(-1)]
+    public string Schema { get; set; } = string.Empty;
+
     /// <summary>
     /// Configuration version (matches the application version that last saved this file).
     /// Used to track schema compatibility and enable automatic schema URL updates.
     /// </summary>
+    [JsonPropertyOrder(0)]
     public string? ConfigVersion { get; set; }
 
     /// <summary>
@@ -206,6 +219,17 @@ public class AppConfig
     /// Creates a default configuration.
     /// </summary>
     public static AppConfig Default => new();
+
+    /// <summary>
+    /// Updates the schema URL and configuration version.
+    /// Should be called when the application version changes.
+    /// </summary>
+    /// <param name="version">The application version (e.g., "0.8.6").</param>
+    public void UpdateVersion(string version)
+    {
+        ConfigVersion = version.Split("+")[0];
+        Schema = string.Format(SchemaUrlTemplate, ConfigVersion);
+    }
 
     /// <summary>
     /// Applies a profile to the current overlay configuration.

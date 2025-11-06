@@ -95,6 +95,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
 ### Improved
+- **Simplified schema property management**: Configuration schema URL is now managed directly as a class property instead of post-serialization injection
+  - Added `Schema` property to `AppConfig` class with `$schema` JSON attribute for direct serialization
+  - Removed `SchemaInjector` class simplifying codebase by eliminating manual JSON string manipulation
+  - Schema URL automatically updates via `UpdateVersion()` method ensuring consistency
+  - `JsonPropertyOrder` attribute ensures `$schema` appears first in serialized JSON
+  - Comprehensive unit tests added to verify schema property serialization and deserialization
+  - Cleaner architecture with schema management integrated into the data model
+
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing
   - Created `IOverlayUpdateService` interface to abstract overlay updates from focus tracking logic
   - New `FocusChangeHandler` class in Core layer contains platform-agnostic decision logic
@@ -280,6 +288,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
+- **Gerenciamento simplificado de propriedade schema**: URL do schema de configuração agora é gerenciada diretamente como propriedade da classe ao invés de injeção pós-serialização
+  - Adicionada propriedade `Schema` à classe `AppConfig` com atributo JSON `$schema` para serialização direta
+  - Removida classe `SchemaInjector` simplificando codebase ao eliminar manipulação manual de string JSON
+  - URL do schema atualiza automaticamente via método `UpdateVersion()` garantindo consistência
+  - Atributo `JsonPropertyOrder` garante que `$schema` apareça primeiro no JSON serializado
+  - Testes unitários abrangentes adicionados para verificar serialização e desserialização da propriedade schema
+  - Arquitetura mais limpa com gerenciamento de schema integrado ao modelo de dados
+
 - **Arquitetura de rastreamento de foco testável**: Lógica de mudança de foco refatorada para camada Core para testes unitários abrangentes
   - Criada interface `IOverlayUpdateService` para abstrair atualizações de sobreposição da lógica de rastreamento de foco
   - Nova classe `FocusChangeHandler` na camada Core contém lógica de decisão independente de plataforma
