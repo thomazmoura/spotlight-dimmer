@@ -155,11 +155,38 @@ partial class ConfigForm
             AutoSize = true
         };
 
+        // Renderer Backend Section
+        var rendererLabel = new Label
+        {
+            Text = "Renderer Backend:",
+            Location = new Point(20, 360),
+            Size = new Size(120, 23),
+            AutoSize = true
+        };
+
+        rendererBackendComboBox = new ComboBox
+        {
+            Location = new Point(20, 385),
+            Size = new Size(200, 28),
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        rendererBackendComboBox.Items.AddRange(new object[] { "Legacy", "UpdateLayeredWindow", "DoubleBuffered" });
+        rendererBackendComboBox.SelectedIndexChanged += OnRendererBackendChanged;
+
+        var rendererHelpLabel = new Label
+        {
+            Text = "💡 Legacy: Maximum compatibility\n   UpdateLayeredWindow: Reduced lag\n   DoubleBuffered: Minimal visual gaps",
+            Location = new Point(230, 365),
+            Size = new Size(230, 60),
+            AutoSize = false,
+            ForeColor = System.Drawing.Color.DarkSlateGray
+        };
+
         // Logging Section
         var loggingGroupBox = new GroupBox
         {
             Text = "Logging",
-            Location = new Point(20, 360),
+            Location = new Point(20, 435),
             Size = new Size(440, 140)
         };
 
@@ -226,7 +253,7 @@ partial class ConfigForm
         var experimentalGroupBox = new GroupBox
         {
             Text = "Experimental Features",
-            Location = new Point(20, 510),
+            Location = new Point(20, 585),
             Size = new Size(440, 100)
         };
 
@@ -253,7 +280,7 @@ partial class ConfigForm
 
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(480, 625);
+        ClientSize = new Size(480, 700);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -277,6 +304,9 @@ partial class ConfigForm
         Controls.Add(activeOpacityLabel);
         Controls.Add(activeOpacityTrackBar);
         Controls.Add(activeOpacityValueLabel);
+        Controls.Add(rendererLabel);
+        Controls.Add(rendererBackendComboBox);
+        Controls.Add(rendererHelpLabel);
         Controls.Add(loggingGroupBox);
         Controls.Add(experimentalGroupBox);
     }
@@ -293,6 +323,7 @@ partial class ConfigForm
     private Panel activeColorPanel = null!;
     private TrackBar activeOpacityTrackBar = null!;
     private Label activeOpacityValueLabel = null!;
+    private ComboBox rendererBackendComboBox = null!;
     private CheckBox enableLoggingCheckBox = null!;
     private ComboBox logLevelComboBox = null!;
     private NumericUpDown logRetentionDaysNumericUpDown = null!;

@@ -86,6 +86,9 @@ public partial class ConfigForm : Form
             activeOpacityTrackBar.Value = config.Overlay.ActiveOpacity;
             activeOpacityValueLabel.Text = config.Overlay.ActiveOpacity.ToString();
 
+            // Set renderer backend
+            rendererBackendComboBox.SelectedItem = config.System.RendererBackend;
+
             // Set logging configuration
             enableLoggingCheckBox.Checked = config.System.EnableLogging;
             logLevelComboBox.SelectedItem = config.System.LogLevel;
@@ -288,6 +291,16 @@ public partial class ConfigForm : Form
         {
             var config = _configManager.Current;
             config.System.LogRetentionDays = (int)logRetentionDaysNumericUpDown.Value;
+            SaveConfiguration();
+        }
+    }
+
+    private void OnRendererBackendChanged(object? sender, EventArgs e)
+    {
+        if (!_isLoading)
+        {
+            var config = _configManager.Current;
+            config.System.RendererBackend = rendererBackendComboBox.SelectedItem?.ToString() ?? "Legacy";
             SaveConfiguration();
         }
     }

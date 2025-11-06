@@ -597,6 +597,7 @@ static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
         return rendererBackend.ToLowerInvariant() switch
         {
             "updatelayeredwindow" => CreateRendererWithLogging<UpdateLayeredWindowRenderer>("UpdateLayeredWindow", logger),
+            "doublebuffered" => CreateRendererWithLogging<DoubleBufferedRenderer>("DoubleBuffered", logger),
             "legacy" => CreateRendererWithLogging<LegacyLayeredWindowRenderer>("Legacy", logger),
             _ => CreateRendererWithFallback(rendererBackend, logger)
         };
@@ -617,7 +618,7 @@ static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger
 static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
 {
     logger.LogWarning("Unknown renderer backend '{Backend}', falling back to Legacy", unknownBackend);
-    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow");
+    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow, DoubleBuffered");
     return new LegacyLayeredWindowRenderer();
 }
 

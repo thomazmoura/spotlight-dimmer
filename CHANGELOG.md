@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Zero-allocation bitmap reuse optimization - only recreates bitmap on size changes
   - Both renderers share identical Core calculation logic ensuring consistent behavior
 
+- **Double-buffered renderer for reduced visual gaps**: Implemented `DoubleBufferedRenderer` that maintains two complete sets of overlay windows to eliminate temporal gaps during window dragging
+  - Maintains 2 complete overlay buffers (12 windows per display instead of 6) for seamless frame transitions
+  - Buffer swap strategy: prepare next frame while current frame visible, show new buffer, hide old buffer, swap indices
+  - Eliminates the temporal gap where no overlays are visible during position updates
+  - Pre-composition time allows DWM (Desktop Window Manager) to composite new window positions before they become visible
+  - New `RendererBackend` configuration value: "DoubleBuffered" (in addition to "Legacy" and "UpdateLayeredWindow")
+  - Zero-allocation hot path maintained - both buffers are pre-allocated at startup
+  - Memory impact: 2x GDI handles and device contexts, but significantly improves visual smoothness
+  - Particularly effective for fast mouse drags and multi-monitor setups where overlays span multiple displays
+
 - **JSON schema for configuration**: Added comprehensive JSON schema file for IntelliSense and validation in VS Code
   - Schema file `config.schema.json` provides autocomplete, validation, and inline documentation
   - Hover over properties to see descriptions, allowed values, and recommended settings
@@ -42,6 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Arquitetura projetada para suporte futuro a DirectComposition (renderização acelerada por GPU do Windows 10+)
   - Otimização de reutilização de bitmap sem alocações - apenas recria bitmap quando tamanho muda
   - Ambos os renderizadores compartilham lógica de cálculo Core idêntica garantindo comportamento consistente
+
+- **Renderizador com buffer duplo para reduzir lacunas visuais**: Implementado `DoubleBufferedRenderer` que mantém dois conjuntos completos de janelas de sobreposição para eliminar lacunas temporais durante arrasto de janelas
+  - Mantém 2 buffers completos de sobreposição (12 janelas por display ao invés de 6) para transições de quadro sem interrupções
+  - Estratégia de troca de buffer: preparar próximo quadro enquanto quadro atual está visível, mostrar novo buffer, esconder buffer antigo, trocar índices
+  - Elimina a lacuna temporal onde nenhuma sobreposição está visível durante atualizações de posição
+  - Tempo de pré-composição permite ao DWM (Desktop Window Manager) compor novas posições de janela antes de se tornarem visíveis
+  - Novo valor de configuração `RendererBackend`: "DoubleBuffered" (além de "Legacy" e "UpdateLayeredWindow")
+  - Caminho crítico sem alocações mantido - ambos os buffers são pré-alocados na inicialização
+  - Impacto de memória: 2x handles GDI e contextos de dispositivo, mas melhora significativamente a suavidade visual
+  - Particularmente efetivo para arrastos rápidos de mouse e configurações multi-monitor onde sobreposições abrangem múltiplos displays
 
 - **JSON schema para configuração**: Adicionado arquivo JSON schema abrangente para IntelliSense e validação no VS Code
   - Arquivo de schema `config.schema.json` fornece autocomplete, validação e documentação inline
