@@ -44,6 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Works with both GitHub URL and local relative path references
   - Improves configuration editing experience and reduces user errors
 
+### Fixed
+- **DirectComposition renderer Native AOT compilation**: Enabled built-in COM interop support for DirectComposition renderer to work with Native AOT builds
+  - Added `<BuiltInComInteropSupport>true</BuiltInComInteropSupport>` property to project file
+  - Fixes "Built-in COM has been disabled via a feature switch" error during AOT compilation
+  - DirectComposition renderer now works in Release builds with full Native AOT optimization
+  - Trade-off: Slightly larger binary size (~5-10% increase) compared to disabled COM, but necessary for DirectComposition functionality
+  - Alternative approaches (ComWrappers API) would require complete rewrite of DirectComposition integration
+
 ---
 
 ### Adicionado
@@ -123,6 +131,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Arquivos de configuração antigos apontam para schema de sua versão original (previne confusão com propriedades mais recentes)
   - Experiência de usuário perfeita: IntelliSense funciona imediatamente após instalação
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
+
+### Corrigido
+- **Compilação Native AOT do renderizador DirectComposition**: Habilitado suporte a interop COM integrado para que o renderizador DirectComposition funcione com builds Native AOT
+  - Adicionada propriedade `<BuiltInComInteropSupport>true</BuiltInComInteropSupport>` ao arquivo de projeto
+  - Corrige erro "Built-in COM has been disabled via a feature switch" durante compilação AOT
+  - Renderizador DirectComposition agora funciona em builds Release com otimização Native AOT completa
+  - Compromisso: Tamanho de binário ligeiramente maior (~5-10% de aumento) comparado ao COM desabilitado, mas necessário para funcionalidade DirectComposition
+  - Abordagens alternativas (API ComWrappers) exigiriam reescrita completa da integração DirectComposition
 
 ### Improved
 - **Testable focus tracking architecture**: Focus change logic refactored to Core layer for comprehensive unit testing

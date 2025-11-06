@@ -17,6 +17,10 @@
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
 
+    <!-- Enable built-in COM support for DirectComposition renderer -->
+    <!-- Required for Marshal.GetObjectForIUnknown and [ComImport] attributes -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+
     <!-- Optimization -->
     <OptimizationPreference>Speed</OptimizationPreference>
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
