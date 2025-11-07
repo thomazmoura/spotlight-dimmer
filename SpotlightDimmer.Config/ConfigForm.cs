@@ -86,8 +86,13 @@ public partial class ConfigForm : Form
             activeOpacityTrackBar.Value = config.Overlay.ActiveOpacity;
             activeOpacityValueLabel.Text = config.Overlay.ActiveOpacity.ToString();
 
-            // Set renderer backend
-            rendererBackendComboBox.SelectedItem = config.System.RendererBackend;
+            // Set renderer backend (handle legacy alias)
+            var rendererBackend = config.System.RendererBackend;
+            if (rendererBackend == "Legacy")
+            {
+                rendererBackend = "LayeredWindow";
+            }
+            rendererBackendComboBox.SelectedItem = rendererBackend;
 
             // Set logging configuration
             enableLoggingCheckBox.Checked = config.System.EnableLogging;
@@ -300,7 +305,7 @@ public partial class ConfigForm : Form
         if (!_isLoading)
         {
             var config = _configManager.Current;
-            config.System.RendererBackend = rendererBackendComboBox.SelectedItem?.ToString() ?? "Legacy";
+            config.System.RendererBackend = rendererBackendComboBox.SelectedItem?.ToString() ?? "LayeredWindow";
             SaveConfiguration();
         }
     }

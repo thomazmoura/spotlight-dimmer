@@ -588,7 +588,7 @@ return 0;
 
 /// <summary>
 /// Creates an overlay renderer based on the configured backend type.
-/// Falls back to Legacy renderer if the requested backend is unavailable or fails.
+/// Falls back to standard LayeredWindow renderer if the requested backend is unavailable or fails.
 /// </summary>
 static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
 {
@@ -597,15 +597,16 @@ static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
         return rendererBackend.ToLowerInvariant() switch
         {
             "updatelayeredwindow" => CreateRendererWithLogging<UpdateLayeredWindowRenderer>("UpdateLayeredWindow", logger),
-            "doublebuffered" => CreateRendererWithLogging<DoubleBufferedRenderer>("DoubleBuffered", logger),
-            "legacy" => CreateRendererWithLogging<LegacyLayeredWindowRenderer>("Legacy", logger),
+            "layeredwindow" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
+            // Legacy aliases for backward compatibility
+            "legacy" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
             _ => CreateRendererWithFallback(rendererBackend, logger)
         };
     }
     catch (Exception ex)
     {
-        logger.LogWarning(ex, "Failed to create {Backend} renderer, falling back to Legacy", rendererBackend);
-        return new LegacyLayeredWindowRenderer();
+        logger.LogWarning(ex, "Failed to create {Backend} renderer, falling back to LayeredWindow", rendererBackend);
+        return new LayeredWindowRenderer();
     }
 }
 
@@ -617,9 +618,9 @@ static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger
 
 static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
 {
-    logger.LogWarning("Unknown renderer backend '{Backend}', falling back to Legacy", unknownBackend);
-    logger.LogInformation("Available renderers: Legacy, UpdateLayeredWindow, DoubleBuffered");
-    return new LegacyLayeredWindowRenderer();
+    logger.LogWarning("Unknown renderer backend '{Backend}', falling back to LayeredWindow", unknownBackend);
+    logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow");
+    return new LayeredWindowRenderer();
 }
 
 // ========================================================================

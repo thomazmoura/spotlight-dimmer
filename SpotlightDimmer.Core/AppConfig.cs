@@ -64,12 +64,12 @@ public class SystemConfig
     /// <summary>
     /// Renderer backend to use for overlay windows.
     /// Options:
-    /// - "Legacy": SetWindowPos + SetLayeredWindowAttributes (most compatible, current default)
-    /// - "UpdateLayeredWindow": UpdateLayeredWindow API (better performance, may reduce resize lag)
-    /// Default: "Legacy"
-    /// Future: "Composition" for DirectComposition/Windows.UI.Composition (best performance, Windows 10+ only)
+    /// - "LayeredWindow": SetWindowPos + SetLayeredWindowAttributes (lightweight, default, ~1-5 MB memory)
+    /// - "UpdateLayeredWindow": UpdateLayeredWindow API with full-screen bitmaps (reduced visual gaps, ~50-100 MB memory per display)
+    /// Default: "LayeredWindow"
+    /// Note: "Legacy" is accepted as an alias for "LayeredWindow" for backward compatibility
     /// </summary>
-    public string RendererBackend { get; set; } = "Legacy";
+    public string RendererBackend { get; set; } = "LayeredWindow";
 }
 
 /// <summary>

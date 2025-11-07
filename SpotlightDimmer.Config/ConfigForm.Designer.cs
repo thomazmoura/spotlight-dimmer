@@ -170,12 +170,12 @@ partial class ConfigForm
             Size = new Size(200, 28),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        rendererBackendComboBox.Items.AddRange(new object[] { "Legacy", "UpdateLayeredWindow", "DoubleBuffered" });
+        rendererBackendComboBox.Items.AddRange(new object[] { "LayeredWindow", "UpdateLayeredWindow" });
         rendererBackendComboBox.SelectedIndexChanged += OnRendererBackendChanged;
 
         var rendererHelpLabel = new Label
         {
-            Text = "💡 Legacy: Maximum compatibility\n   UpdateLayeredWindow: Reduced lag\n   DoubleBuffered: Minimal visual gaps",
+            Text = "💡 LayeredWindow: Lightweight (~5 MB)\n   UpdateLayeredWindow: Reduced gaps (~100 MB)",
             Location = new Point(230, 365),
             Size = new Size(230, 60),
             AutoSize = false,
