@@ -600,6 +600,7 @@ static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
             "layeredwindow" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
             // Legacy aliases for backward compatibility
             "legacy" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
+            "winui3" => CreateWinUI3Renderer(logger),
             _ => CreateRendererWithFallback(rendererBackend, logger)
         };
     }
@@ -616,10 +617,18 @@ static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger
     return new T();
 }
 
+static IOverlayRenderer CreateWinUI3Renderer(ILogger logger)
+{
+    logger.LogInformation("Using WinUI3 renderer (EXPERIMENTAL - high memory/disk usage)");
+    logger.LogWarning("WinUI3 renderer is for performance testing only - NOT recommended for production use");
+    // Cast to WindowsBindings.IOverlayRenderer since both interfaces have the same shape
+    return (IOverlayRenderer)(object)new WinUI3Renderer();
+}
+
 static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
 {
     logger.LogWarning("Unknown renderer backend '{Backend}', falling back to LayeredWindow", unknownBackend);
-    logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow");
+    logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow, WinUI3 (experimental)");
     return new LayeredWindowRenderer();
 }
 

@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- WinUI3 renderer requires Windows 10.0.19041.0 for WindowsAppSDK -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -10,16 +12,19 @@
     <ApplicationIcon>..\spotlight-dimmer-icon.ico</ApplicationIcon>
     <AssemblyName>SpotlightDimmer</AssemblyName>
 
-    <!-- AOT and Self-Contained Configuration -->
-    <PublishAot>true</PublishAot>
+    <!-- AOT disabled for WinUI3 compatibility (XAML requires reflection) -->
+    <PublishAot>false</PublishAot>
     <SelfContained>true</SelfContained>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>full</TrimMode>
 
     <!-- Optimization -->
     <OptimizationPreference>Speed</OptimizationPreference>
-    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+
+    <!-- Enable WinUI3 renderer -->
+    <DefineConstants>$(DefineConstants);USE_WINUI3_RENDERER</DefineConstants>
+
+    <!-- Disable PRI generation for unpackaged exe -->
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +44,14 @@
     <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <!-- WindowsAppSDK with packaging/PRI build tasks excluded for unpackaged builds -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.241209001">
+      <!-- Exclude buildTransitive to prevent MSIX/PRI task imports that require VS packaging tools -->
+      <ExcludeAssets>buildTransitive</ExcludeAssets>
+      <IncludeAssets>compile;runtime;native;contentfiles;analyzers;build</IncludeAssets>
+    </PackageReference>
+  
   </ItemGroup>
 
 </Project>

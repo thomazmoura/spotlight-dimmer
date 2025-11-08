@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <UseWinUI>true</UseWinUI>
+    <PlatformTarget>x64</PlatformTarget>
+
+    <!-- WinUI3 is NOT compatible with Native AOT -->
+    <PublishAot>false</PublishAot>
+
+    <!-- Disable PRI generation to allow building without full Visual Studio -->
+    <!-- PRI is only needed for packaged MSIX apps, not for our DLL -->
+    <GenerateLibraryLayout>true</GenerateLibraryLayout>
+    <AppxPackage>false</AppxPackage>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <!-- WindowsAppSDK with packaging/PRI build tasks excluded for unpackaged builds -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.241209001">
+      <!-- Exclude buildTransitive to prevent MSIX/PRI task imports that require VS packaging tools -->
+      <ExcludeAssets>buildTransitive</ExcludeAssets>
+      <IncludeAssets>compile;runtime;native;contentfiles;analyzers;build</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SpotlightDimmer.Core\SpotlightDimmer.Core.csproj" />
+    <!-- Reference only Core - WindowsClient will reference this project -->
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project>
+  <!--
+    Override WindowsAppSDK packaging and PRI generation tasks
+    This allows building WinUI3 projects as unpackaged desktop apps without MSIX tooling
+  -->
+
+  <!-- Override all packaging-related targets to do nothing -->
+  <Target Name="ExpandPriContent" />
+  <Target Name="_GeneratePriConfigXml" />
+  <Target Name="_GeneratePri" />
+  <Target Name="_CreatePriFilesFromResourcePacks" />
+  <Target Name="_ExpandPriContent" />
+  <Target Name="RemovePayloadDuplicates" />
+  <Target Name="_RemovePayloadDuplicates" />
+  <Target Name="_GenerateAppxPackage" />
+  <Target Name="_CreateAppxPackage" />
+  <Target Name="_ValidateAppxManifest" />
+  <Target Name="_GenerateAppxManifest" />
+  <Target Name="_CreateAppxBundle" />
+  <Target Name="_SignAppxPackage" />
+
+  <!-- Prevent import of packaging targets if they don't exist -->
+  <PropertyGroup>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+  </PropertyGroup>
+</Project>

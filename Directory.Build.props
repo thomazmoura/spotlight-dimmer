@@ -19,4 +19,40 @@
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
+
+  <!-- WinUI3 / WindowsAppSDK Configuration (WinUI3 branch only) -->
+  <PropertyGroup>
+    <!-- Disable all MSIX packaging features to prevent packaging task errors -->
+    <AppxPackage>false</AppxPackage>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppContainer>false</WindowsAppContainer>
+
+    <!-- Disable PRI (Package Resource Index) generation -->
+    <EnableMrtResourceIndexing>false</EnableMrtResourceIndexing>
+    <EnableXamlLocalizer>false</EnableXamlLocalizer>
+    <UsePriConfig>false</UsePriConfig>
+    <GeneratePrisForContentFiles>false</GeneratePrisForContentFiles>
+    <PriIndexName></PriIndexName>
+
+    <!-- Prevent asset packaging -->
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <AppxAutoIncrementPackageRevision>false</AppxAutoIncrementPackageRevision>
+
+    <!-- Build as unpackaged desktop app -->
+    <AssetTargetFallback>$(AssetTargetFallback);native</AssetTargetFallback>
+
+    <!-- Critical: Prevent WindowsAppSDK from importing packaging targets -->
+    <DisableTransitiveProjectReferences>false</DisableTransitiveProjectReferences>
+    <DisableFrameworkReferences>false</DisableFrameworkReferences>
+
+    <!-- Tell Windows App SDK we're building unpackaged -->
+    <WindowsPackageTargetRuntime>win10-x64</WindowsPackageTargetRuntime>
+    <Platform>x64</Platform>
+
+    <!-- Skip validation that requires packaging tools -->
+    <ValidatePresenceOfAppxManifestItemsForTargetPlatformVersion>false</ValidatePresenceOfAppxManifestItemsForTargetPlatformVersion>
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+  </PropertyGroup>
 </Project>

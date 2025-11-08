@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Experimental WinUI3 renderer for performance comparison**: Added WinUI3-based renderer implementation to measure modern UI framework overhead vs lightweight Win32 APIs
+  - Created `SpotlightDimmer.WinUI3Renderer` project using Windows App SDK and XAML
+  - Demonstrates why WinUI3 is unsuitable for simple overlay rendering: 30-50x larger disk footprint, 5-10x more memory, 3-5x higher CPU usage
+  - Requires disabling Native AOT compilation (WinUI3 incompatible with AOT due to reflection/XAML dependencies)
+  - Build with `/p:UseWinUI3Renderer=true` flag (requires Visual Studio with Windows App SDK workload)
+  - **NOT recommended for production use** - exists solely for educational/performance comparison purposes
+  - Comprehensive performance analysis documented in `docs/WINUI3_RENDERER_COMPARISON.md`
+  - Key findings: LayeredWindow (3-5 MB) vs WinUI3 (80-150 MB), 15-25 MB RAM vs 80-200 MB RAM, <0.1% idle CPU vs 0.5-2%
+  - Reinforces importance of choosing appropriate technology for the task at hand
+
 - **Pluggable renderer architecture with two rendering backends**: Implemented abstraction layer allowing users to choose between lightweight and smooth rendering
   - Created `IOverlayRenderer` interface to decouple core logic from rendering implementation
   - **LayeredWindow renderer** (default): SetWindowPos + SetLayeredWindowAttributes approach with lightweight memory footprint (~1-5 MB)
@@ -33,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Renderizador WinUI3 experimental para comparação de desempenho**: Adicionada implementação de renderizador baseado em WinUI3 para medir sobrecarga de framework de UI moderno vs APIs Win32 leves
+  - Criado projeto `SpotlightDimmer.WinUI3Renderer` usando Windows App SDK e XAML
+  - Demonstra por que WinUI3 não é adequado para renderização simples de sobreposição: 30-50x maior tamanho em disco, 5-10x mais memória, 3-5x maior uso de CPU
+  - Requer desabilitar compilação Native AOT (WinUI3 incompatível com AOT devido a dependências de reflexão/XAML)
+  - Compilar com flag `/p:UseWinUI3Renderer=true` (requer Visual Studio com workload Windows App SDK)
+  - **NÃO recomendado para uso em produção** - existe apenas para fins educacionais/comparação de desempenho
+  - Análise abrangente de desempenho documentada em `docs/WINUI3_RENDERER_COMPARISON.md`
+  - Descobertas principais: LayeredWindow (3-5 MB) vs WinUI3 (80-150 MB), 15-25 MB RAM vs 80-200 MB RAM, <0.1% CPU ocioso vs 0.5-2%
+  - Reforça a importância de escolher tecnologia apropriada para a tarefa em questão
+
 - **Arquitetura de renderização plugável com dois backends de renderização**: Implementada camada de abstração permitindo aos usuários escolher entre renderização leve e suave
   - Criada interface `IOverlayRenderer` para desacoplar lógica central da implementação de renderização
   - **Renderizador LayeredWindow** (padrão): Abordagem SetWindowPos + SetLayeredWindowAttributes com pegada de memória leve (~1-5 MB)
