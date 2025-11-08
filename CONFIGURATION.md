@@ -164,6 +164,99 @@ Opacity for the active window overlay (used only in `PartialWithActive` mode).
 - Should be **less than** `InactiveOpacity` to create a spotlight effect
 - **Default**: `102` (~40% opacity)
 
+#### `ExcludeFromScreenCapture` (boolean)
+Whether to exclude overlay windows from screen captures and recordings.
+
+- **Default**: `false`
+- When `true`, overlays won't appear in screenshots, screen recordings, or streaming software
+
+### System Configuration
+
+#### `RendererBackend` (string)
+The rendering backend used to display overlay windows. Different backends offer different performance characteristics and memory usage patterns.
+
+Available backends:
+
+- **`"LayeredWindow"`** (Default): Traditional rendering using SetLayeredWindowAttributes
+  - Creates 6 overlay windows per display
+  - Each window is a simple solid-color rectangle
+  - Updates use DeferWindowPos for batched position/size changes
+  - **Best for**: Maximum compatibility and stability
+  - **GDI handles**: 6 per display (12 total for 2 displays)
+
+- **`"UpdateLayeredWindow"`**: Advanced rendering using UpdateLayeredWindow API with DIB bitmaps
+  - Creates 6 overlay windows per display
+  - Each window has a memory-backed bitmap for per-pixel alpha
+  - Updates combine position + size + content in a single atomic operation
+  - **Best for**: Better performance than LayeredWindow with similar architecture
+  - **GDI handles**: 6 per display (12 total for 2 displays)
+  - **Memory**: ~8KB per window for small overlays
+
+- **`"CompositeOverlay"`**: Optimized rendering using bitmap composition
+  - Creates only 2 overlay windows per display (fullscreen + partial)
+  - Windows stay fullscreen-sized; overlay regions are drawn into bitmaps
+  - Reduces GDI handle count and eliminates window resize operations
+  - **Best for**: Multi-monitor setups, minimizing GDI object count
+  - **GDI handles**: 2 per display (4 total for 2 displays)
+  - **Memory**: ~8MB per display (1920×1080 × 4 bytes ARGB)
+
+**Default**: `"LayeredWindow"`
+
+**Example configuration**:
+```json
+{
+  "System": {
+    "RendererBackend": "CompositeOverlay",
+    "EnableLogging": true,
+    "LogLevel": "Information",
+    "LogRetentionDays": 7
+  }
+}
+```
+
+**Performance Comparison**:
+
+| Backend | Windows/Display | GDI Handles (2 displays) | Memory Usage | Resize Operations | Best For |
+|---------|-----------------|--------------------------|--------------|-------------------|----------|
+| LayeredWindow | 6 | 12 | Minimal | Yes (DeferWindowPos) | Compatibility |
+| UpdateLayeredWindow | 6 | 12 | Low (~48KB) | No (atomic updates) | Performance |
+| CompositeOverlay | 2 | 4 | Medium (~16MB) | No (bitmap-only) | Handle efficiency |
+
+**When to use CompositeOverlay**:
+- You have 3+ displays and want to minimize GDI object count
+- You're concerned about handle leaks with many windows
+- You have plenty of RAM and want the most efficient window management
+- You're using PartialWithActive mode frequently (most benefit from composite rendering)
+
+**When to stick with LayeredWindow/UpdateLayeredWindow**:
+- You want maximum compatibility
+- You're on a low-memory system (< 4GB RAM)
+- You prefer the simpler architecture with one window per overlay region
+
+#### `EnableLogging` (boolean)
+Whether to enable file-based logging.
+
+- **Default**: `true`
+- Logs are written to `%AppData%\SpotlightDimmer\logs\`
+
+#### `LogLevel` (string)
+The minimum log level to write. Available levels:
+
+- `"Trace"` - Most verbose, includes all debug information
+- `"Debug"` - Detailed debugging information
+- `"Information"` - Standard informational messages (recommended)
+- `"Warning"` - Only warnings and errors
+- `"Error"` - Only errors
+- `"Critical"` - Only critical failures
+
+**Default**: `"Information"`
+
+#### `LogRetentionDays` (integer)
+Number of days to keep old log files before automatic deletion.
+
+- Range: `1` to `365`
+- **Default**: `7`
+
 ## Hot-Reload Behavior
 
 When you edit and save the configuration file:

@@ -66,6 +66,7 @@ public class SystemConfig
     /// Options:
     /// - "LayeredWindow": SetWindowPos + SetLayeredWindowAttributes (lightweight, default, ~1-5 MB memory)
     /// - "UpdateLayeredWindow": UpdateLayeredWindow API with full-screen bitmaps (reduced visual gaps, ~50-100 MB memory per display)
+    /// - "CompositeOverlay": Bitmap composition with 2 windows per display (fewer GDI handles, ~16 MB memory for 2 displays)
     /// Default: "LayeredWindow"
     /// Note: "Legacy" is accepted as an alias for "LayeredWindow" for backward compatibility
     /// </summary>

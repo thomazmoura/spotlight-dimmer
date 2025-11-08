@@ -597,6 +597,7 @@ static IOverlayRenderer CreateRenderer(string rendererBackend, ILogger logger)
         return rendererBackend.ToLowerInvariant() switch
         {
             "updatelayeredwindow" => CreateRendererWithLogging<UpdateLayeredWindowRenderer>("UpdateLayeredWindow", logger),
+            "compositeoverlay" => CreateRendererWithLogging<CompositeOverlayRenderer>("CompositeOverlay", logger),
             "layeredwindow" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
             // Legacy aliases for backward compatibility
             "legacy" => CreateRendererWithLogging<LayeredWindowRenderer>("LayeredWindow", logger),
@@ -619,7 +620,7 @@ static IOverlayRenderer CreateRendererWithLogging<T>(string name, ILogger logger
 static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogger logger)
 {
     logger.LogWarning("Unknown renderer backend '{Backend}', falling back to LayeredWindow", unknownBackend);
-    logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow");
+    logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow, CompositeOverlay");
     return new LayeredWindowRenderer();
 }
 

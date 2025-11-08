@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both renderers share identical Core calculation logic ensuring consistent behavior
   - "Legacy" accepted as backward-compatible alias for "LayeredWindow"
 
+- **CompositeOverlay renderer**: New rendering backend that uses only 2 windows per display (instead of 6) by compositing multiple overlay regions into a single bitmap
+  - Reduces GDI handle count from 12 to 4 (for 2 displays) through window consolidation
+  - Eliminates window resize/reposition operations - windows stay fullscreen-sized
+  - Uses per-pixel alpha compositing to draw up to 5 overlay regions in a single bitmap
+  - Memory tradeoff: ~16MB for 2 displays (1920×1080 × 4 bytes ARGB × 2) vs ~48KB for UpdateLayeredWindow
+  - Best for multi-monitor setups where minimizing GDI handle count is a priority
+  - Particularly beneficial for PartialWithActive mode with frequent window movement
+  - Available via `RendererBackend: "CompositeOverlay"` in System configuration
+  - Documented in CONFIGURATION.md with performance comparison table
+
 - **JSON schema for configuration**: Added comprehensive JSON schema file for IntelliSense and validation in VS Code
   - Schema file `config.schema.json` provides autocomplete, validation, and inline documentation
   - Hover over properties to see descriptions, allowed values, and recommended settings
@@ -44,6 +54,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback automático para renderizador LayeredWindow se backend configurado falhar ou não estiver disponível
   - Ambos os renderizadores compartilham lógica de cálculo Core idêntica garantindo comportamento consistente
   - "Legacy" aceito como alias retrocompatível para "LayeredWindow"
+
+- **Renderizador CompositeOverlay**: Novo backend de renderização que usa apenas 2 janelas por display (em vez de 6) ao compor múltiplas regiões de sobreposição em um único bitmap
+  - Reduz contagem de handles GDI de 12 para 4 (para 2 displays) através de consolidação de janelas
+  - Elimina operações de redimensionamento/reposicionamento de janelas - janelas permanecem em tamanho de tela cheia
+  - Usa composição alfa por pixel para desenhar até 5 regiões de sobreposição em um único bitmap
+  - Tradeoff de memória: ~16MB para 2 displays (1920×1080 × 4 bytes ARGB × 2) vs ~48KB para UpdateLayeredWindow
+  - Melhor para configurações multi-monitor onde minimizar contagem de handles GDI é prioridade
+  - Particularmente benéfico para modo PartialWithActive com movimento frequente de janelas
+  - Disponível via `RendererBackend: "CompositeOverlay"` na configuração System
+  - Documentado em CONFIGURATION.md com tabela de comparação de desempenho
 
 - **JSON schema para configuração**: Adicionado arquivo JSON schema abrangente para IntelliSense e validação no VS Code
   - Arquivo de schema `config.schema.json` fornece autocomplete, validação e documentação inline

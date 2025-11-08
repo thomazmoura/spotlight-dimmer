@@ -170,14 +170,14 @@ partial class ConfigForm
             Size = new Size(200, 28),
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        rendererBackendComboBox.Items.AddRange(new object[] { "LayeredWindow", "UpdateLayeredWindow" });
+        rendererBackendComboBox.Items.AddRange(new object[] { "LayeredWindow", "UpdateLayeredWindow", "CompositeOverlay" });
         rendererBackendComboBox.SelectedIndexChanged += OnRendererBackendChanged;
 
         var rendererHelpLabel = new Label
         {
-            Text = "💡 LayeredWindow: Lightweight (~5 MB)\n   UpdateLayeredWindow: Reduced gaps (~100 MB)",
+            Text = "💡 LayeredWindow: Lightweight (~5 MB)\n   UpdateLayeredWindow: Reduced gaps (~100 MB)\n   CompositeOverlay: Fewer handles (~16 MB)",
             Location = new Point(230, 365),
-            Size = new Size(230, 60),
+            Size = new Size(250, 75),
             AutoSize = false,
             ForeColor = System.Drawing.Color.DarkSlateGray
         };
