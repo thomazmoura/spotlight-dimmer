@@ -117,6 +117,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
 ### Improved
+- **Renderer backend hot-reload support**: Renderer backend changes now apply instantly without requiring application restart
+  - Application detects when `System.RendererBackend` configuration changes
+  - Automatically disposes old renderer and creates new renderer instance
+  - Recreates all overlay windows with new rendering backend
+  - Preserves screen capture exclusion and other settings during renderer recreation
+  - Enables seamless comparison between LayeredWindow, UpdateLayeredWindow, and CompositeOverlay renderers
+  - Logged transitions show old and new backend names for transparency
+  - Consistent with existing hot-reload behavior for colors, opacity, and other settings
+
 - **Simplified schema property management**: Configuration schema URL is now managed directly as a class property instead of post-serialization injection
   - Added `Schema` property to `AppConfig` class with `$schema` JSON attribute for direct serialization
   - Removed `SchemaInjector` class simplifying codebase by eliminating manual JSON string manipulation
@@ -310,6 +319,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
+- **Suporte a hot-reload do backend de renderização**: Mudanças no backend de renderização agora aplicam instantaneamente sem necessidade de reiniciar a aplicação
+  - Aplicação detecta quando configuração `System.RendererBackend` é alterada
+  - Descarta automaticamente renderizador antigo e cria nova instância de renderizador
+  - Recria todas as janelas de sobreposição com novo backend de renderização
+  - Preserva exclusão de captura de tela e outras configurações durante recriação do renderizador
+  - Permite comparação perfeita entre renderizadores LayeredWindow, UpdateLayeredWindow e CompositeOverlay
+  - Transições registradas mostram nomes do backend antigo e novo para transparência
+  - Consistente com comportamento de hot-reload existente para cores, opacidade e outras configurações
+
 - **Gerenciamento simplificado de propriedade schema**: URL do schema de configuração agora é gerenciada diretamente como propriedade da classe ao invés de injeção pós-serialização
   - Adicionada propriedade `Schema` à classe `AppConfig` com atributo JSON `$schema` para serialização direta
   - Removida classe `SchemaInjector` simplificando codebase ao eliminar manipulação manual de string JSON

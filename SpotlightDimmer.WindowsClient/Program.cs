@@ -71,6 +71,7 @@ logger.LogInformation("Detected {Count} monitor(s)", monitorManager.Monitors.Cou
 
 // Create renderer based on configuration
 var renderer = CreateRenderer(configManager.Current.System.RendererBackend, logger);
+var currentRendererBackend = configManager.Current.System.RendererBackend;
 var displayChangeMonitor = new DisplayChangeMonitor(displayChangeMonitorLogger);
 logger.LogInformation("Display change monitor initialized");
 
@@ -392,6 +393,38 @@ systemTray.VisitGithubRequested += () =>
 // Handle configuration changes - recalculate and render overlays
 configManager.ConfigurationChanged += (newAppConfig) =>
 {
+    // Check if renderer backend changed and recreate if needed
+    if (newAppConfig.System.RendererBackend != currentRendererBackend)
+    {
+        logger.LogInformation("Renderer backend changed: {OldBackend} -> {NewBackend}",
+            currentRendererBackend, newAppConfig.System.RendererBackend);
+
+        // Clean up old renderer
+        renderer.CleanupOverlays();
+        renderer.Dispose();
+
+        // Create new renderer
+        renderer = CreateRenderer(newAppConfig.System.RendererBackend, logger);
+        currentRendererBackend = newAppConfig.System.RendererBackend;
+
+        // Recreate overlays with new renderer
+        renderer.CreateOverlays(cachedDisplays, newAppConfig.ToOverlayConfig());
+
+        // Reapply screen capture exclusion if configured
+        if (newAppConfig.Overlay.ExcludeFromScreenCapture)
+        {
+            var recreateSuccessCount = renderer.UpdateScreenCaptureExclusion(true);
+            var recreateTotalWindows = cachedDisplays.Length * 6;
+            if (recreateSuccessCount < recreateTotalWindows)
+            {
+                logger.LogWarning("Screen capture exclusion applied to {SuccessCount}/{TotalCount} windows after renderer recreation",
+                    recreateSuccessCount, recreateTotalWindows);
+            }
+        }
+
+        logger.LogInformation("Renderer recreated successfully");
+    }
+
     // Update cached config when configuration changes
     cachedConfig = newAppConfig.ToOverlayConfig();
 
