@@ -17,9 +17,6 @@ internal class FocusTracker : IDisposable
     private IntPtr _lastForegroundWindow = IntPtr.Zero;
     private IntPtr _messageWindow = IntPtr.Zero;
 
-    // Polling timer to catch foreground changes that don't fire events (UWP app launches)
-    private const int POLLING_INTERVAL_MS = 100; // Poll every 100ms to catch missed events
-
     // Must keep references to prevent garbage collection
     private readonly WinApi.WinEventDelegate _hookDelegate;
     private readonly WinApi.WndProc _wndProcDelegate;

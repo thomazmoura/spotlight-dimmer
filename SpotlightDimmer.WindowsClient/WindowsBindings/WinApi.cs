@@ -587,6 +587,9 @@ internal static partial class WinApi
     // Custom message for tray icon
     public const uint WM_TRAYICON = 0x8000; // WM_APP
 
+    // Custom message for application reset (renderer/display changes)
+    public const uint WM_APP_RESET = WM_TRAYICON + 1; // 0x8001
+
     // Mouse messages for tray icon
     public const uint WM_LBUTTONDOWN = 0x0201;
     public const uint WM_LBUTTONUP = 0x0202;

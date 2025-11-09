@@ -393,36 +393,14 @@ systemTray.VisitGithubRequested += () =>
 // Handle configuration changes - recalculate and render overlays
 configManager.ConfigurationChanged += (newAppConfig) =>
 {
-    // Check if renderer backend changed and recreate if needed
+    // Check if renderer backend changed - trigger full reset if so
     if (newAppConfig.System.RendererBackend != currentRendererBackend)
     {
-        logger.LogInformation("Renderer backend changed: {OldBackend} -> {NewBackend}",
-            currentRendererBackend, newAppConfig.System.RendererBackend);
+        logger.LogInformation("Renderer backend changed, requesting application reset");
 
-        // Clean up old renderer
-        renderer.CleanupOverlays();
-        renderer.Dispose();
-
-        // Create new renderer
-        renderer = CreateRenderer(newAppConfig.System.RendererBackend, logger);
-        currentRendererBackend = newAppConfig.System.RendererBackend;
-
-        // Recreate overlays with new renderer
-        renderer.CreateOverlays(cachedDisplays, newAppConfig.ToOverlayConfig());
-
-        // Reapply screen capture exclusion if configured
-        if (newAppConfig.Overlay.ExcludeFromScreenCapture)
-        {
-            var recreateSuccessCount = renderer.UpdateScreenCaptureExclusion(true);
-            var recreateTotalWindows = cachedDisplays.Length * 6;
-            if (recreateSuccessCount < recreateTotalWindows)
-            {
-                logger.LogWarning("Screen capture exclusion applied to {SuccessCount}/{TotalCount} windows after renderer recreation",
-                    recreateSuccessCount, recreateTotalWindows);
-            }
-        }
-
-        logger.LogInformation("Renderer recreated successfully");
+        // Post reset message to main thread (thread-safe)
+        WinApi.PostThreadMessage(mainThreadId, WinApi.WM_APP_RESET, IntPtr.Zero, IntPtr.Zero);
+        return; // Reset() will handle everything
     }
 
     // Update cached config when configuration changes
@@ -488,50 +466,10 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
 // Handle display configuration changes - event-driven with immediate + 2s safety check
 displayChangeMonitor.CheckDisplaysRequested += () =>
 {
-    logger.LogInformation("Display change detected - resetting displays and overlays");
+    logger.LogInformation("Display change detected, requesting application reset");
 
-    // Refresh monitor list
-    monitorManager.RefreshMonitors();
-    var newDisplayCount = monitorManager.Monitors.Count;
-
-    // Update tracked count
-    var oldDisplayCount = currentDisplayCount;
-    currentDisplayCount = newDisplayCount;
-
-    // Check if we still have monitors
-    if (newDisplayCount == 0)
-    {
-        logger.LogWarning("No monitors detected after display change");
-        renderer.CleanupOverlays();
-        return;
-    }
-
-    // Clean up old overlays
-    renderer.CleanupOverlays();
-
-    // Get updated display information
-    var newDisplays = monitorManager.GetDisplayInfo();
-    cachedDisplays = newDisplays;
-
-    // Recreate app state with new display configuration
-    appState = new AppState(newDisplays);
-
-    // Recreate all overlays with current configuration
-    renderer.CreateOverlays(newDisplays, cachedConfig);
-
-    // Reapply screen capture exclusion if configured
-    if (configManager.Current.Overlay.ExcludeFromScreenCapture)
-    {
-        renderer.UpdateScreenCaptureExclusion(true);
-    }
-
-    logger.LogInformation("Overlays recreated: {OldCount} -> {NewCount} display(s)", oldDisplayCount, newDisplays.Length);
-
-    // Trigger an overlay update if we have a focused window
-    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
-    {
-        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
-    }
+    // Post reset message to main thread (thread-safe)
+    WinApi.PostThreadMessage(mainThreadId, WinApi.WM_APP_RESET, IntPtr.Zero, IntPtr.Zero);
 };
 
 // Start tracking
@@ -554,6 +492,81 @@ if (configManager.Current.System.LogLevel == "Debug")
 }
 
 // ========================================================================
+// Application Reset Method
+// ========================================================================
+
+/// <summary>
+/// Performs a complete application reset: cleans up all resources and recreates them.
+/// This method MUST be called on the main thread (via WM_APP_RESET message).
+/// Used when renderer backend changes or display configuration changes.
+/// </summary>
+void Reset()
+{
+    logger.LogInformation("Performing application reset");
+
+    // Step 1: Clean up renderer (now safe - we're on the main thread!)
+    renderer.CleanupOverlays();
+    renderer.Dispose();
+
+    // Step 2: Refresh monitor list
+    monitorManager.RefreshMonitors();
+    var newDisplayCount = monitorManager.Monitors.Count;
+
+    // Check if we still have monitors
+    if (newDisplayCount == 0)
+    {
+        logger.LogWarning("No monitors detected after reset");
+        return;
+    }
+
+    // Step 3: Get updated display information
+    var newDisplays = monitorManager.GetDisplayInfo();
+    cachedDisplays = newDisplays;
+    currentDisplayCount = newDisplays.Length;
+
+    // Step 4: Recreate app state with new display configuration
+    appState = new AppState(newDisplays);
+
+    // Step 5: Update cached config (may have changed)
+    cachedConfig = configManager.Current.ToOverlayConfig();
+
+    // Step 6: Recreate renderer (backend may have changed)
+    var newBackend = configManager.Current.System.RendererBackend;
+    if (newBackend != currentRendererBackend)
+    {
+        logger.LogInformation("Renderer backend changed: {OldBackend} -> {NewBackend}",
+            currentRendererBackend, newBackend);
+        currentRendererBackend = newBackend;
+    }
+    renderer = CreateRenderer(currentRendererBackend, logger);
+
+    // Step 7: Create all overlays with current configuration
+    renderer.CreateOverlays(newDisplays, cachedConfig);
+
+    // Step 8: Reapply screen capture exclusion if configured
+    if (configManager.Current.Overlay.ExcludeFromScreenCapture)
+    {
+        var successCount = renderer.UpdateScreenCaptureExclusion(true);
+        var totalWindows = newDisplays.Length * 6;
+        if (successCount < totalWindows)
+        {
+            logger.LogWarning("Screen capture exclusion applied to {SuccessCount}/{TotalCount} windows after reset",
+                successCount, totalWindows);
+        }
+    }
+
+    // Step 9: Trigger overlay update if we have a focused window
+    // FocusTracker continues running and will automatically use refreshed MonitorManager data
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+
+    logger.LogInformation("Application reset complete: {DisplayCount} display(s), {Backend} renderer",
+        newDisplays.Length, currentRendererBackend);
+}
+
+// ========================================================================
 // Windows Message Loop
 // ========================================================================
 
@@ -564,6 +577,21 @@ try
         // Process Windows messages
         while (WinApi.GetMessage(out var msg, IntPtr.Zero, 0, 0))
         {
+            // Handle custom thread messages before dispatching
+            if (msg.message == WinApi.WM_APP_RESET)
+            {
+                // Execute reset on main thread
+                try
+                {
+                    Reset();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to perform application reset");
+                }
+                continue; // Don't translate/dispatch custom thread messages
+            }
+
             WinApi.TranslateMessage(ref msg);
             WinApi.DispatchMessage(ref msg);
 
