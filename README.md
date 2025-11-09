@@ -1,32 +1,36 @@
-# SpotlightDimmer .NET 10 Proof of Concept
+# SpotlightDimmer
 
-This is a .NET 10 console application PoC demonstrating the core SpotlightDimmer functionality.
+A Windows utility that creates semi-transparent overlays to dim inactive displays or regions, creating a "spotlight" effect on the active window. Built with .NET 10 and native Windows APIs for optimal performance.
 
 ## Features
 
 ✅ **Multi-monitor support** - Automatically detects all connected monitors
-✅ **Semi-transparent overlays** - Creates dark overlays with ~60% opacity
-✅ **Click-through** - Overlays don't capture mouse input (WS_EX_TRANSPARENT)
-✅ **Event-driven** - Uses Windows event hooks (SetWinEventHook) instead of polling
+✅ **Configurable overlays** - Customize colors and opacity for both inactive and active regions independently
+✅ **Multiple rendering backends** - Choose between:
+  - **LayeredWindow**: Extremely lightweight (< 10MB RAM usage)
+  - **CompositeOverlay**: Better visual quality during window dragging (~50MB RAM for dual monitor setup with partial overlays)
+✅ **Small footprint** - Less than 50MB installed, installer under 10MB
+✅ **Click-through overlays** - Overlays don't capture mouse input (WS_EX_TRANSPARENT)
+✅ **100% event-driven** - Uses Windows event hooks instead of polling for zero CPU usage when idle
 ✅ **No admin privileges** - Runs as a regular user process
-✅ **AOT-ready** - Code is compatible with Native AOT compilation
+✅ **Hot-reloadable configuration** - Changes apply instantly without restart
+✅ **Native AOT compilation** - Fast startup and minimal runtime dependencies
 
 ## How It Works
 
 The application uses a **dual event hook system** for comprehensive window tracking:
 
 ### Event Hooks (100% Event-Driven - No Polling!)
-- **EVENT_SYSTEM_FOREGROUND** - Instant detection when switching between applications (0ms latency)
+- **EVENT_SYSTEM_FOREGROUND** - Instant detection when switching between applications
 - **EVENT_OBJECT_LOCATIONCHANGE** - Real-time detection of window movement:
   - Detects windows being dragged between monitors with the mouse
   - Detects Win+Arrow and Win+Shift+Arrow keyboard shortcuts
   - Filters out cursor/caret events using `OBJID_WINDOW` check
-  - Only tracks the foreground window to minimize overhead
 
 ### Window Management APIs
 - **EnumDisplayMonitors** - Detects all connected monitors
 - **CreateWindowEx** - Creates overlay windows with layered and transparent styles
-- **SetLayeredWindowAttributes** - Sets the semi-transparent appearance (60% opacity)
+- **SetLayeredWindowAttributes** - Sets the semi-transparent appearance with configurable opacity
 
 ## Building
 
@@ -57,25 +61,11 @@ dotnet publish -c Release -r win-x64
 
 - **100% event-driven** - No polling whatsoever!
 - **Zero CPU usage when idle** - Only activates on actual window changes
-- **Instant response** - Event hooks provide 0ms latency for app switching
-- **Efficient movement detection** - LOCATIONCHANGE filtered to foreground window only
+- **Instant response** - Event hooks provide immediate notification of window changes
+- **Efficient movement detection** - Tracks window position and focus changes in real-time
 - Native Windows API calls for maximum performance
 - AOT compilation eliminates JIT overhead and reduces startup time
 
-## Comparison to Rust Version
+## Configuration
 
-### Advantages of This .NET PoC
-✅ **Fully event-driven** - No 50-200ms polling loop (Rust version uses hybrid approach)
-✅ **Lower CPU usage** - EVENT_OBJECT_LOCATIONCHANGE catches all movement events
-✅ **Faster development** - Completed in hours vs days for Rust implementation
-✅ **Easier P/Invoke** - .NET marshaling is cleaner than Rust FFI
-✅ **Better debugging** - Strong tooling support (Visual Studio, VS Code)
-
-### Trade-offs
-⚠️ **Binary size** - Larger even with trimming (~5-10MB vs 2-3MB)
-⚠️ **Memory footprint** - Slightly higher than Rust
-⚠️ **AOT compilation** - Requires Visual Studio C++ tools
-⚠️ **.NET dependency** - Needs runtime unless AOT-compiled
-
-### Key Insight
-The .NET version demonstrates that **C# can match or exceed Rust** for this use case by using more comprehensive Windows event hooks instead of relying on polling as a fallback.
+SpotlightDimmer can be configured via JSON file located at `%AppData%\SpotlightDimmer\config.json`. See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.

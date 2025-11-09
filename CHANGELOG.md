@@ -117,6 +117,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ConfigurationManager registra injeção de schema e atualizações de versão para transparência
 
 ### Improved
+- **README documentation update**: Removed outdated references to Rust version and proof-of-concept status, presenting SpotlightDimmer as the main production version
+  - Removed "Proof of Concept" from title and introduction
+  - Removed entire "Comparison to Rust Version" section with performance comparisons and trade-offs
+  - Updated description to focus on current capabilities rather than historical context
+  - Added Configuration section linking to CONFIGURATION.md for better discoverability
+  - Streamlined documentation to present professional, production-ready application
+  - Corrected transparency descriptions to indicate configurable opacity instead of hardcoded values
+  - Removed unbenchmarked performance metrics (e.g., "0ms latency") to maintain accuracy
+  - Updated event hook descriptions to reflect current implementation without outdated filtering details
+  - Enhanced Features section with detailed capabilities:
+    - Highlighted independent color and opacity configuration for inactive and active regions
+    - Documented rendering backend options with memory usage characteristics (LayeredWindow < 10MB, CompositeOverlay ~50MB for dual monitor)
+    - Added installation footprint metrics (< 50MB installed, < 10MB installer)
+    - Emphasized hot-reload capability and event-driven architecture benefits
+
 - **Renderer backend hot-reload support**: Renderer backend changes now apply instantly without requiring application restart
   - Application detects when `System.RendererBackend` configuration changes
   - Automatically disposes old renderer and creates new renderer instance
@@ -319,6 +334,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Funciona em todos os modos de escurecimento (FullScreen, Partial, PartialWithActive)
 
 ### Melhorado
+- **Atualização da documentação do README**: Removidas referências desatualizadas à versão Rust e status de prova de conceito, apresentando SpotlightDimmer como a versão de produção principal
+  - Removido "Proof of Concept" do título e introdução
+  - Removida seção inteira "Comparison to Rust Version" com comparações de desempenho e trade-offs
+  - Atualizada descrição para focar nas capacidades atuais ao invés de contexto histórico
+  - Adicionada seção Configuração vinculando a CONFIGURATION.md para melhor descobribilidade
+  - Documentação simplificada para apresentar aplicação profissional e pronta para produção
+  - Corrigidas descrições de transparência para indicar opacidade configurável ao invés de valores fixos
+  - Removidas métricas de desempenho não testadas (ex: "0ms latency") para manter precisão
+  - Atualizadas descrições de event hooks para refletir implementação atual sem detalhes de filtragem desatualizados
+  - Aprimorada seção Features com capacidades detalhadas:
+    - Destacada configuração independente de cor e opacidade para regiões inativas e ativas
+    - Documentadas opções de backend de renderização com características de uso de memória (LayeredWindow < 10MB, CompositeOverlay ~50MB para dual monitor)
+    - Adicionadas métricas de pegada de instalação (< 50MB instalado, < 10MB instalador)
+    - Enfatizada capacidade de hot-reload e benefícios da arquitetura orientada a eventos
+
 - **Suporte a hot-reload do backend de renderização**: Mudanças no backend de renderização agora aplicam instantaneamente sem necessidade de reiniciar a aplicação
   - Aplicação detecta quando configuração `System.RendererBackend` é alterada
   - Descarta automaticamente renderizador antigo e cria nova instância de renderizador
