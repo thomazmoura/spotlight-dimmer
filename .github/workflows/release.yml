@@ -144,6 +144,22 @@ jobs:
           path: ${{ env.ZIP_ASSET_PATH }}
           retention-days: 1
 
+      - name: Extract changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1"
+
+          # Save the changelog content to output
+          # Use multiline string format for GitHub Actions
+          $delimiter = "CHANGELOG_EOF_$(Get-Random)"
+          "changelog<<$delimiter" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          $changelog | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          $delimiter | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+
+          Write-Host "Extracted changelog:"
+          Write-Host $changelog
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         env:
@@ -152,6 +168,10 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: 'Spotlight Dimmer ${{ steps.version.outputs.tag }}'
           body: |
+            ${{ steps.changelog.outputs.changelog }}
+
+            ---
+
             ## Installation
 
             ### Windows Installer (Recommended)

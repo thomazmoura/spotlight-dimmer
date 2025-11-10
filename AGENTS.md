@@ -131,10 +131,20 @@ Each changelog entry must follow this bilingual format:
 
 ### Release Process Integration
 
-The changelog directly feeds into GitHub Releases:
-- Release notes are automatically generated from the `[Unreleased]` section
-- This ensures comprehensive, professional release documentation
-- No manual release note writing required
+The changelog directly feeds into GitHub Releases through an automated process:
+- **During development**: All changes are documented under the `[Unreleased]` section
+- **During release** (`/publish-patch` or `/publish-minor`):
+  - The `Move-UnreleasedToVersion.ps1` script automatically moves `[Unreleased]` → `[X.Y.Z] - YYYY-MM-DD`
+  - The GitHub release workflow (`release.yml`) extracts the versioned section for release notes
+  - A new empty `[Unreleased]` section is created for future changes
+- **Result**: Release notes automatically include full bilingual changelog
+- **Benefits**: Single source of truth, zero manual work, consistent documentation
+
+**Script**: `SpotlightDimmer.Scripts/Move-UnreleasedToVersion.ps1`
+- Extracts all `[Unreleased]` content
+- Creates dated version section (e.g., `[0.8.9] - 2025-11-10`)
+- Resets `[Unreleased]` to empty
+- Maintains Keep a Changelog format
 
 ### Quality Standards
 

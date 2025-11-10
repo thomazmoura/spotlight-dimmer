@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Automated changelog versioning in release process**: Release commands now automatically maintain proper CHANGELOG.md versioning
+  - Created `Move-UnreleasedToVersion.ps1` script to move [Unreleased] → [X.Y.Z] - YYYY-MM-DD
+  - Updated `/publish-patch` and `/publish-minor` commands to run versioning script before validation
+  - Ensures CHANGELOG.md always has proper version sections for each release
+  - Eliminates manual changelog maintenance during releases
+  - Versioned changelog sections automatically flow into GitHub release notes
+  - Updated v0.8.9 release retroactively with full changelog content (first release with complete notes)
+  - Future releases will automatically include comprehensive bilingual changelogs
+  - Updated AGENTS.md documentation with release process integration details
+
+---
+
+### Melhorado
+- **Versionamento automatizado de changelog no processo de release**: Comandos de release agora mantêm automaticamente versionamento adequado do CHANGELOG.md
+  - Criado script `Move-UnreleasedToVersion.ps1` para mover [Unreleased] → [X.Y.Z] - YYYY-MM-DD
+  - Atualizados comandos `/publish-patch` e `/publish-minor` para executar script de versionamento antes da validação
+  - Garante que CHANGELOG.md sempre tenha seções de versão adequadas para cada release
+  - Elimina manutenção manual do changelog durante releases
+  - Seções de changelog versionadas fluem automaticamente para notas de release do GitHub
+  - Atualizado release v0.8.9 retroativamente com conteúdo completo do changelog (primeiro release com notas completas)
+  - Releases futuros incluirão automaticamente changelogs bilíngues abrangentes
+  - Atualizada documentação AGENTS.md com detalhes de integração do processo de release
+
+## [0.8.9] - 2025-11-10
+
 ### Added
 - **Pluggable renderer architecture with two rendering backends**: Implemented abstraction layer allowing users to choose between lightweight and smooth rendering
   - Created `IOverlayRenderer` interface to decouple core logic from rendering implementation
@@ -159,6 +185,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 20+ comprehensive unit tests covering edge cases: zero dimensions, display changes, position changes, state tracking
   - Separation of concerns: WindowsBindings handles platform I/O, Core handles business logic
   - Enables future testing of UWP window selection logic and other focus tracking scenarios
+
+- **Comprehensive release notes with changelog integration**: GitHub releases now automatically include detailed changelog information
+  - Created `Extract-Changelog.ps1` script to extract [Unreleased] section from CHANGELOG.md
+  - Updated release workflow to inject changelog content at the top of release descriptions
+  - Release notes now show what changed in each version in both English and Portuguese
+  - Matches historical format used in v0.7.2 and earlier releases
+  - Improves user experience by making changes immediately visible in release pages
+  - Maintains single source of truth: CHANGELOG.md drives both documentation and release notes
 
 ### Fixed
 - **Popup window highlighting regression (v0.8.3)**: Fixed system tray menus and popup windows not being highlighted correctly
@@ -376,6 +410,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mais de 20 testes unitários abrangentes cobrindo casos extremos: dimensões zero, mudanças de display, mudanças de posição, rastreamento de estado
   - Separação de responsabilidades: WindowsBindings lida com I/O de plataforma, Core lida com lógica de negócio
   - Permite testes futuros de lógica de seleção de janela UWP e outros cenários de rastreamento de foco
+
+- **Notas de release abrangentes com integração de changelog**: Releases do GitHub agora incluem automaticamente informações detalhadas do changelog
+  - Criado script `Extract-Changelog.ps1` para extrair seção [Unreleased] do CHANGELOG.md
+  - Atualizado workflow de release para injetar conteúdo do changelog no topo das descrições de release
+  - Notas de release agora mostram o que mudou em cada versão em inglês e português
+  - Corresponde ao formato histórico usado em v0.7.2 e releases anteriores
+  - Melhora experiência do usuário tornando mudanças imediatamente visíveis nas páginas de release
+  - Mantém fonte única de verdade: CHANGELOG.md direciona tanto documentação quanto notas de release
 
 - **Extração automática de versão no Build-Installer.ps1**: Script de build agora extrai automaticamente a versão do Directory.Build.props
   - Parâmetro de versão agora é opcional - padrão é a versão do Directory.Build.props com sufixo "-dev"
