@@ -3,8 +3,22 @@ name: Test ARM64 Build
 on:
   push:
     branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.sln'
+      - 'Directory.Build.props'
+      - '**.iss'
+      - '.github/workflows/test-arm64.yml'
   pull_request:
     branches: [main]
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.sln'
+      - 'Directory.Build.props'
+      - '**.iss'
+      - '.github/workflows/test-arm64.yml'
   workflow_dispatch:
 
 jobs:

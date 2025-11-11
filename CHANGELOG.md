@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Workflow now properly specifies x64 and ARM64 architectures for each installer URL
   - Fixes "Option 'architecture-override' is unknown" error from wingetcreate tool
 
+### Improved
+- **ARM64 test workflow optimization**: Added path filters to skip unnecessary workflow runs and save CI/CD resources
+  - Workflow now only triggers on changes to code files (*.cs, *.csproj, *.sln, *.iss) and build configuration (Directory.Build.props)
+  - Skips execution when only documentation (*.md) or unrelated workflow files are changed
+  - Reduces wasteful ARM64 runner usage while maintaining build quality assurance
+  - Manual trigger via workflow_dispatch remains available for on-demand testing
+
 ---
 
 ### Corrigido
@@ -32,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Mudado de `--urls "url1|url2" --architecture-override "x64|arm64"` para `--urls "url1|x64" "url2|arm64"`
   - Workflow agora especifica adequadamente arquiteturas x64 e ARM64 para cada URL de instalador
   - Corrige erro "Option 'architecture-override' is unknown" da ferramenta wingetcreate
+
+### Melhorado
+- **Otimização do workflow de teste ARM64**: Adicionados filtros de caminho para pular execuções desnecessárias e economizar recursos de CI/CD
+  - Workflow agora só dispara em mudanças de arquivos de código (*.cs, *.csproj, *.sln, *.iss) e configuração de build (Directory.Build.props)
+  - Pula execução quando apenas documentação (*.md) ou arquivos de workflow não relacionados são alterados
+  - Reduz uso desnecessário de runner ARM64 mantendo garantia de qualidade de build
+  - Gatilho manual via workflow_dispatch permanece disponível para testes sob demanda
 
 ## [0.8.11] - 2025-11-11
 
