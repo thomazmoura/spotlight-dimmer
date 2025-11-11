@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses official GitHub Actions Windows ARM64 runner label (announced April 2025, GA August 2025)
   - Fixes workflow hanging indefinitely waiting for non-existent runner
   - Enables ARM64 smoke testing on native Windows ARM64 hardware in CI/CD
+- **Winget publishing workflow command syntax error**: Fixed invalid `--architecture-override` flag causing publish workflow failures
+  - Corrected syntax to use inline architecture specification with pipe syntax (`URL|architecture`)
+  - Changed from `--urls "url1|url2" --architecture-override "x64|arm64"` to `--urls "url1|x64" "url2|arm64"`
+  - Workflow now properly specifies x64 and ARM64 architectures for each installer URL
+  - Fixes "Option 'architecture-override' is unknown" error from wingetcreate tool
 
 ---
 
@@ -22,28 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Usa label oficial do runner Windows ARM64 do GitHub Actions (anunciado abril 2025, GA agosto 2025)
   - Corrige workflow travando indefinidamente aguardando runner inexistente
   - Habilita testes de smoke ARM64 em hardware Windows ARM64 nativo no CI/CD
+- **Erro de sintaxe de comando no workflow de publicação Winget**: Corrigida flag inválida `--architecture-override` causando falhas no workflow de publicação
+  - Corrigida sintaxe para usar especificação inline de arquitetura com sintaxe pipe (`URL|arquitetura`)
+  - Mudado de `--urls "url1|url2" --architecture-override "x64|arm64"` para `--urls "url1|x64" "url2|arm64"`
+  - Workflow agora especifica adequadamente arquiteturas x64 e ARM64 para cada URL de instalador
+  - Corrige erro "Option 'architecture-override' is unknown" da ferramenta wingetcreate
 
 ## [0.8.11] - 2025-11-11
-
-### Fixed
-- **ARM64 build failure**: Removed hardcoded `PlatformTarget` from project files to allow multi-architecture builds
-  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.WindowsClient.csproj
-  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.Config.csproj
-  - Platform target is now correctly inferred from the runtime identifier (win-x64 or win-arm64)
-  - Fixes "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible" error
-  - Enables successful ARM64 builds in CI/CD pipeline
-
----
-
-### Corrigido
-- **Falha na compilação ARM64**: Removido `PlatformTarget` fixo dos arquivos de projeto para permitir compilações multi-arquitetura
-  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.WindowsClient.csproj
-  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.Config.csproj
-  - Plataforma alvo agora é corretamente inferida do identificador de runtime (win-x64 ou win-arm64)
-  - Corrige erro "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible"
-  - Habilita compilações ARM64 bem-sucedidas no pipeline CI/CD
-
-## [Unreleased]
 
 ### Fixed
 - **ARM64 build failure**: Removed hardcoded `PlatformTarget` from project files to allow multi-architecture builds

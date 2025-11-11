@@ -79,14 +79,12 @@ jobs:
           Write-Host ""
 
           # Generate manifest locally (without --submit for testing first)
-          # --urls: Multiple installer URLs separated by pipe (|)
+          # --urls: Each installer URL with architecture override (URL|Architecture)
           # --version: Version number
-          # --architecture-override: Force architecture detection (x64|arm64)
           # --out: Output directory for generated manifest files
           .\wingetcreate.exe update ThomazMoura.SpotlightDimmer `
-            --urls "$installerX64Url|$installerArm64Url" `
+            --urls "$installerX64Url|x64" "$installerArm64Url|arm64" `
             --version "$version" `
-            --architecture-override "x64|arm64" `
             --out "manifests"
 
           if ($LASTEXITCODE -ne 0) {
@@ -266,9 +264,8 @@ jobs:
           # Now submit the tested manifest to microsoft/winget-pkgs
           # Both x64 and ARM64 installers will be included
           .\wingetcreate.exe update ThomazMoura.SpotlightDimmer `
-            --urls "$installerX64Url|$installerArm64Url" `
+            --urls "$installerX64Url|x64" "$installerArm64Url|arm64" `
             --version "$version" `
-            --architecture-override "x64|arm64" `
             --token "${{ secrets.WINGET_TOKEN }}" `
             --submit
 
