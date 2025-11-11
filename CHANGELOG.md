@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.10] - 2025-11-11
+
+### Added
+- **Full Windows ARM64 support**: Native ARM64 binaries for Windows on ARM devices
+  - Native AOT compilation for win-arm64 runtime identifier (Surface, Snapdragon X Elite/Plus laptops)
+  - Separate x64 and ARM64 installers for optimal performance on each architecture
+  - No emulation overhead: native execution provides better battery life and performance
+  - Automated ARM64 build testing using GitHub Actions windows-arm64 runners
+  - Release workflow builds and publishes both architectures automatically
+  - Winget manifest includes both x64 and ARM64 installers with proper architecture detection
+  - ZIP portable packages available for both x64 and ARM64
+  - Supports growing Windows on ARM ecosystem (Dell XPS 13, Lenovo ThinkPad T14s Gen 6, Microsoft Surface Laptop 7)
+
+- **Comprehensive Winget installation testing in publish workflow**: Added automated testing before submitting to Windows Package Manager repository
+  - Local installation test using generated manifest validates installer before public submission
+  - Automated smoke test: installs, launches application, waits 10 seconds, closes gracefully
+  - Log file validation: ensures logs are created and contain no error-level messages
+  - Displays log preview (first 20 lines) in CI output for debugging
+  - Clean uninstallation test verifies proper cleanup
+  - Prevents broken manifests from reaching microsoft/winget-pkgs repository
+  - Workflow only submits to public repository if all tests pass
+
+### Fixed
+- **Winget publishing workflow architecture detection**: Fixed `winget-create` misdetecting installer as X86 instead of x64
+  - Added `--architecture-override "x64"` parameter to Winget publishing workflow
+  - Resolves "Multiple matches found for X86 Inno installer" error during Winget manifest updates
+  - Ensures correct x64 architecture detection despite Inno Setup's `x64compatible` configuration
+  - Workflow now correctly publishes to Windows Package Manager repository
+
 ### Improved
 - **Automated changelog versioning in release process**: Release commands now automatically maintain proper CHANGELOG.md versioning
   - Created `Move-UnreleasedToVersion.ps1` script to move [Unreleased] → [X.Y.Z] - YYYY-MM-DD
@@ -19,6 +48,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated AGENTS.md documentation with release process integration details
 
 ---
+
+### Adicionado
+- **Suporte completo para Windows ARM64**: Binários nativos ARM64 para dispositivos Windows on ARM
+  - Compilação Native AOT para identificador de runtime win-arm64 (Surface, laptops Snapdragon X Elite/Plus)
+  - Instaladores separados x64 e ARM64 para desempenho ótimo em cada arquitetura
+  - Sem sobrecarga de emulação: execução nativa proporciona melhor duração de bateria e desempenho
+  - Testes automatizados de build ARM64 usando runners windows-arm64 do GitHub Actions
+  - Workflow de release compila e publica ambas arquiteturas automaticamente
+  - Manifesto Winget inclui instaladores x64 e ARM64 com detecção adequada de arquitetura
+  - Pacotes portáteis ZIP disponíveis para x64 e ARM64
+  - Suporta ecossistema crescente de Windows on ARM (Dell XPS 13, Lenovo ThinkPad T14s Gen 6, Microsoft Surface Laptop 7)
+
+- **Testes abrangentes de instalação Winget no workflow de publicação**: Adicionados testes automatizados antes de submeter ao repositório do Windows Package Manager
+  - Teste de instalação local usando manifesto gerado valida instalador antes de submissão pública
+  - Teste de smoke automatizado: instala, inicia aplicação, aguarda 10 segundos, fecha graciosamente
+  - Validação de arquivo de log: garante que logs são criados e não contêm mensagens de nível de erro
+  - Exibe prévia do log (primeiras 20 linhas) na saída do CI para depuração
+  - Teste de desinstalação limpa verifica limpeza adequada
+  - Previne manifestos quebrados de alcançar repositório microsoft/winget-pkgs
+  - Workflow apenas submete ao repositório público se todos os testes passarem
+
+### Corrigido
+- **Detecção de arquitetura no workflow de publicação Winget**: Corrigido `winget-create` detectando incorretamente instalador como X86 em vez de x64
+  - Adicionado parâmetro `--architecture-override "x64"` ao workflow de publicação Winget
+  - Resolve erro "Multiple matches found for X86 Inno installer" durante atualizações de manifesto Winget
+  - Garante detecção correta de arquitetura x64 apesar da configuração `x64compatible` do Inno Setup
+  - Workflow agora publica corretamente no repositório do Windows Package Manager
 
 ### Melhorado
 - **Versionamento automatizado de changelog no processo de release**: Comandos de release agora mantêm automaticamente versionamento adequado do CHANGELOG.md

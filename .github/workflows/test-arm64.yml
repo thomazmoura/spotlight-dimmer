@@ -1,0 +1,104 @@
+name: Test ARM64 Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-arm64:
+    runs-on: windows-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore SpotlightDimmer.sln
+
+      - name: Build ARM64 - SpotlightDimmer.WindowsClient with AOT
+        run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-arm64 -o publish/arm64
+
+      - name: Build ARM64 - SpotlightDimmer.Config with AOT
+        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-arm64 -o publish/arm64
+
+      - name: Verify ARM64 build outputs
+        shell: pwsh
+        run: |
+          Write-Host "Checking ARM64 build outputs:"
+          Get-ChildItem -Path publish/arm64 -Force | Format-Table Name, Length
+
+          if (-not (Test-Path "publish/arm64/SpotlightDimmer.exe")) {
+            Write-Host "::error::ARM64 SpotlightDimmer.exe not found!"
+            exit 1
+          }
+
+          if (-not (Test-Path "publish/arm64/SpotlightDimmer.Config.exe")) {
+            Write-Host "::error::ARM64 SpotlightDimmer.Config.exe not found!"
+            exit 1
+          }
+
+          Write-Host "✅ ARM64 executables built successfully"
+
+      - name: Smoke test - Launch and close SpotlightDimmer
+        shell: pwsh
+        run: |
+          Write-Host "🚀 Launching SpotlightDimmer.exe..."
+          $process = Start-Process -FilePath "publish/arm64/SpotlightDimmer.exe" -PassThru
+
+          if (-not $process) {
+            Write-Error "❌ Failed to start SpotlightDimmer.exe"
+            exit 1
+          }
+
+          Write-Host "✅ Application launched (PID: $($process.Id))"
+          Write-Host "⏳ Waiting 5 seconds for initialization..."
+          Start-Sleep -Seconds 5
+
+          # Close the application
+          if (-not $process.HasExited) {
+            $process.CloseMainWindow() | Out-Null
+            Start-Sleep -Seconds 2
+
+            if (-not $process.HasExited) {
+              Write-Host "⚠️  Forcing process termination..."
+              $process.Kill()
+            }
+          }
+
+          Write-Host "✅ Application closed successfully"
+
+      - name: Check logs
+        shell: pwsh
+        run: |
+          $logsDir = Join-Path ${env:APPDATA} "SpotlightDimmer\logs"
+
+          if (Test-Path $logsDir) {
+            $logFiles = Get-ChildItem -Path $logsDir -Filter "spotlight-*.log" | Sort-Object LastWriteTime -Descending
+
+            if ($logFiles.Count -gt 0) {
+              $latestLog = $logFiles[0]
+              Write-Host "✅ Found log file: $($latestLog.Name)"
+              Write-Host "   Size: $($latestLog.Length) bytes"
+
+              # Check for errors
+              $errorLines = Get-Content -Path $latestLog.FullName | Where-Object { $_ -match '\[ERR\]' }
+
+              if ($errorLines.Count -gt 0) {
+                Write-Error "❌ Found $($errorLines.Count) error(s) in log file"
+                exit 1
+              }
+
+              Write-Host "✅ No errors found in log file"
+            } else {
+              Write-Host "ℹ️  No log files found (logging may be disabled)"
+            }
+          } else {
+            Write-Host "ℹ️  Logs directory not found (expected for quick smoke test)"
+          }

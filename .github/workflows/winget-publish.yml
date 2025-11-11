@@ -62,38 +62,224 @@ jobs:
             exit 1
           }
 
-      - name: Update Winget manifest
+      - name: Generate Winget manifest
         shell: pwsh
         run: |
           $version = "${{ inputs.version }}"
-          $installerUrl = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer.exe"
+          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-x64.exe"
+          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-arm64.exe"
 
           Write-Host "`n========================================="
-          Write-Host "Updating Winget manifest"
+          Write-Host "Generating Winget manifest"
           Write-Host "=========================================`n"
           Write-Host "Package ID: ThomazMoura.SpotlightDimmer"
           Write-Host "Version: $version"
-          Write-Host "Installer URL: $installerUrl"
+          Write-Host "x64 Installer: $installerX64Url"
+          Write-Host "ARM64 Installer: $installerArm64Url"
           Write-Host ""
 
-          # Run winget-create update command
-          # -u: Installer URL (winget-create will download and analyze it)
-          # -v: Version number
-          # -t: GitHub token for authentication
-          # -s: Submit PR automatically to microsoft/winget-pkgs
-          # --submit: Same as -s, creates PR automatically
+          # Generate manifest locally (without --submit for testing first)
+          # --urls: Multiple installer URLs separated by pipe (|)
+          # --version: Version number
+          # --architecture-override: Force architecture detection (x64|arm64)
+          # --out: Output directory for generated manifest files
           .\wingetcreate.exe update ThomazMoura.SpotlightDimmer `
-            --urls "$installerUrl" `
+            --urls "$installerX64Url|$installerArm64Url" `
             --version "$version" `
-            --token "${{ secrets.WINGET_TOKEN }}" `
-            --submit
+            --architecture-override "x64|arm64" `
+            --out "manifests"
 
           if ($LASTEXITCODE -ne 0) {
             Write-Error "❌ winget-create failed with exit code $LASTEXITCODE"
             exit $LASTEXITCODE
           }
 
-          Write-Host "`n✅ Winget manifest update completed successfully!"
+          Write-Host "`n✅ Winget manifest generated successfully!"
+          Write-Host "Manifest location: manifests\"
+
+          # List generated manifest files
+          Get-ChildItem -Path "manifests" -Recurse -File | ForEach-Object {
+            Write-Host "  - $($_.FullName)"
+          }
+
+      - name: Test local Winget installation (x64 only)
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+
+          Write-Host "`n========================================="
+          Write-Host "Testing Winget Installation (x64)"
+          Write-Host "=========================================`n"
+          Write-Host "Note: Testing x64 installer only on this runner."
+          Write-Host "ARM64 installer will be validated by Winget infrastructure."
+          Write-Host ""
+
+          # Find the manifest directory (should be manifests/t/ThomazMoura/SpotlightDimmer/{version}/)
+          $manifestPath = Get-ChildItem -Path "manifests" -Recurse -Filter "ThomazMoura.SpotlightDimmer.yaml" | Select-Object -First 1
+
+          if (-not $manifestPath) {
+            Write-Error "❌ Manifest file not found in manifests/"
+            exit 1
+          }
+
+          $manifestDir = $manifestPath.DirectoryName
+          Write-Host "📦 Installing from manifest: $manifestDir"
+          Write-Host "   Winget will automatically select x64 installer on this x64 runner."
+          Write-Host ""
+
+          # Install using the local manifest
+          Write-Host "`n1️⃣ Installing SpotlightDimmer..."
+          winget install --manifest $manifestDir --silent --accept-package-agreements --accept-source-agreements
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ Winget installation failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Host "✅ Installation completed"
+          Start-Sleep -Seconds 2
+
+          # Find the installed executable
+          $programFiles = ${env:ProgramFiles}
+          $exePath = Join-Path $programFiles "Spotlight Dimmer\SpotlightDimmer.exe"
+
+          if (-not (Test-Path $exePath)) {
+            # Try user-level installation path
+            $localAppData = ${env:LOCALAPPDATA}
+            $exePath = Join-Path $localAppData "Programs\Spotlight Dimmer\SpotlightDimmer.exe"
+          }
+
+          if (-not (Test-Path $exePath)) {
+            Write-Error "❌ SpotlightDimmer.exe not found after installation"
+            Write-Host "Expected locations:"
+            Write-Host "  - ${env:ProgramFiles}\Spotlight Dimmer\SpotlightDimmer.exe"
+            Write-Host "  - ${env:LOCALAPPDATA}\Programs\Spotlight Dimmer\SpotlightDimmer.exe"
+            exit 1
+          }
+
+          Write-Host "✅ Found executable: $exePath"
+
+          # Launch the application
+          Write-Host "`n2️⃣ Launching SpotlightDimmer..."
+          $process = Start-Process -FilePath $exePath -PassThru
+
+          if (-not $process) {
+            Write-Error "❌ Failed to start SpotlightDimmer.exe"
+            exit 1
+          }
+
+          Write-Host "✅ Application launched (PID: $($process.Id))"
+          Write-Host "⏳ Waiting 10 seconds for initialization..."
+          Start-Sleep -Seconds 10
+
+          # Close the application gracefully
+          Write-Host "`n3️⃣ Closing application..."
+          if (-not $process.HasExited) {
+            $process.CloseMainWindow() | Out-Null
+            Start-Sleep -Seconds 2
+
+            if (-not $process.HasExited) {
+              Write-Host "⚠️  Main window close didn't work, forcing stop..."
+              $process.Kill()
+            }
+          }
+
+          Write-Host "✅ Application closed"
+
+          # Check logs
+          Write-Host "`n4️⃣ Checking application logs..."
+          $logsDir = Join-Path ${env:APPDATA} "SpotlightDimmer\logs"
+
+          if (-not (Test-Path $logsDir)) {
+            Write-Error "❌ Logs directory not found: $logsDir"
+            exit 1
+          }
+
+          $logFiles = Get-ChildItem -Path $logsDir -Filter "spotlight-*.log" | Sort-Object LastWriteTime -Descending
+
+          if ($logFiles.Count -eq 0) {
+            Write-Error "❌ No log files found in: $logsDir"
+            exit 1
+          }
+
+          $latestLog = $logFiles[0]
+          Write-Host "✅ Found log file: $($latestLog.Name)"
+          Write-Host "   Size: $($latestLog.Length) bytes"
+          Write-Host "   Modified: $($latestLog.LastWriteTime)"
+
+          # Read and analyze the log
+          $logContent = Get-Content -Path $latestLog.FullName -Raw
+
+          if ([string]::IsNullOrWhiteSpace($logContent)) {
+            Write-Error "❌ Log file is empty"
+            exit 1
+          }
+
+          Write-Host "✅ Log file contains $($logContent.Length) characters"
+
+          # Check for errors
+          $errorLines = Get-Content -Path $latestLog.FullName | Where-Object { $_ -match '\[ERR\]' }
+
+          if ($errorLines.Count -gt 0) {
+            Write-Error "❌ Found $($errorLines.Count) error(s) in log file:"
+            $errorLines | ForEach-Object {
+              Write-Host "   $_" -ForegroundColor Red
+            }
+            exit 1
+          }
+
+          Write-Host "✅ No errors found in log file"
+
+          # Display first 20 lines of log for visibility
+          Write-Host "`n📋 Log preview (first 20 lines):"
+          Write-Host "----------------------------------------"
+          Get-Content -Path $latestLog.FullName -TotalCount 20 | ForEach-Object {
+            Write-Host "   $_"
+          }
+          Write-Host "----------------------------------------"
+
+          # Uninstall the application
+          Write-Host "`n5️⃣ Uninstalling SpotlightDimmer..."
+          winget uninstall ThomazMoura.SpotlightDimmer --silent
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "⚠️  Winget uninstall returned exit code $LASTEXITCODE (may be expected)"
+          } else {
+            Write-Host "✅ Uninstallation completed"
+          }
+
+          Write-Host "`n========================================="
+          Write-Host "✅ ALL TESTS PASSED"
+          Write-Host "=========================================`n"
+
+      - name: Submit Winget manifest
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-x64.exe"
+          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-arm64.exe"
+
+          Write-Host "`n========================================="
+          Write-Host "Submitting Winget manifest"
+          Write-Host "=========================================`n"
+
+          # Now submit the tested manifest to microsoft/winget-pkgs
+          # Both x64 and ARM64 installers will be included
+          .\wingetcreate.exe update ThomazMoura.SpotlightDimmer `
+            --urls "$installerX64Url|$installerArm64Url" `
+            --version "$version" `
+            --architecture-override "x64|arm64" `
+            --token "${{ secrets.WINGET_TOKEN }}" `
+            --submit
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "❌ winget-create submission failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "`n✅ Winget manifest submitted successfully!"
+          Write-Host "   - x64 installer: spotlight-dimmer-installer-x64.exe"
+          Write-Host "   - ARM64 installer: spotlight-dimmer-installer-arm64.exe"
 
       - name: Summary
         if: always()

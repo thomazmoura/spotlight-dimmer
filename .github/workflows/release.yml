@@ -44,29 +44,50 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore SpotlightDimmer.sln
 
-      - name: Build SpotlightDimmer.WindowsClient with AOT
-        run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-x64 -o publish
+      - name: Build x64 - SpotlightDimmer.WindowsClient with AOT
+        run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-x64 -o publish/x64
 
-      - name: Build SpotlightDimmer.Config with AOT
-        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish
+      - name: Build x64 - SpotlightDimmer.Config with AOT
+        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish/x64
+
+      - name: Build ARM64 - SpotlightDimmer.WindowsClient with AOT
+        run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-arm64 -o publish/arm64
+
+      - name: Build ARM64 - SpotlightDimmer.Config with AOT
+        run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-arm64 -o publish/arm64
 
       - name: Verify build outputs
         shell: pwsh
         run: |
-          Write-Host "Checking publish directory contents:"
-          Get-ChildItem -Path publish -Force | Format-Table Name, Length
+          Write-Host "Checking x64 build outputs:"
+          Get-ChildItem -Path publish/x64 -Force | Format-Table Name, Length
 
-          if (-not (Test-Path "publish/SpotlightDimmer.exe")) {
-            Write-Host "::error::SpotlightDimmer.exe not found!"
+          if (-not (Test-Path "publish/x64/SpotlightDimmer.exe")) {
+            Write-Host "::error::x64 SpotlightDimmer.exe not found!"
             exit 1
           }
 
-          if (-not (Test-Path "publish/SpotlightDimmer.Config.exe")) {
-            Write-Host "::error::SpotlightDimmer.Config.exe not found!"
+          if (-not (Test-Path "publish/x64/SpotlightDimmer.Config.exe")) {
+            Write-Host "::error::x64 SpotlightDimmer.Config.exe not found!"
             exit 1
           }
 
-          Write-Host "✓ Both executables built successfully"
+          Write-Host "✓ x64 executables built successfully"
+
+          Write-Host "`nChecking ARM64 build outputs:"
+          Get-ChildItem -Path publish/arm64 -Force | Format-Table Name, Length
+
+          if (-not (Test-Path "publish/arm64/SpotlightDimmer.exe")) {
+            Write-Host "::error::ARM64 SpotlightDimmer.exe not found!"
+            exit 1
+          }
+
+          if (-not (Test-Path "publish/arm64/SpotlightDimmer.Config.exe")) {
+            Write-Host "::error::ARM64 SpotlightDimmer.Config.exe not found!"
+            exit 1
+          }
+
+          Write-Host "✓ ARM64 executables built successfully"
 
       - name: Install Inno Setup
         shell: pwsh
@@ -77,71 +98,131 @@ jobs:
           $innoPath = "C:\Program Files (x86)\Inno Setup 6"
           echo $innoPath | Out-File -FilePath $Env:GITHUB_PATH -Append
 
-      - name: Build Inno Setup installer
+      - name: Build Inno Setup installers
         shell: pwsh
         run: |
-          # Run Inno Setup compiler with version parameter
+          # Build x64 installer
+          Write-Host "Building x64 installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
             "/DAppVersion=${{ steps.version.outputs.version }}" `
-            spotlight-dimmer.iss
+            spotlight-dimmer-x64.iss
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Inno Setup compilation failed with exit code $LASTEXITCODE"
+            Write-Host "::error::x64 Inno Setup compilation failed with exit code $LASTEXITCODE"
             exit 1
           }
 
-          Write-Host "✓ Installer created successfully"
+          Write-Host "✓ x64 installer created successfully"
 
-      - name: Prepare installer asset
+          # Build ARM64 installer
+          Write-Host "`nBuilding ARM64 installer..."
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DAppVersion=${{ steps.version.outputs.version }}" `
+            spotlight-dimmer-arm64.iss
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::ARM64 Inno Setup compilation failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+          Write-Host "✓ ARM64 installer created successfully"
+
+          # List generated installers
+          Write-Host "`nGenerated installers:"
+          Get-ChildItem -Path dist -Filter "*.exe" | ForEach-Object {
+            Write-Host "  - $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
+          }
+
+      - name: Prepare installer assets
         shell: pwsh
         run: |
-          $installer = Get-ChildItem -Path dist -Filter '*.exe' | Select-Object -First 1
+          # Find x64 installer
+          $installerX64 = Get-ChildItem -Path dist -Filter 'spotlight-dimmer-installer-x64.exe' | Select-Object -First 1
 
-          if (-not $installer) {
-            Write-Host "::error::Installer not found in dist/"
+          if (-not $installerX64) {
+            Write-Host "::error::x64 installer not found in dist/"
             Write-Host "dist/ contents:"
             Get-ChildItem -Path dist -Force | Format-List FullName
             exit 1
           }
 
-          Write-Host "Found installer: $($installer.FullName)"
+          Write-Host "Found x64 installer: $($installerX64.FullName)"
 
-          # Use version-less filename for fixed URL access
-          $assetName = "spotlight-dimmer-installer.exe"
-          Copy-Item -Path $installer.FullName -Destination $assetName -Force
+          # Find ARM64 installer
+          $installerArm64 = Get-ChildItem -Path dist -Filter 'spotlight-dimmer-installer-arm64.exe' | Select-Object -First 1
 
-          "INSTALLER_ASSET_PATH=$assetName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+          if (-not $installerArm64) {
+            Write-Host "::error::ARM64 installer not found in dist/"
+            exit 1
+          }
 
-      - name: Create ZIP archive
+          Write-Host "Found ARM64 installer: $($installerArm64.FullName)"
+
+          # Store paths as environment variables
+          "INSTALLER_X64_PATH=$($installerX64.Name)" | Out-File -FilePath $Env:GITHUB_ENV -Append
+          "INSTALLER_ARM64_PATH=$($installerArm64.Name)" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Create ZIP archives
         shell: pwsh
         run: |
-          # Use version-less filename for fixed URL access
-          $zipName = "spotlight-dimmer-windows-x86_64.zip"
+          # Create x64 ZIP archive
+          $zipX64 = "spotlight-dimmer-windows-x64.zip"
 
-          # Include executables, icons, and documentation
           Compress-Archive -Path `
-            publish/SpotlightDimmer.exe, `
-            publish/SpotlightDimmer.Config.exe, `
+            publish/x64/SpotlightDimmer.exe, `
+            publish/x64/SpotlightDimmer.Config.exe, `
             spotlight-dimmer-icon.ico, `
             spotlight-dimmer-icon-paused.ico, `
             README.md, `
             CONFIGURATION.md `
-            -DestinationPath $zipName
+            -DestinationPath $zipX64
 
-          "ZIP_ASSET_PATH=$zipName" | Out-File -FilePath $Env:GITHUB_ENV -Append
+          Write-Host "✓ Created $zipX64"
 
-      - name: Upload installer artifact
+          # Create ARM64 ZIP archive
+          $zipArm64 = "spotlight-dimmer-windows-arm64.zip"
+
+          Compress-Archive -Path `
+            publish/arm64/SpotlightDimmer.exe, `
+            publish/arm64/SpotlightDimmer.Config.exe, `
+            spotlight-dimmer-icon.ico, `
+            spotlight-dimmer-icon-paused.ico, `
+            README.md, `
+            CONFIGURATION.md `
+            -DestinationPath $zipArm64
+
+          Write-Host "✓ Created $zipArm64"
+
+          # Store paths as environment variables
+          "ZIP_X64_PATH=$zipX64" | Out-File -FilePath $Env:GITHUB_ENV -Append
+          "ZIP_ARM64_PATH=$zipArm64" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Upload x64 installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: ${{ env.INSTALLER_ASSET_PATH }}
+          name: windows-installer-x64
+          path: dist/${{ env.INSTALLER_X64_PATH }}
           retention-days: 1
 
-      - name: Upload ZIP artifact
+      - name: Upload ARM64 installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-portable
-          path: ${{ env.ZIP_ASSET_PATH }}
+          name: windows-installer-arm64
+          path: dist/${{ env.INSTALLER_ARM64_PATH }}
+          retention-days: 1
+
+      - name: Upload x64 ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-x64
+          path: ${{ env.ZIP_X64_PATH }}
+          retention-days: 1
+
+      - name: Upload ARM64 ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-arm64
+          path: ${{ env.ZIP_ARM64_PATH }}
           retention-days: 1
 
       - name: Extract changelog
@@ -175,14 +256,25 @@ jobs:
             ## Installation
 
             ### Windows Installer (Recommended)
-            Download the `.exe` installer below and run it. The installer:
+
+            **Download the appropriate installer for your system:**
+            - **x64 (Intel/AMD)**: `spotlight-dimmer-installer-x64.exe` - For traditional Windows PCs
+            - **ARM64**: `spotlight-dimmer-installer-arm64.exe` - For Surface, Snapdragon laptops
+
+            The installer:
             - ✅ Requires **no admin rights** (per-user installation)
             - ✅ Creates Start Menu shortcuts with proper icons
             - ✅ Can be uninstalled via Windows Settings > Apps
             - ✅ Ultra-compact (~2 MB installer overhead)
+            - ✅ **Native binaries** - No emulation, best performance and battery life
 
             ### Portable ZIP (Alternative)
-            Download the ZIP file if you prefer a portable installation. Extract all files to the same folder to keep the icons alongside the executables.
+
+            **Download the appropriate ZIP for your system:**
+            - **x64 (Intel/AMD)**: `spotlight-dimmer-windows-x64.zip`
+            - **ARM64**: `spotlight-dimmer-windows-arm64.zip`
+
+            Extract all files to the same folder to keep the icons alongside the executables.
 
             ## What's Spotlight Dimmer?
 
@@ -194,6 +286,7 @@ jobs:
             - ⚡ **Hot-reloadable config** at `%AppData%\SpotlightDimmer\config.json`
             - 🚀 **Native AOT compilation** for fast startup and small binaries
             - 💾 **Zero-allocation hot path** design for minimal GC pressure
+            - 🖥️ **Full ARM64 support** for Windows on ARM devices (Surface, Snapdragon)
 
             ---
 
@@ -201,5 +294,7 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'rc') }}
           files: |
-            ${{ env.INSTALLER_ASSET_PATH }}
-            ${{ env.ZIP_ASSET_PATH }}
+            dist/${{ env.INSTALLER_X64_PATH }}
+            dist/${{ env.INSTALLER_ARM64_PATH }}
+            ${{ env.ZIP_X64_PATH }}
+            ${{ env.ZIP_ARM64_PATH }}
