@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.12] - 2025-11-11
+
+### Fixed
+- **GitHub Actions ARM64 test workflow**: Corrected runner label from `windows-arm64` to `windows-11-arm`
+  - Changed `runs-on: windows-arm64` to `runs-on: windows-11-arm` in test-arm64.yml
+  - Uses official GitHub Actions Windows ARM64 runner label (announced April 2025, GA August 2025)
+  - Fixes workflow hanging indefinitely waiting for non-existent runner
+  - Enables ARM64 smoke testing on native Windows ARM64 hardware in CI/CD
+- **Winget publishing workflow command syntax error**: Fixed invalid `--architecture-override` flag causing publish workflow failures
+  - Corrected syntax to use inline architecture specification with pipe syntax (`URL|architecture`)
+  - Changed from `--urls "url1|url2" --architecture-override "x64|arm64"` to `--urls "url1|x64" "url2|arm64"`
+  - Workflow now properly specifies x64 and ARM64 architectures for each installer URL
+  - Fixes "Option 'architecture-override' is unknown" error from wingetcreate tool
+
+### Improved
+- **ARM64 test workflow optimization**: Added path filters to skip unnecessary workflow runs and save CI/CD resources
+  - Workflow now only triggers on changes to code files (*.cs, *.csproj, *.sln, *.iss) and build configuration (Directory.Build.props)
+  - Skips execution when only documentation (*.md) or unrelated workflow files are changed
+  - Reduces wasteful ARM64 runner usage while maintaining build quality assurance
+  - Manual trigger via workflow_dispatch remains available for on-demand testing
+
+---
+
+### Corrigido
+- **Workflow de teste ARM64 do GitHub Actions**: Corrigido label do runner de `windows-arm64` para `windows-11-arm`
+  - Alterado `runs-on: windows-arm64` para `runs-on: windows-11-arm` em test-arm64.yml
+  - Usa label oficial do runner Windows ARM64 do GitHub Actions (anunciado abril 2025, GA agosto 2025)
+  - Corrige workflow travando indefinidamente aguardando runner inexistente
+  - Habilita testes de smoke ARM64 em hardware Windows ARM64 nativo no CI/CD
+- **Erro de sintaxe de comando no workflow de publicação Winget**: Corrigida flag inválida `--architecture-override` causando falhas no workflow de publicação
+  - Corrigida sintaxe para usar especificação inline de arquitetura com sintaxe pipe (`URL|arquitetura`)
+  - Mudado de `--urls "url1|url2" --architecture-override "x64|arm64"` para `--urls "url1|x64" "url2|arm64"`
+  - Workflow agora especifica adequadamente arquiteturas x64 e ARM64 para cada URL de instalador
+  - Corrige erro "Option 'architecture-override' is unknown" da ferramenta wingetcreate
+
+### Melhorado
+- **Otimização do workflow de teste ARM64**: Adicionados filtros de caminho para pular execuções desnecessárias e economizar recursos de CI/CD
+  - Workflow agora só dispara em mudanças de arquivos de código (*.cs, *.csproj, *.sln, *.iss) e configuração de build (Directory.Build.props)
+  - Pula execução quando apenas documentação (*.md) ou arquivos de workflow não relacionados são alterados
+  - Reduz uso desnecessário de runner ARM64 mantendo garantia de qualidade de build
+  - Gatilho manual via workflow_dispatch permanece disponível para testes sob demanda
+
+## [Unreleased]
+
 ### Fixed
 - **GitHub Actions ARM64 test workflow**: Corrected runner label from `windows-arm64` to `windows-11-arm`
   - Changed `runs-on: windows-arm64` to `runs-on: windows-11-arm` in test-arm64.yml

@@ -10,7 +10,8 @@
       "Bash(git log:*)",
       "Bash(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)",
       "Bash(git show:*)",
-      "Bash(gh release:*)"
+      "Bash(gh release:*)",
+      "Bash(pwsh:*)"
     ],
     "deny": [],
     "ask": []
