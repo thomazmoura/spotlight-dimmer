@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **GitHub Actions ARM64 test workflow**: Corrected runner label from `windows-arm64` to `windows-11-arm`
+  - Changed `runs-on: windows-arm64` to `runs-on: windows-11-arm` in test-arm64.yml
+  - Uses official GitHub Actions Windows ARM64 runner label (announced April 2025, GA August 2025)
+  - Fixes workflow hanging indefinitely waiting for non-existent runner
+  - Enables ARM64 smoke testing on native Windows ARM64 hardware in CI/CD
+
+---
+
+### Corrigido
+- **Workflow de teste ARM64 do GitHub Actions**: Corrigido label do runner de `windows-arm64` para `windows-11-arm`
+  - Alterado `runs-on: windows-arm64` para `runs-on: windows-11-arm` em test-arm64.yml
+  - Usa label oficial do runner Windows ARM64 do GitHub Actions (anunciado abril 2025, GA agosto 2025)
+  - Corrige workflow travando indefinidamente aguardando runner inexistente
+  - Habilita testes de smoke ARM64 em hardware Windows ARM64 nativo no CI/CD
+
 ## [0.8.11] - 2025-11-11
 
 ### Fixed
