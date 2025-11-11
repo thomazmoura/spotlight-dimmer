@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>..\spotlight-dimmer-icon.ico</ApplicationIcon>
     <AssemblyName>SpotlightDimmer</AssemblyName>
 

@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <PlatformTarget>x64</PlatformTarget>
     <ApplicationIcon>..\spotlight-dimmer-icon-paused.ico</ApplicationIcon>
 
     <!-- AOT and Self-Contained Configuration -->

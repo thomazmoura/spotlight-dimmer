@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.11] - 2025-11-11
+
+### Fixed
+- **ARM64 build failure**: Removed hardcoded `PlatformTarget` from project files to allow multi-architecture builds
+  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.WindowsClient.csproj
+  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.Config.csproj
+  - Platform target is now correctly inferred from the runtime identifier (win-x64 or win-arm64)
+  - Fixes "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible" error
+  - Enables successful ARM64 builds in CI/CD pipeline
+
+---
+
+### Corrigido
+- **Falha na compilação ARM64**: Removido `PlatformTarget` fixo dos arquivos de projeto para permitir compilações multi-arquitetura
+  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.WindowsClient.csproj
+  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.Config.csproj
+  - Plataforma alvo agora é corretamente inferida do identificador de runtime (win-x64 ou win-arm64)
+  - Corrige erro "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible"
+  - Habilita compilações ARM64 bem-sucedidas no pipeline CI/CD
+
+## [Unreleased]
+
+### Fixed
+- **ARM64 build failure**: Removed hardcoded `PlatformTarget` from project files to allow multi-architecture builds
+  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.WindowsClient.csproj
+  - Removed `<PlatformTarget>x64</PlatformTarget>` from SpotlightDimmer.Config.csproj
+  - Platform target is now correctly inferred from the runtime identifier (win-x64 or win-arm64)
+  - Fixes "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible" error
+  - Enables successful ARM64 builds in CI/CD pipeline
+
+---
+
+### Corrigido
+- **Falha na compilação ARM64**: Removido `PlatformTarget` fixo dos arquivos de projeto para permitir compilações multi-arquitetura
+  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.WindowsClient.csproj
+  - Removido `<PlatformTarget>x64</PlatformTarget>` do SpotlightDimmer.Config.csproj
+  - Plataforma alvo agora é corretamente inferida do identificador de runtime (win-x64 ou win-arm64)
+  - Corrige erro "NETSDK1032: The RuntimeIdentifier platform 'win-arm64' and the PlatformTarget 'x64' must be compatible"
+  - Habilita compilações ARM64 bem-sucedidas no pipeline CI/CD
+
 ## [0.8.10] - 2025-11-11
 
 ### Added
