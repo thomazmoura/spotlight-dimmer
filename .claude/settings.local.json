@@ -11,7 +11,9 @@
       "Bash(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)",
       "Bash(git show:*)",
       "Bash(gh release:*)",
-      "Bash(pwsh:*)"
+      "Bash(pwsh:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:stackoverflow.com)"
     ],
     "deny": [],
     "ask": []

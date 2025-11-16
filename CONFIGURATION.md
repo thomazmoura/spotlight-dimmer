@@ -169,6 +169,29 @@ Whether to exclude overlay windows from screen captures and recordings.
 
 - **Default**: `false`
 - When `true`, overlays won't appear in screenshots, screen recordings, or streaming software
+- **⚠️ EXPERIMENTAL FEATURE**: May not work on all systems due to Windows API limitations
+
+**Windows Version Compatibility:**
+
+| Windows Version | Support | Behavior | Notes |
+|----------------|---------|----------|-------|
+| **Windows 10 before v2004** | ❌ Partial | Black screen (WDA_MONITOR) | Shows black rectangles instead of hiding overlays |
+| **Windows 10 v2004+** (build 19041) | ✅ Full | Overlays excluded from capture | Uses `WDA_EXCLUDEFROMCAPTURE` API |
+| **Windows 11** | ⚠️ Mostly works | Overlays excluded on most systems | May fail on some systems with API errors |
+| **Windows 11 24H2+** (build 26100) | ⚠️ Known issues | Behavior changes with capture APIs | Microsoft is aware of issues |
+
+**Technical Details:**
+- Uses Windows `SetWindowDisplayAffinity` API with `WDA_EXCLUDEFROMCAPTURE` flag
+- Requires Windows 10 version 2004 (build 19041) or later for proper functionality
+- On older Windows versions, falls back to `WDA_MONITOR` behavior (shows black rectangles)
+- **Known limitation**: May not work with `WS_EX_LAYERED` windows on some Windows 11 systems
+- Application logs will show warnings if the feature fails to apply or if your Windows version doesn't fully support it
+
+**When to Enable:**
+- ✅ You're presenting/streaming and don't want overlays visible to your audience
+- ✅ You're taking screenshots for documentation and want clean captures
+- ✅ You're running Windows 10 v2004 or later
+- ❌ You're on Windows 10 before v2004 (will show black screens instead)
 
 ### System Configuration
 

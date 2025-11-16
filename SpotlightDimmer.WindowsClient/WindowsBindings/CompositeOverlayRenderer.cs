@@ -65,14 +65,15 @@ public sealed class CompositeOverlayRenderer : IOverlayRenderer
         if (_disposed) throw new ObjectDisposedException(nameof(CompositeOverlayRenderer));
         if (_displayOverlays == null) return 0;
 
-        int count = 0;
+        int successCount = 0;
         foreach (var displayOverlay in _displayOverlays)
         {
-            displayOverlay.FullscreenOverlay.UpdateScreenCaptureExclusion(exclude);
-            displayOverlay.PartialOverlay.UpdateScreenCaptureExclusion(exclude);
-            count += 2; // 2 windows per display
+            if (displayOverlay.FullscreenOverlay.UpdateScreenCaptureExclusion(exclude))
+                successCount++;
+            if (displayOverlay.PartialOverlay.UpdateScreenCaptureExclusion(exclude))
+                successCount++;
         }
-        return count;
+        return successCount;
     }
 
     public void HideAllOverlays()
@@ -200,12 +201,15 @@ public sealed class CompositeOverlayRenderer : IOverlayRenderer
             const int WS_EX_TOPMOST = 0x00000008;
             const int WS_EX_NOACTIVATE = 0x08000000;
             const int WS_POPUP = unchecked((int)0x80000000);
+            const int WS_VISIBLE = 0x10000000;
 
+            // IMPORTANT: Create window with WS_VISIBLE to avoid needing ShowWindow() later.
+            // Calling ShowWindow() breaks WDA_EXCLUDEFROMCAPTURE (see Hide() method comments).
             IntPtr hwnd = WinApi.CreateWindowEx(
                 WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
                 "Static",
                 "SpotlightDimmer Composite Overlay",
-                unchecked((uint)WS_POPUP),
+                unchecked((uint)(WS_POPUP | WS_VISIBLE)),
                 display.Bounds.X,
                 display.Bounds.Y,
                 display.Bounds.Width,
@@ -438,12 +442,9 @@ public sealed class CompositeOverlayRenderer : IOverlayRenderer
                     int error = Marshal.GetLastWin32Error();
                     Console.WriteLine($"UpdateLayeredWindow failed. Error: {error}");
                 }
-                else
-                {
-                    // Make window visible if not already
-                    const int SW_SHOWNOACTIVATE = 4;
-                    WinApi.ShowWindow(_hwnd, SW_SHOWNOACTIVATE);
-                }
+                // Note: Window is created with WS_VISIBLE, so no ShowWindow() call needed.
+                // UpdateLayeredWindow positions the window via windowPos parameter (line 428).
+                // Using ShowWindow() would break WDA_EXCLUDEFROMCAPTURE (see Hide() method comments).
             }
             finally
             {
@@ -455,15 +456,32 @@ public sealed class CompositeOverlayRenderer : IOverlayRenderer
         {
             if (!_isVisible) return;
 
-            const int SW_HIDE = 0;
-            WinApi.ShowWindow(_hwnd, SW_HIDE);
+            // IMPORTANT: Do NOT use ShowWindow(SW_HIDE) when WDA_EXCLUDEFROMCAPTURE is enabled!
+            // After hide/show, Windows breaks WDA_EXCLUDEFROMCAPTURE and falls back to WDA_MONITOR (black screen).
+            // Workaround: Move window off-screen instead of hiding it.
+            // See: Electron issue #29085 and fix in PR #31340
+            const uint SWP_NOACTIVATE = 0x0010;
+            const uint SWP_NOZORDER = 0x0004;
+            WinApi.SetWindowPos(_hwnd, IntPtr.Zero, -32000, -32000, 0, 0,
+                SWP_NOACTIVATE | SWP_NOZORDER);
             _isVisible = false;
         }
 
-        public void UpdateScreenCaptureExclusion(bool exclude)
+        /// <summary>
+        /// Sets the display affinity for this window to control screen capture behavior.
+        /// Returns true if successful, false otherwise (e.g., due to Windows API limitations).
+        /// </summary>
+        public bool UpdateScreenCaptureExclusion(bool exclude)
         {
-            const uint WDA_EXCLUDEFROMCAPTURE = 11;
-            WinApi.SetWindowDisplayAffinity(_hwnd, exclude ? WDA_EXCLUDEFROMCAPTURE : 0);
+            if (_hwnd == IntPtr.Zero)
+                return false;
+
+            uint affinity = exclude ? WinApi.WDA_EXCLUDEFROMCAPTURE : WinApi.WDA_NONE;
+            bool result = WinApi.SetWindowDisplayAffinity(_hwnd, affinity);
+
+            // Note: We don't log here to avoid polluting logs with repeated messages
+            // The caller (CompositeOverlayRenderer) will aggregate results and log appropriately
+            return result;
         }
 
         public void Dispose()

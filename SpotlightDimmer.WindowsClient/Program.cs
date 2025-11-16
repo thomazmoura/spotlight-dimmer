@@ -20,6 +20,9 @@ var appVersion = Assembly.GetExecutingAssembly()
 logger.LogInformation("SpotlightDimmer v{Version} starting...", appVersion);
 logger.LogInformation("Logs directory: {LogsDirectory}", LoggingConfiguration.GetLogsDirectory());
 
+// Log Windows version information and compatibility warnings
+LogWindowsVersionInfo(logger);
+
 // Configuration: Load from file with hot-reload support
 // Now ConfigurationManager can log properly during initialization
 var configManager = new ConfigurationManager(LoggingConfiguration.GetLogger<ConfigurationManager>(), appVersion);
@@ -683,6 +686,45 @@ static IOverlayRenderer CreateRendererWithFallback(string unknownBackend, ILogge
     logger.LogWarning("Unknown renderer backend '{Backend}', falling back to LayeredWindow", unknownBackend);
     logger.LogInformation("Available renderers: LayeredWindow (default), UpdateLayeredWindow, CompositeOverlay");
     return new LayeredWindowRenderer();
+}
+
+// ========================================================================
+// Windows Version Detection
+// ========================================================================
+
+/// <summary>
+/// Logs Windows version information and warnings about WDA_EXCLUDEFROMCAPTURE compatibility.
+/// </summary>
+static void LogWindowsVersionInfo(ILogger logger)
+{
+    var osVersion = Environment.OSVersion;
+    var version = osVersion.Version;
+
+    logger.LogInformation("Windows Version: {Version} (Build {Build})",
+        version.ToString(), version.Build);
+
+    // Check for WDA_EXCLUDEFROMCAPTURE support
+    // WDA_EXCLUDEFROMCAPTURE requires Windows 10 version 2004 (build 19041) or later
+    bool supportsWdaExcludeFromCapture = version.Major >= 10 && version.Build >= 19041;
+
+    if (!supportsWdaExcludeFromCapture)
+    {
+        logger.LogWarning("Windows version {Version} does not support WDA_EXCLUDEFROMCAPTURE", version);
+        logger.LogWarning("Screenshot exclusion feature requires Windows 10 version 2004 (build 19041) or later");
+        logger.LogWarning("On this system, screenshot exclusion will show a black screen instead (WDA_MONITOR behavior)");
+    }
+    else if (version.Major == 10 && version.Build >= 26100)
+    {
+        // Windows 11 24H2 (build 26100) introduced behavior changes with WDA_EXCLUDEFROMCAPTURE
+        logger.LogInformation("Windows 11 24H2 or later detected (build {Build})", version.Build);
+        logger.LogInformation("Note: This version has known behavior changes with screen capture exclusion");
+    }
+    else if (version.Major >= 10 && version.Build >= 22000)
+    {
+        // Windows 11 (build 22000+)
+        logger.LogInformation("Windows 11 detected (build {Build})", version.Build);
+        logger.LogInformation("Note: Screenshot exclusion may not work on all Windows 11 systems due to API limitations");
+    }
 }
 
 // ========================================================================
