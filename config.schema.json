@@ -21,6 +21,9 @@
     "System": {
       "$ref": "#/definitions/SystemConfig"
     },
+    "ExternalCoordinates": {
+      "$ref": "#/definitions/ExternalCoordinatesConfig"
+    },
     "Profiles": {
       "type": "array",
       "description": "List of saved profiles for quick overlay configuration switching",
@@ -90,6 +93,58 @@
         },
         "RendererBackend": {
           "type": "string"
+        }
+      }
+    },
+    "ExternalCoordinatesConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Enabled": {
+          "type": "boolean"
+        },
+        "Providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExternalCoordinatesProviderConfig"
+          }
+        }
+      }
+    },
+    "ExternalCoordinatesProviderConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "FilePath": {
+          "type": "string"
+        },
+        "WindowTitlePattern": {
+          "type": "string"
+        },
+        "TerminalPadding": {
+          "$ref": "#/definitions/TerminalPaddingConfig"
+        }
+      }
+    },
+    "TerminalPaddingConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Top": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "Left": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "Bottom": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "Right": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

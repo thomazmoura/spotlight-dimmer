@@ -369,6 +369,45 @@ Each display can have up to 6 overlays (one per `OverlayRegion` enum value):
 - Use XML doc comments (`///`) for all public APIs
 - Keep Core layer pure - no Windows dependencies
 
+### YAGNI Principle (You Aren't Gonna Need It)
+
+**CRITICAL**: Do NOT add code "for future extensibility" unless explicitly requested. This includes:
+
+- ❌ Properties/fields that aren't used by any logic (e.g., a `Type` field with no switch/factory using it)
+- ❌ Interfaces with only one implementation when polymorphism isn't needed
+- ❌ Abstract base classes when there's only one concrete class
+- ❌ Configuration options that have no effect on behavior
+- ❌ Empty extension points "in case we need them later"
+
+**Why this matters**:
+- Unused code creates confusion and maintenance burden
+- It suggests functionality that doesn't exist
+- It makes the codebase harder to understand
+- It violates the principle of writing the simplest code that works
+
+**When extensibility IS appropriate**:
+- User explicitly requests support for multiple implementations
+- There's a concrete, immediate need for the abstraction
+- The design document specifies extensibility requirements
+
+**Example of violation**:
+```csharp
+// BAD: Type property exists but nothing checks its value
+public class ProviderConfig
+{
+    public string Type { get; set; } = "FileWatcher"; // Never used!
+    public string FilePath { get; set; }
+}
+
+// All providers are created the same way regardless of Type:
+foreach (var config in configs)
+{
+    var provider = new FileBasedProvider(config); // Type is ignored
+}
+```
+
+**Correct approach**: Only add the `Type` property when you also implement the factory/switch logic that uses it.
+
 ## Common Development Scenarios
 
 ### Adding a New Dimming Mode

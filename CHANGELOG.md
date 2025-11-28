@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **External Coordinates feature**: Allows receiving pane coordinates from external sources (like tmux) to create precise overlays around terminal panes instead of entire windows
+  - File-based coordinate provider using FileSystemWatcher (event-driven, no polling)
+  - Configurable window title pattern matching with regex support
+  - Terminal padding configuration to account for UI elements (tab bar, margins)
+  - Character-to-pixel coordinate conversion using cell dimensions
+  - Pre-compiled regex patterns with timeout protection for performance
+  - Complete documentation with tmux integration examples
+  - Example coordinate file format included
+
+### Fixed
+- **External coordinates overlay updates not triggering**: Fixed critical bug where overlay changes weren't reflected when external coordinates file changed
+  - Added `_lastOriginalWindowRect` field to `FocusChangeHandler` to store original window bounds separately from effective bounds
+  - `ForceUpdate()` now uses original window bounds to properly recalculate with new external coordinates
+  - Event handlers in `Program.cs` now properly track window title for external coordinate matching
+  - Added `LastWindowTitle` and `LastOriginalWindowBounds` public properties to `FocusChangeHandler`
+
+---
+
+### Adicionado
+- **Recurso de Coordenadas Externas**: Permite receber coordenadas de painéis de fontes externas (como tmux) para criar overlays precisos ao redor de painéis de terminal em vez de janelas inteiras
+  - Provedor de coordenadas baseado em arquivo usando FileSystemWatcher (orientado a eventos, sem polling)
+  - Correspondência de padrão de título de janela configurável com suporte a regex
+  - Configuração de padding do terminal para contabilizar elementos de UI (barra de abas, margens)
+  - Conversão de coordenadas de caracteres para pixels usando dimensões de célula
+  - Padrões regex pré-compilados com proteção de timeout para performance
+  - Documentação completa com exemplos de integração com tmux
+  - Formato de arquivo de coordenadas de exemplo incluído
+
+### Corrigido
+- **Atualizações de overlay com coordenadas externas não disparando**: Corrigido bug crítico onde alterações de overlay não eram refletidas quando arquivo de coordenadas externas era modificado
+  - Adicionado campo `_lastOriginalWindowRect` em `FocusChangeHandler` para armazenar bounds originais da janela separadamente dos bounds efetivos
+  - `ForceUpdate()` agora usa bounds originais da janela para recalcular adequadamente com novas coordenadas externas
+  - Event handlers em `Program.cs` agora rastreiam corretamente o título da janela para correspondência de coordenadas externas
+  - Adicionadas propriedades públicas `LastWindowTitle` e `LastOriginalWindowBounds` em `FocusChangeHandler`
+
 ## [0.8.12] - 2025-11-11
 
 ### Fixed

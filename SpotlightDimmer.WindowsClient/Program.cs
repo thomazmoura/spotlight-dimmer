@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using SpotlightDimmer.Core;
+using SpotlightDimmer.Core.ExternalCoordinates;
 using SpotlightDimmer.WindowsBindings;
 
 // ========================================================================
@@ -121,12 +122,62 @@ var cachedConfig = configManager.Current.ToOverlayConfig();
 // so we need to retry checking the count at intervals
 var currentDisplayCount = cachedDisplays.Length;
 
+// ========================================================================
+// External Coordinates Service (for tmux pane dimming and similar use cases)
+// ========================================================================
+
+ExternalCoordinatesService? externalCoordinatesService = null;
+FileBasedCoordinatesProvider? externalCoordinatesProvider = null;
+
+if (configManager.Current.ExternalCoordinates.Enabled)
+{
+    var externalCoordinatesLogger = LoggingConfiguration.GetLogger<FileBasedCoordinatesProvider>();
+
+    // Create the service
+    externalCoordinatesService = new ExternalCoordinatesService();
+
+    // Create file-based provider for each configured provider
+    foreach (var providerConfig in configManager.Current.ExternalCoordinates.Providers)
+    {
+        var provider = new FileBasedCoordinatesProvider(providerConfig, externalCoordinatesLogger);
+        externalCoordinatesService.RegisterProvider(provider);
+        externalCoordinatesProvider = provider; // Keep reference to last provider for event handling
+    }
+
+    // Start all providers
+    externalCoordinatesService.Start();
+
+    logger.LogInformation("External coordinates enabled with {Count} provider(s)", configManager.Current.ExternalCoordinates.Providers.Count);
+}
+
+// Store last window title for external coordinates lookup
+string? lastWindowTitle = null;
+
 // Helper function to update overlays (zero allocations - uses cached values)
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
     // Don't update overlays if paused
     if (systemTray.IsPaused)
         return;
+
+    // Check for external bounds override
+    if (externalCoordinatesService != null && !string.IsNullOrEmpty(lastWindowTitle))
+    {
+        if (externalCoordinatesService.TryGetExternalBounds(lastWindowTitle, windowBounds, out var externalBounds))
+        {
+            appState.ExternalBoundsOverride = externalBounds;
+            logger.LogDebug("[EXTERNAL] Using external bounds: ({X},{Y}) {W}x{H}",
+                externalBounds.X, externalBounds.Y, externalBounds.Width, externalBounds.Height);
+        }
+        else
+        {
+            appState.ExternalBoundsOverride = null;
+        }
+    }
+    else
+    {
+        appState.ExternalBoundsOverride = null;
+    }
 
     appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
     renderer.UpdateOverlays(appState.DisplayStates);
@@ -137,6 +188,19 @@ var overlayUpdateService = new OverlayUpdateServiceWrapper(UpdateOverlays);
 
 // Create focus change handler with the update service
 var focusChangeHandler = new FocusChangeHandler(overlayUpdateService);
+
+// Connect external coordinates service to focus change handler
+if (externalCoordinatesService != null)
+{
+    focusChangeHandler.SetExternalCoordinatesService(externalCoordinatesService);
+
+    // When external coordinates change, force an update
+    externalCoordinatesService.CoordinatesChanged += (coordinates) =>
+    {
+        logger.LogInformation("[EXTERNAL] Coordinates file changed, forcing overlay update");
+        focusChangeHandler.ForceUpdate();
+    };
+}
 
 // Create focus tracker with the handler
 var focusTracker = new FocusTracker(monitorManager, focusChangeHandler, focusTrackerLogger);
@@ -447,6 +511,7 @@ configManager.ConfigurationChanged += (newAppConfig) =>
 focusTracker.FocusedDisplayChanged += (displayIndex, windowBounds) =>
 {
     logger.LogDebug("Display {DisplayIndex} gained focus", displayIndex);
+    lastWindowTitle = focusChangeHandler.LastWindowTitle;
     UpdateOverlays(displayIndex, windowBounds);
 };
 
@@ -459,6 +524,7 @@ focusTracker.WindowPositionChanged += (displayIndex, windowBounds) =>
     // CRITICAL: Use cachedConfig to avoid allocating on every event!
     if (cachedConfig.Mode != DimmingMode.FullScreen)
     {
+        lastWindowTitle = focusChangeHandler.LastWindowTitle;
         UpdateOverlays(displayIndex, windowBounds);
     }
 };
@@ -631,6 +697,7 @@ finally
     // Clean up resources
     logger.LogInformation("Shutting down SpotlightDimmer");
 
+    externalCoordinatesService?.Dispose();
     systemTray.Dispose();
     focusTracker.Dispose();
     displayChangeMonitor.Dispose();

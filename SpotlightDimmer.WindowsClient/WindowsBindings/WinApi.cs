@@ -317,6 +317,37 @@ internal static partial class WinApi
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool DestroyWindow(IntPtr hWnd);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    public static partial int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int nMaxCount);
+
+    /// <summary>
+    /// Gets the window title (caption text) for a window.
+    /// Returns null if unable to get the title or if it's empty.
+    /// </summary>
+    public static string? GetWindowTitle(IntPtr hWnd)
+    {
+        try
+        {
+            int length = GetWindowTextLength(hWnd);
+            if (length == 0)
+                return null;
+
+            var sb = new System.Text.StringBuilder(length + 1);
+            int result = GetWindowText(hWnd, sb, sb.Capacity);
+            if (result == 0)
+                return null;
+
+            return sb.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     [LibraryImport("user32.dll")]
     public static partial IntPtr SetTimer(IntPtr hWnd, IntPtr nIDEvent, uint uElapse, IntPtr lpTimerFunc);
 

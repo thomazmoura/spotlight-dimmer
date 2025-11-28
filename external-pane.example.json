@@ -1,0 +1,22 @@
+﻿{
+  "version": 1,
+  "timestamp": 1699999999,
+  "source": "tmux-pane-watcher",
+  "windowTitlePattern": ".*TMUX.*",
+  "pane": {
+    "top": 1,
+    "left": 0,
+    "width": 80,
+    "height": 24
+  },
+  "cell": {
+    "width": 10,
+    "height": 20
+  },
+  "padding": {
+    "top": 32,
+    "left": 8,
+    "bottom": 0,
+    "right": 8
+  }
+}

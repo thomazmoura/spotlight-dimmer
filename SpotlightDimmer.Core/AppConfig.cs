@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SpotlightDimmer.Core.ExternalCoordinates;
 
 namespace SpotlightDimmer.Core;
 
@@ -152,6 +153,11 @@ public class AppConfig
     /// System configuration settings.
     /// </summary>
     public SystemConfig System { get; set; } = new();
+
+    /// <summary>
+    /// External coordinates configuration for tmux pane dimming and similar use cases.
+    /// </summary>
+    public ExternalCoordinatesConfig ExternalCoordinates { get; set; } = new();
 
     /// <summary>
     /// List of saved profiles for quick overlay configuration switching.

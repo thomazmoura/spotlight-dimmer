@@ -204,15 +204,19 @@ internal class FocusTracker : IDisposable
         var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
 
         string? processName = WinApi.GetProcessName(foregroundWindow) ?? "unknown";
+        string? windowTitle = WinApi.GetWindowTitle(foregroundWindow);
 
         // CRITICAL: For UWP apps (ApplicationFrameHost), get the actual content window
         // The foreground window is just the frame - the content is in a child window
         var currentRect = WinApi.GetUwpContentBounds(foregroundWindow, msg => _logger.LogDebug(msg), processName);
 
-        // Process the focus change through the Core handler
-        var result = _focusChangeHandler.ProcessFocusChange(focusedDisplayIndex, currentRect);
+        // Process the focus change through the Core handler (with window title for external coordinates)
+        var result = _focusChangeHandler.ProcessFocusChange(focusedDisplayIndex, currentRect, windowTitle);
 
         // Handle the result and fire appropriate events
+        // Use effective bounds from handler (which may be external coordinates)
+        var effectiveBounds = _focusChangeHandler.LastEffectiveBounds ?? currentRect;
+
         switch (result)
         {
             case FocusChangeResult.Ignored:
@@ -223,8 +227,8 @@ internal class FocusTracker : IDisposable
                 if (focusedDisplayIndex >= 0)
                 {
                     var reasonText = reason != null ? $" ({reason})" : "";
-                    _logger.LogDebug("[FOCUS] Display {DisplayIndex} is now active ({ReasonText}), ({X},{Y}) {Width}x{Height} - {Process}", focusedDisplayIndex, reasonText, currentRect.X, currentRect.Y, currentRect.Width, currentRect.Height, processName);
-                    FocusedDisplayChanged?.Invoke(focusedDisplayIndex, currentRect);
+                    _logger.LogDebug("[FOCUS] Display {DisplayIndex} is now active ({ReasonText}), ({X},{Y}) {Width}x{Height} - {Process}", focusedDisplayIndex, reasonText, effectiveBounds.X, effectiveBounds.Y, effectiveBounds.Width, effectiveBounds.Height, processName);
+                    FocusedDisplayChanged?.Invoke(focusedDisplayIndex, effectiveBounds);
                 }
                 break;
 
@@ -232,9 +236,18 @@ internal class FocusTracker : IDisposable
                 if (reason != null)
                 {
                     _logger.LogDebug("[FOCUS] Window position/size changed: ({X},{Y}) {Width}x{Height} #{Index} ({Reason}), - {Process}",
-                        currentRect.X, currentRect.Y, currentRect.Width, currentRect.Height, focusedDisplayIndex, reason, processName);
+                        effectiveBounds.X, effectiveBounds.Y, effectiveBounds.Width, effectiveBounds.Height, focusedDisplayIndex, reason, processName);
                 }
-                WindowPositionChanged?.Invoke(focusedDisplayIndex, currentRect);
+                WindowPositionChanged?.Invoke(focusedDisplayIndex, effectiveBounds);
+                break;
+
+            case FocusChangeResult.ExternalCoordinatesApplied:
+                _logger.LogInformation("[EXTERNAL] Using external coordinates for '{Title}'", windowTitle);
+                _logger.LogInformation("[EXTERNAL]   Window bounds: ({WinX},{WinY}) {WinW}x{WinH}",
+                    currentRect.X, currentRect.Y, currentRect.Width, currentRect.Height);
+                _logger.LogInformation("[EXTERNAL]   External bounds: ({ExtX},{ExtY}) {ExtW}x{ExtH}",
+                    effectiveBounds.X, effectiveBounds.Y, effectiveBounds.Width, effectiveBounds.Height);
+                WindowPositionChanged?.Invoke(focusedDisplayIndex, effectiveBounds);
                 break;
 
             case FocusChangeResult.NoChange:

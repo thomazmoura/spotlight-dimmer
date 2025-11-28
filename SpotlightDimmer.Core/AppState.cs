@@ -15,6 +15,14 @@ public class AppState
     public DisplayOverlayState[] DisplayStates { get; }
 
     /// <summary>
+    /// Gets or sets the external bounds override for the focused window.
+    /// When set, these bounds are used instead of the window bounds for overlay calculation.
+    /// This enables features like tmux pane dimming where we want to highlight a region
+    /// within the window rather than the entire window.
+    /// </summary>
+    public Rectangle? ExternalBoundsOverride { get; set; }
+
+    /// <summary>
     /// Creates a new AppState with pre-allocated overlay states for each display.
     /// </summary>
     /// <param name="displays">All connected displays.</param>
@@ -44,10 +52,13 @@ public class AppState
         int focusedDisplayIndex,
         OverlayCalculationConfig config)
     {
+        // Use external bounds override if available, otherwise use window bounds
+        var effectiveBounds = ExternalBoundsOverride ?? focusedWindowBounds;
+
         // Check if focused window has invalid 0x0 dimensions
         // This happens during focus changes and window transitions - skip update to prevent flickering
-        if (focusedWindowBounds.HasValue &&
-            (focusedWindowBounds.Value.Width == 0 || focusedWindowBounds.Value.Height == 0))
+        if (effectiveBounds.HasValue &&
+            (effectiveBounds.Value.Width == 0 || effectiveBounds.Value.Height == 0))
         {
             // Invalid bounds - return early without updating overlays
             // Existing overlay state remains unchanged, preventing flickering
@@ -64,7 +75,7 @@ public class AppState
 
             bool isFocusedDisplay = (i == focusedDisplayIndex);
 
-            if (isFocusedDisplay && focusedWindowBounds.HasValue)
+            if (isFocusedDisplay && effectiveBounds.HasValue)
             {
                 // This display has the focused window
                 switch (config.Mode)
@@ -73,10 +84,10 @@ public class AppState
                         // No overlays - keep all hidden
                         break;
                     case DimmingMode.Partial:
-                        UpdatePartialOverlays(state, display, focusedWindowBounds.Value, config);
+                        UpdatePartialOverlays(state, display, effectiveBounds.Value, config);
                         break;
                     case DimmingMode.PartialWithActive:
-                        UpdatePartialWithActiveOverlays(state, display, focusedWindowBounds.Value, config);
+                        UpdatePartialWithActiveOverlays(state, display, effectiveBounds.Value, config);
                         break;
                 }
             }
