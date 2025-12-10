@@ -1,0 +1,8 @@
+{
+  "name": "SpotlightDimmer",
+  "description": "Dims inactive displays and regions around the focused window, creating a spotlight effect to reduce visual distractions",
+  "uuid": "spotlightdimmer@thomazmoura.github.io",
+  "shell-version": ["45", "46", "47", "48"],
+  "version": 1,
+  "url": "https://github.com/thomazmoura/spotlight-dimmer"
+}

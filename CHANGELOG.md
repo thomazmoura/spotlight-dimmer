@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GNOME Shell Extension for Linux**: Initial implementation of SpotlightDimmer for GNOME Wayland
+  - Supports GNOME Shell 45, 46, 47, and 48
+  - Three dimming modes: FullScreen, Partial, and PartialWithActive (feature parity with Windows)
+  - Reads shared configuration from `~/.config/SpotlightDimmer/config.json`
+  - Hot-reload support: Changes to config file apply instantly without restart
+  - Click-through overlays: Interact with windows beneath the dimming overlays
+  - Multi-monitor support with automatic detection and hot-plug handling
+  - Event-driven focus tracking using GNOME Shell's Meta.Display signals
+  - New `spotlight-dimmer-gnome/` directory with JavaScript (GJS) implementation:
+    - `extension.js` - Main orchestration and lifecycle management
+    - `calculator.js` - Port of C# overlay calculation logic
+    - `configBridge.js` - Configuration loading with GLib.FileMonitor
+    - `overlayManager.js` - St.Widget overlay management
+    - `focusTracker.js` - Focus and window position tracking
+
+---
+
+### Adicionado
+- **Extensão GNOME Shell para Linux**: Implementação inicial do SpotlightDimmer para GNOME Wayland
+  - Suporta GNOME Shell 45, 46, 47 e 48
+  - Três modos de escurecimento: FullScreen, Partial e PartialWithActive (paridade de funcionalidades com Windows)
+  - Lê configuração compartilhada de `~/.config/SpotlightDimmer/config.json`
+  - Suporte a hot-reload: Alterações no arquivo de configuração aplicam instantaneamente sem reiniciar
+  - Overlays click-through: Interaja com janelas abaixo das sobreposições de escurecimento
+  - Suporte multi-monitor com detecção automática e tratamento de hot-plug
+  - Rastreamento de foco orientado a eventos usando sinais Meta.Display do GNOME Shell
+  - Novo diretório `spotlight-dimmer-gnome/` com implementação JavaScript (GJS):
+    - `extension.js` - Orquestração principal e gerenciamento de ciclo de vida
+    - `calculator.js` - Port da lógica de cálculo de overlay do C#
+    - `configBridge.js` - Carregamento de configuração com GLib.FileMonitor
+    - `overlayManager.js` - Gerenciamento de overlay St.Widget
+    - `focusTracker.js` - Rastreamento de foco e posição de janela
+
 ## [0.8.12] - 2025-11-11
 
 ### Fixed
