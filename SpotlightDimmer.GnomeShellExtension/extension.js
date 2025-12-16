@@ -34,6 +34,7 @@ export default class SpotlightDimmerExtension extends Extension {
         this._geometryChangedId = null;
         this._configChangedId = null;
         this._monitorsChangedId = null;
+        this._fullscreenChangedId = null;
 
         // Create overlays for all monitors
         this._createOverlaysForAllMonitors();
@@ -59,6 +60,13 @@ export default class SpotlightDimmerExtension extends Extension {
         this._monitorsChangedId = Main.layoutManager.connect(
             'monitors-changed',
             this._onMonitorsChanged.bind(this)
+        );
+
+        // Connect to fullscreen state changes (system-wide)
+        // This ensures overlays update when ANY window enters/exits fullscreen
+        this._fullscreenChangedId = global.display.connect(
+            'in-fullscreen-changed',
+            this._onFullscreenChanged.bind(this)
         );
 
         // Initial overlay update
@@ -94,6 +102,12 @@ export default class SpotlightDimmerExtension extends Extension {
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = null;
+        }
+
+        // Disconnect fullscreen signal
+        if (this._fullscreenChangedId) {
+            global.display.disconnect(this._fullscreenChangedId);
+            this._fullscreenChangedId = null;
         }
 
         // Destroy components
@@ -147,6 +161,20 @@ export default class SpotlightDimmerExtension extends Extension {
     _onConfigChanged() {
         console.log('SpotlightDimmer: Config changed, updating overlays');
         this._updateAllOverlays();
+    }
+
+    /**
+     * Handle fullscreen state changes.
+     * When any window enters/exits fullscreen, update overlays to ensure
+     * other monitors continue to show dimming.
+     * @private
+     */
+    _onFullscreenChanged() {
+        // Defer update to allow fullscreen transition animation to complete
+        GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._updateAllOverlays();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     /**

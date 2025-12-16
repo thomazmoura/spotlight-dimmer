@@ -112,8 +112,6 @@ export class OverlayCalculator {
             return [];
         }
 
-        const overlays = [];
-
         // Clamp window bounds to monitor bounds
         const clamped = this._clampToMonitor(window, monitor);
 
@@ -121,6 +119,17 @@ export class OverlayCalculator {
         if (clamped.width <= 0 || clamped.height <= 0) {
             return [];
         }
+
+        // If window fills the entire monitor (maximized/fullscreen), no edge overlays needed
+        // The center overlay for PartialWithActive mode is handled separately
+        if (clamped.x === monitor.x &&
+            clamped.y === monitor.y &&
+            clamped.width === monitor.width &&
+            clamped.height === monitor.height) {
+            return [];
+        }
+
+        const overlays = [];
 
         // Top overlay: Full width, from display top to window top
         const topHeight = clamped.y - monitor.y;

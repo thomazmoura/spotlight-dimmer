@@ -47,8 +47,10 @@ export class OverlayManager {
                 height: 0,
             });
 
-            // Add to top chrome (above all windows but below notifications)
-            Main.layoutManager.addTopChrome(overlay);
+            // Add to top chrome with fullscreen tracking disabled
+            // This ensures overlays remain visible on OTHER monitors when a fullscreen
+            // window is present on ONE monitor, enabling proper multi-monitor dimming
+            Main.layoutManager.addTopChrome(overlay, { trackFullscreen: false });
             overlays.push(overlay);
         }
 

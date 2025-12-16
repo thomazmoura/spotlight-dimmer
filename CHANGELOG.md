@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `overlayManager.js` - St.Widget overlay management
     - `focusTracker.js` - Focus and window position tracking
 
+### Fixed
+- **GNOME extension fullscreen application support**: Overlays now work correctly with fullscreen applications
+  - Other monitors are properly dimmed when one monitor has a fullscreen window
+  - Active overlay (PartialWithActive mode) now renders above fullscreen content
+  - Edge overlays automatically hidden when window is maximized or fullscreen (no visible gap to dim)
+  - Added explicit `trackFullscreen: false` to ensure overlays stay visible across GNOME Shell versions
+  - Added `in-fullscreen-changed` signal handler for system-wide fullscreen state changes
+
 ---
 
 ### Adicionado
@@ -40,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `configBridge.js` - Carregamento de configuração com GLib.FileMonitor
     - `overlayManager.js` - Gerenciamento de overlay St.Widget
     - `focusTracker.js` - Rastreamento de foco e posição de janela
+
+### Corrigido
+- **Suporte a aplicativos em tela cheia na extensão GNOME**: Sobreposições agora funcionam corretamente com aplicativos em tela cheia
+  - Outros monitores são adequadamente escurecidos quando um monitor tem uma janela em tela cheia
+  - Sobreposição ativa (modo PartialWithActive) agora renderiza acima do conteúdo em tela cheia
+  - Sobreposições de borda automaticamente ocultas quando janela está maximizada ou em tela cheia (sem lacuna visível para escurecer)
+  - Adicionado `trackFullscreen: false` explícito para garantir que sobreposições permaneçam visíveis entre versões do GNOME Shell
+  - Adicionado manipulador de sinal `in-fullscreen-changed` para mudanças de estado de tela cheia em todo o sistema
 
 ## [0.8.12] - 2025-11-11
 
