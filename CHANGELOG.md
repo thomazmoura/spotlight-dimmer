@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Edge overlays automatically hidden when window is maximized or fullscreen (no visible gap to dim)
   - Added explicit `trackFullscreen: false` to ensure overlays stay visible across GNOME Shell versions
   - Added `in-fullscreen-changed` signal handler for system-wide fullscreen state changes
+- **GNOME extension dock coverage in Partial modes**: Fixed overlays covering dock area and preventing drag-and-drop operations
+  - Overlays now use work area geometry (via `Meta.Workspace.get_work_area_for_monitor`) which excludes dock and panel struts
+  - Dock remains fully interactive in Partial and PartialWithActive modes
+- **GNOME extension fullscreen flickering**: Fixed overlay flickering with fullscreen applications
+  - Extension disables compositor unredirect via `global.compositor.disable_unredirect()` on enable
+  - Ensures overlays remain compositor-managed and visible when fullscreen apps are running
+  - Restores default unredirect behavior via `global.compositor.enable_unredirect()` on disable
 
 ---
 
@@ -56,6 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sobreposições de borda automaticamente ocultas quando janela está maximizada ou em tela cheia (sem lacuna visível para escurecer)
   - Adicionado `trackFullscreen: false` explícito para garantir que sobreposições permaneçam visíveis entre versões do GNOME Shell
   - Adicionado manipulador de sinal `in-fullscreen-changed` para mudanças de estado de tela cheia em todo o sistema
+- **Cobertura da dock pela extensão GNOME em modos Partial**: Corrigida sobreposição cobrindo área da dock e impedindo operações de arrastar e soltar
+  - Sobreposições agora usam geometria de área de trabalho (via `Meta.Workspace.get_work_area_for_monitor`) que exclui struts da dock e painel
+  - Dock permanece totalmente interativa nos modos Partial e PartialWithActive
+- **Cintilação em tela cheia na extensão GNOME**: Corrigida cintilação de sobreposição com aplicativos em tela cheia
+  - Extensão desabilita unredirect do compositor via `global.compositor.disable_unredirect()` ao habilitar
+  - Garante que sobreposições permaneçam gerenciadas pelo compositor e visíveis quando aplicativos em tela cheia estão rodando
+  - Restaura comportamento padrão de unredirect via `global.compositor.enable_unredirect()` ao desabilitar
 
 ## [0.8.12] - 2025-11-11
 

@@ -23,6 +23,15 @@ export default class SpotlightDimmerExtension extends Extension {
     enable() {
         console.log('SpotlightDimmer: Enabling extension');
 
+        // Disable compositor unredirect to prevent fullscreen flickering
+        // This keeps overlays visible when fullscreen apps are running
+        try {
+            global.compositor.disable_unredirect();
+            console.log('SpotlightDimmer: Disabled compositor unredirect');
+        } catch (e) {
+            console.warn(`SpotlightDimmer: Could not disable unredirect: ${e.message}`);
+        }
+
         // Initialize components
         this._calculator = new OverlayCalculator();
         this._configBridge = new ConfigBridge();
@@ -81,6 +90,14 @@ export default class SpotlightDimmerExtension extends Extension {
     disable() {
         console.log('SpotlightDimmer: Disabling extension');
 
+        // Re-enable compositor unredirect to restore default behavior
+        try {
+            global.compositor.enable_unredirect();
+            console.log('SpotlightDimmer: Re-enabled compositor unredirect');
+        } catch (e) {
+            console.warn(`SpotlightDimmer: Could not enable unredirect: ${e.message}`);
+        }
+
         // Disconnect focus tracker signals
         if (this._focusChangedId) {
             this._focusTracker.disconnect(this._focusChangedId);
@@ -131,7 +148,7 @@ export default class SpotlightDimmerExtension extends Extension {
         const nMonitors = global.display.get_n_monitors();
 
         for (let i = 0; i < nMonitors; i++) {
-            const geometry = global.display.get_monitor_geometry(i);
+            const geometry = this._getMonitorWorkArea(i);
             this._overlayManager.createOverlaysForMonitor(i, {
                 x: geometry.x,
                 y: geometry.y,
@@ -141,6 +158,39 @@ export default class SpotlightDimmerExtension extends Extension {
         }
 
         console.log(`SpotlightDimmer: Created overlays for ${nMonitors} monitor(s)`);
+    }
+
+    /**
+     * Get work area for a monitor, excluding dock and panel struts.
+     * Falls back to full monitor geometry if work area unavailable.
+     * @param {number} monitorIndex - Monitor index
+     * @returns {Object} {x, y, width, height}
+     * @private
+     */
+    _getMonitorWorkArea(monitorIndex) {
+        try {
+            // Get active workspace
+            const workspace = global.workspace_manager.get_active_workspace();
+
+            // Get work area (excludes dock/panel struts)
+            const workArea = workspace.get_work_area_for_monitor(monitorIndex);
+
+            return {
+                x: workArea.x,
+                y: workArea.y,
+                width: workArea.width,
+                height: workArea.height,
+            };
+        } catch (e) {
+            console.warn(`SpotlightDimmer: Could not get work area for monitor ${monitorIndex}, using full geometry: ${e.message}`);
+            const geometry = global.display.get_monitor_geometry(monitorIndex);
+            return {
+                x: geometry.x,
+                y: geometry.y,
+                width: geometry.width,
+                height: geometry.height,
+            };
+        }
     }
 
     /**
@@ -206,7 +256,7 @@ export default class SpotlightDimmerExtension extends Extension {
         const windowRect = focus ? focus.rect : null;
 
         for (let i = 0; i < nMonitors; i++) {
-            const monitorGeometry = global.display.get_monitor_geometry(i);
+            const monitorGeometry = this._getMonitorWorkArea(i);
             const isFocused = (i === focusedMonitor);
 
             // Calculate overlay definitions for this monitor
