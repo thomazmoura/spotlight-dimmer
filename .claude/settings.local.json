@@ -14,7 +14,10 @@
       "Bash(pwsh:*)",
       "Bash(find:*)",
       "Bash(gnome-extensions list:*)",
-      "WebFetch(domain:gnome.pages.gitlab.gnome.org)"
+      "WebFetch(domain:gnome.pages.gitlab.gnome.org)",
+      "Bash(wc:*)",
+      "WebFetch(domain:wayland.app)",
+      "WebFetch(domain:invent.kde.org)"
     ],
     "deny": [],
     "ask": []
