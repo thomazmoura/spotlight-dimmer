@@ -12,13 +12,14 @@
 2. [Technical Feasibility Analysis](#2-technical-feasibility-analysis)
 3. [Implementation Approaches](#3-implementation-approaches)
 4. [Recommended Approach](#4-recommended-approach-qt6--layer-shell-qt)
-5. [Phased Implementation Plan](#5-phased-implementation-plan)
-6. [Technical Deep-Dives](#6-technical-deep-dives)
-7. [Risk Assessment](#7-risk-assessment)
-8. [Dependencies & Requirements](#8-dependencies--requirements)
-9. [File Structure](#9-file-structure)
-10. [Success Criteria](#10-success-criteria)
-11. [Research Sources](#11-research-sources)
+5. [Programming Language Options](#5-programming-language-options)
+6. [Phased Implementation Plan](#6-phased-implementation-plan)
+7. [Technical Deep-Dives](#7-technical-deep-dives)
+8. [Risk Assessment](#8-risk-assessment)
+9. [Dependencies & Requirements](#9-dependencies--requirements)
+10. [File Structure](#10-file-structure)
+11. [Success Criteria](#11-success-criteria)
+12. [Research Sources](#12-research-sources)
 
 ---
 
@@ -110,7 +111,7 @@ Kubuntu 24.04 ships Plasma 5.27, but Plasma 6 has API differences.
                         │ D-Bus: org.spotlight.FocusTracker
                         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│              Qt6/QML Application                              │
+│              Qt6 Application (C++ or Zig)                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐  │
 │  │ D-Bus Listener  │→ │ Core Calculator │→ │ Overlay      │  │
 │  │ (Focus events)  │  │ (from Core)     │  │ Windows      │  │
@@ -124,7 +125,7 @@ Kubuntu 24.04 ships Plasma 5.27, but Plasma 6 has API differences.
 **Pros:**
 - Colored overlays supported (matches Windows/GNOME behavior)
 - Clear separation between focus tracking (KWin) and rendering (Qt)
-- Can reuse Core layer calculation logic (port to C++)
+- Can reuse Core layer calculation logic (port to C++ or Zig)
 - Easier to debug and develop than C++ KWin plugins
 - Works on both Plasma 5 and Plasma 6
 
@@ -185,27 +186,90 @@ KWin supports "scripted effects" using QML/JavaScript. This would be the simples
 |-----------|------------|---------|
 | Focus Tracker | KWin Script (JavaScript) | Detect window focus/geometry changes |
 | IPC | D-Bus | Communicate focus events to main app |
-| Overlay Renderer | Qt6/QML + layer-shell-qt | Create transparent overlay windows |
+| Overlay Renderer | Qt6 + layer-shell-qt | Create transparent overlay windows |
 | Configuration | JSON + QFileSystemWatcher | Hot-reload configuration |
 | System Tray | Qt System Tray API | User interface for control |
 
-### Programming Language Decision
+---
 
-**Research on C#/.NET Options:**
+## 5. Programming Language Options
 
-| Option | Verdict | Reason |
-|--------|---------|--------|
-| Qt6 C# Bindings ([QtSharp](https://github.com/ddobrev/QtSharp)) | ❌ Abandoned | Only supports Qt5, no Qt6 bindings exist |
-| [Qml.Net](https://github.com/qmlnet/qmlnet) | ❌ Insufficient | QML-only integration, no full Qt widget access |
-| [Qt/.NET](https://github.com/qt-labs/qtdotnet) (Official) | ❌ Wrong direction | Only allows calling .NET FROM C++, not reverse |
-| [Avalonia UI](https://avaloniaui.net/) | ❌ No layer-shell | Wayland in "private preview", no layer-shell support, click-through not possible |
-| .NET MAUI | ❌ Poor Linux support | No native Wayland APIs |
+### Language Comparison Matrix
 
-**Conclusion**: C++ with Qt6 is the only viable option for native KDE/Wayland layer-shell integration.
+| Language | Library | layer-shell-qt | Maturity | Risk Level | Viable? |
+|----------|---------|----------------|----------|------------|---------|
+| **C++** | Qt6 native | ✅ Native | Stable | Low | ✅ **Yes** |
+| **Zig** | [libqt6zig](https://github.com/rcalixte/libqt6zig) | ✅ **Explicit** | Stable | Medium | ✅ **Yes** |
+| **Rust** | [CXX-Qt](https://github.com/KDAB/cxx-qt) | ❌ Missing | Early | High | ⚠️ **No** |
+| **C#** | None | ❌ None | N/A | N/A | ❌ **No** |
+
+### Option 1: C++ with Qt6 (Default Recommendation)
+
+**Pros:**
+- Native Qt integration, no binding layer
+- Most documentation and examples available
+- Easiest to find developers familiar with Qt/C++
+- Straightforward port from SpotlightDimmer.Core
+
+**Cons:**
+- Manual memory management
+- No built-in memory safety
+
+### Option 2: Zig with libqt6zig (Alternative)
+
+[libqt6zig](https://github.com/rcalixte/libqt6zig) is a comprehensive Qt6 binding for Zig that **explicitly supports layer-shell-qt**.
+
+**Pros:**
+- ✅ layer-shell-qt explicitly listed in dependencies
+- ✅ Stable for Qt 6.8+ (166 stars, 181 commits)
+- ✅ Comprehensive Qt modules (Core, GUI, Widgets, KDE Frameworks)
+- ✅ Memory-safe with compile-time checks
+- ✅ Good interop with C libraries
+
+**Cons:**
+- ❌ Debug builds unsupported (ReleaseFast/Safe/Small only)
+- ❌ No cross-compilation support
+- ❌ ~30 minute initial compile time
+- ❌ QPainter issues (use QStylePainter instead)
+- ❌ Requires Zig toolchain expertise
+
+**Verdict**: Viable if the team has Zig experience.
+
+### Option 3: Rust with CXX-Qt (NOT RECOMMENDED)
+
+[CXX-Qt](https://github.com/KDAB/cxx-qt) by KDAB provides Rust↔Qt bindings but **does not include layer-shell-qt**.
+
+**Why NOT to use:**
+- ❌ layer-shell-qt bindings **don't exist** - would need to write them manually
+- ❌ CXX-Qt is "early development, API changes frequently"
+- ❌ Adds complexity: Rust↔C++↔Qt↔layer-shell bridge
+- ❌ Only supports QtCore, QtGui, QML (not Widgets or KDE Frameworks)
+- ❌ No Wayland-specific support documented
+
+**Verdict**: Too risky - significant work needed to create layer-shell-qt bindings on an unstable framework.
+
+### Option 4: C#/.NET (NOT VIABLE)
+
+Researched options:
+- **QtSharp**: Abandoned, Qt5-only
+- **Qml.Net**: QML integration only, no full Qt bindings
+- **Qt/.NET**: Only calls .NET FROM C++, not reverse
+- **Avalonia UI**: Wayland in "private preview", no layer-shell support
+
+**Verdict**: No viable path for .NET on KDE/Wayland with layer-shell.
+
+### Language Recommendation
+
+| Scenario | Recommended Language |
+|----------|---------------------|
+| Team has Zig experience | **Zig + libqt6zig** |
+| No Zig experience | **C++ + Qt6** |
+| Team prefers Rust | ⚠️ Possible but risky (CXX-Qt + custom bindings) |
+| Team prefers C# | ❌ Not viable |
 
 ---
 
-## 5. Phased Implementation Plan
+## 6. Phased Implementation Plan
 
 ### Phase 1: Environment Setup & Proof of Concept
 
@@ -278,24 +342,18 @@ lsWindow->setAnchors(LayerShellQt::Window::AnchorTop |
 
 ### Phase 4: Core Logic Integration
 
-**Goal**: Port overlay calculation logic from SpotlightDimmer.Core to C++
+**Goal**: Port overlay calculation logic from SpotlightDimmer.Core
 
 **Files to Port** (~1,400 lines):
-| C# File | C++ Equivalent | Purpose |
-|---------|----------------|---------|
-| `Primitives.cs` | `primitives.h/cpp` | Rectangle, Color structs |
-| `DimmingMode.cs` | `dimmingmode.h` | Enum for modes |
-| `OverlayDefinition.cs` | `overlaydefinition.h/cpp` | Overlay data structure |
-| `DisplayOverlayState.cs` | `displayoverlaystate.h/cpp` | Per-display state |
-| `AppState.cs` | `appstate.h/cpp` | Core calculation logic |
-| `AppConfig.cs` | `appconfig.h/cpp` | Configuration model |
-| `ConfigurationManager.cs` | `configurationmanager.h/cpp` | Config loading/watching |
-
-**Why Porting is Straightforward**:
-- Core layer has zero platform dependencies
-- Pure calculation logic (no Windows APIs)
-- Well-documented algorithm in existing code
-- Same JSON schema for configuration
+| C# File | Target Equivalent | Purpose |
+|---------|-------------------|---------|
+| `Primitives.cs` | `primitives.h/cpp` or `primitives.zig` | Rectangle, Color structs |
+| `DimmingMode.cs` | `dimmingmode.h` or `dimmingmode.zig` | Enum for modes |
+| `OverlayDefinition.cs` | `overlaydefinition.*` | Overlay data structure |
+| `DisplayOverlayState.cs` | `displayoverlaystate.*` | Per-display state |
+| `AppState.cs` | `appstate.*` | Core calculation logic |
+| `AppConfig.cs` | `appconfig.*` | Configuration model |
+| `ConfigurationManager.cs` | `configurationmanager.*` | Config loading/watching |
 
 ### Phase 5: Configuration & System Integration
 
@@ -311,19 +369,6 @@ lsWindow->setAnchors(LayerShellQt::Window::AnchorTop |
 - Primary: `$XDG_CONFIG_HOME/SpotlightDimmer/config.json`
 - Fallback: `~/.config/SpotlightDimmer/config.json`
 
-**Same JSON Schema** as Windows/GNOME versions:
-```json
-{
-  "Overlay": {
-    "Mode": "FullScreen",
-    "InactiveColor": "#000000",
-    "InactiveOpacity": 153,
-    "ActiveColor": "#000000",
-    "ActiveOpacity": 102
-  }
-}
-```
-
 ### Phase 6: Multi-Monitor Support
 
 **Goal**: Proper handling of multiple displays
@@ -333,20 +378,6 @@ lsWindow->setAnchors(LayerShellQt::Window::AnchorTop |
 2. Create overlay set (6 windows) per monitor
 3. Handle monitor hotplug (add/remove)
 4. Map window position to correct monitor
-
-**Wayland Monitor Detection**:
-```cpp
-// Qt approach
-QList<QScreen*> screens = QGuiApplication::screens();
-for (QScreen *screen : screens) {
-    QRect geometry = screen->geometry();
-    // Create overlays for this screen
-}
-
-// Connect to screen changes
-connect(qApp, &QGuiApplication::screenAdded, this, &App::onScreenAdded);
-connect(qApp, &QGuiApplication::screenRemoved, this, &App::onScreenRemoved);
-```
 
 ### Phase 7: Packaging & Distribution
 
@@ -362,8 +393,6 @@ spotlight-dimmer-kwin/
 └── install.sh
 ```
 
-Installation: `kpackagetool5 --type KWin/Script --install spotlight-dimmer-kwin/`
-
 **Qt Application Package Options**:
 
 | Format | Pros | Cons |
@@ -375,9 +404,9 @@ Installation: `kpackagetool5 --type KWin/Script --install spotlight-dimmer-kwin/
 
 ---
 
-## 6. Technical Deep-Dives
+## 7. Technical Deep-Dives
 
-### 6.1 KWin Scripting API Reference
+### 7.1 KWin Scripting API Reference
 
 **Key Objects**:
 - `workspace` - Main entry point for window management
@@ -401,18 +430,9 @@ workspace.windowActivated.connect(function(window) {
                  screenIndex);
     }
 });
-
-// Window geometry changes (for tracking movement)
-// Connect to individual window's frameGeometryChanged signal
 ```
 
-**D-Bus Communication from KWin Script**:
-```javascript
-// Available in KWin scripts
-callDBus(service, path, interface, method, ...args);
-```
-
-### 6.2 layer-shell-qt API Reference
+### 7.2 layer-shell-qt API Reference
 
 **Initialization** (must call before any QWindow creation):
 ```cpp
@@ -462,28 +482,21 @@ void configureOverlayWindow(QWindow *window) {
 #include <wayland-client.h>
 
 void setClickThrough(QWindow *window, wl_compositor *compositor) {
-    // Get native Wayland window
     auto *waylandWindow = dynamic_cast<QtWaylandClient::QWaylandWindow*>(
         window->handle()
     );
 
     if (waylandWindow) {
         wl_surface *surface = waylandWindow->surface();
-
-        // Create empty input region
         wl_region *emptyRegion = wl_compositor_create_region(compositor);
-
-        // Set empty input region (makes surface click-through)
         wl_surface_set_input_region(surface, emptyRegion);
-
-        // Cleanup
         wl_region_destroy(emptyRegion);
         wl_surface_commit(surface);
     }
 }
 ```
 
-### 6.3 Layer Shell Protocol Layers
+### 7.3 Layer Shell Protocol Layers
 
 The [wlr-layer-shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1) protocol defines four layers:
 
@@ -496,36 +509,9 @@ The [wlr-layer-shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
 
 SpotlightDimmer should use the **Overlay** layer to appear above all application windows.
 
-### 6.4 KDE Dim Inactive Effect Reference
-
-The built-in KDE "Dim Inactive" effect (`src/plugins/diminactive/`) provides useful patterns:
-
-**Focus Detection**:
-```cpp
-// In constructor
-connect(effects, &EffectsHandler::windowActivated,
-        this, &DimInactiveEffect::windowActivated);
-```
-
-**Dimming Algorithm**:
-```cpp
-void DimInactiveEffect::dimWindow(EffectWindow *w, qreal strength) {
-    qreal dimFactor = 1.0 - strength;
-
-    // Apply to brightness and saturation
-    w->setBrightness(dimFactor);
-    w->setSaturation(dimFactor);
-}
-```
-
-**Window Filtering**:
-- Excludes active window and its group
-- Excludes docks, desktops, popups (configurable)
-- Excludes fullscreen windows
-
 ---
 
-## 7. Risk Assessment
+## 8. Risk Assessment
 
 ### High Risks
 
@@ -552,7 +538,7 @@ void DimInactiveEffect::dimWindow(EffectWindow *w, qreal strength) {
 
 ---
 
-## 8. Dependencies & Requirements
+## 9. Dependencies & Requirements
 
 ### Build Dependencies (Ubuntu/Kubuntu 24.04)
 
@@ -575,6 +561,16 @@ sudo apt install libdbus-1-dev
 sudo apt install cmake g++ extra-cmake-modules
 ```
 
+### For Zig Development (Alternative)
+
+```bash
+# Install Zig (latest stable)
+# See: https://ziglang.org/download/
+
+# Install libqt6zig dependencies (see project README)
+# Note: ~30 minute initial compile time
+```
+
 ### Runtime Dependencies
 
 ```bash
@@ -588,18 +584,9 @@ sudo apt install qtwayland6
 # Already installed on Kubuntu
 ```
 
-### Minimum Versions
-
-| Dependency | Minimum Version | Notes |
-|------------|-----------------|-------|
-| Qt | 6.2 | For layer-shell-qt compatibility |
-| KDE Plasma | 5.27 | Kubuntu 24.04 default |
-| KWin | 5.27 | Comes with Plasma |
-| layer-shell-qt | 5.27 | Comes with Plasma |
-
 ---
 
-## 9. File Structure
+## 10. File Structure
 
 ```
 spotlight-dimmer/
@@ -614,30 +601,31 @@ spotlight-dimmer/
 │   ├── metadata.json                     # KDE package metadata
 │   └── install.sh                        # Installation helper
 │
-├── SpotlightDimmer.KDEClient/            # NEW: Qt6 application
-│   ├── CMakeLists.txt                    # CMake build config
+├── SpotlightDimmer.KDEClient/            # NEW: Qt6 application (C++ or Zig)
+│   ├── CMakeLists.txt                    # CMake build config (C++)
+│   ├── build.zig                         # Zig build config (if using Zig)
 │   ├── src/
-│   │   ├── main.cpp                      # Application entry point
-│   │   ├── focustracker.h/cpp            # D-Bus listener
-│   │   ├── overlaymanager.h/cpp          # layer-shell overlays
-│   │   ├── appstate.h/cpp                # Ported from Core
-│   │   ├── overlaydefinition.h/cpp       # Ported from Core
-│   │   ├── primitives.h                  # Rectangle, Color
-│   │   ├── dimmingmode.h                 # DimmingMode enum
-│   │   ├── configmanager.h/cpp           # JSON config
-│   │   └── systemtray.h/cpp              # System tray icon
+│   │   ├── main.cpp (or main.zig)        # Application entry point
+│   │   ├── focustracker.*                # D-Bus listener
+│   │   ├── overlaymanager.*              # layer-shell overlays
+│   │   ├── appstate.*                    # Ported from Core
+│   │   ├── overlaydefinition.*           # Ported from Core
+│   │   ├── primitives.*                  # Rectangle, Color
+│   │   ├── dimmingmode.*                 # DimmingMode enum
+│   │   ├── configmanager.*               # JSON config
+│   │   └── systemtray.*                  # System tray icon
 │   ├── qml/
 │   │   └── Overlay.qml                   # Overlay window template
 │   └── resources/
 │       └── spotlight-dimmer.png          # Tray icon
 │
-└── SpotlightDimmer.Documentation/        # NEW: This document
+└── SpotlightDimmer.Documentation/        # This document
     └── KDE-PLASMA-IMPLEMENTATION.md
 ```
 
 ---
 
-## 10. Success Criteria
+## 11. Success Criteria
 
 The KDE Plasma implementation is complete when:
 
@@ -655,7 +643,7 @@ The KDE Plasma implementation is complete when:
 
 ---
 
-## 11. Research Sources
+## 12. Research Sources
 
 ### KWin Scripting & Focus Tracking
 - [KWin Scripting API](https://develop.kde.org/docs/plasma/kwin/api/) - Official KDE developer documentation
@@ -673,12 +661,13 @@ The KDE Plasma implementation is complete when:
 - [Dim Inactive Effect Rewrite](https://phabricator.kde.org/D13720) - KDE review for the rewritten effect
 - [KWin GitHub](https://github.com/KDE/kwin) - Source code for KWin compositor and effects
 
-### C#/.NET Research (NOT VIABLE)
+### Language Binding Research
+- [CXX-Qt](https://github.com/KDAB/cxx-qt) - KDAB's Rust-Qt bindings (layer-shell-qt NOT supported)
+- [libqt6zig](https://github.com/rcalixte/libqt6zig) - Qt 6 for Zig (layer-shell-qt SUPPORTED)
 - [QtSharp](https://github.com/ddobrev/QtSharp) - Abandoned Qt5-only C# bindings
 - [Qml.Net](https://github.com/qmlnet/qmlnet) - QML-only .NET integration
 - [Qt/.NET](https://github.com/qt-labs/qtdotnet) - Official Qt Labs .NET integration (C++→.NET only)
 - [Avalonia Wayland Support](https://avaloniaui.net/blog/bringing-wayland-support-to-avalonia) - In private preview
-- [Avalonia Click-Through Discussion](https://github.com/AvaloniaUI/Avalonia/discussions/13827) - Not possible on Wayland
 
 ### General KDE/Plasma
 - [KDE Wayland Future](https://blogs.kde.org/2025/11/26/going-all-in-on-a-wayland-future/) - KDE's Wayland direction
@@ -691,8 +680,8 @@ The KDE Plasma implementation is complete when:
 
 ### Windows Client vs KDE Client
 
-| Aspect | Windows (C#) | KDE (C++) |
-|--------|-------------|-----------|
+| Aspect | Windows (C#) | KDE (C++/Zig) |
+|--------|-------------|---------------|
 | **Focus Tracking** | `SetWinEventHook` + `EVENT_SYSTEM_FOREGROUND` | KWin Script + `workspace.windowActivated` |
 | **Geometry Tracking** | `EVENT_OBJECT_LOCATIONCHANGE` | `window.frameGeometryChanged` signal |
 | **Overlay Windows** | Win32 `CreateWindowEx` (6/display) | layer-shell-qt `QWindow` (6/display) |
@@ -704,11 +693,11 @@ The KDE Plasma implementation is complete when:
 
 ### GNOME Extension vs KDE Client
 
-| Aspect | GNOME (JavaScript) | KDE (C++) |
-|--------|-------------------|-----------|
+| Aspect | GNOME (JavaScript) | KDE (C++/Zig) |
+|--------|-------------------|---------------|
 | **Focus Tracking** | `global.display.notify::focus-window` | KWin Script D-Bus |
 | **Overlay Windows** | GNOME Shell `St.Widget` | layer-shell-qt `QWindow` |
-| **Calculation Logic** | `calculator.js` (JS port) | `appstate.cpp` (C++ port) |
+| **Calculation Logic** | `calculator.js` (JS port) | `appstate.*` (C++/Zig port) |
 | **Configuration** | `Gio.FileMonitor` | `QFileSystemWatcher` |
 | **Integration** | Native Shell extension | KWin Script + Qt app |
 
@@ -759,7 +748,7 @@ journalctl -f | grep -i spotlight
 ### Testing Qt Application
 
 ```bash
-# Build
+# Build (C++)
 cd SpotlightDimmer.KDEClient
 mkdir build && cd build
 cmake ..
@@ -767,4 +756,8 @@ make
 
 # Run
 ./spotlight-dimmer-kde
+
+# Build (Zig, if using libqt6zig)
+zig build -Doptimize=ReleaseSafe
+./zig-out/bin/spotlight-dimmer-kde
 ```
