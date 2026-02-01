@@ -4,5 +4,6 @@
   "uuid": "spotlightdimmer@thomazmoura.github.io",
   "shell-version": ["45", "46", "47", "48"],
   "version": 1,
-  "url": "https://github.com/thomazmoura/spotlight-dimmer"
+  "url": "https://github.com/thomazmoura/spotlight-dimmer",
+  "settings-schema": "org.gnome.shell.extensions.spotlightdimmer"
 }

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Global keyboard shortcut (Super+Shift+D)**: Toggle all SpotlightDimmer overlays on/off without disabling the extension
+  - Press once to pause: all overlays disappear and focus/window changes won't bring them back
+  - Press again to resume: overlays recalculate and appear correctly based on current state
+  - Shortcut works in both normal and overview modes
+  - Extension stays fully enabled while paused (signals remain connected for instant resume)
 - **GNOME Shell Extension for Linux**: Initial implementation of SpotlightDimmer for GNOME Wayland
   - Supports GNOME Shell 45, 46, 47, and 48
   - Three dimming modes: FullScreen, Partial, and PartialWithActive (feature parity with Windows)
@@ -41,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Atalho de teclado global (Super+Shift+D)**: Alterne todas as sobreposições do SpotlightDimmer ligadas/desligadas sem desabilitar a extensão
+  - Pressione uma vez para pausar: todas as sobreposições desaparecem e mudanças de foco/janela não as trazem de volta
+  - Pressione novamente para retomar: sobreposições recalculam e aparecem corretamente com base no estado atual
+  - Atalho funciona tanto no modo normal quanto no modo de visão geral
+  - Extensão permanece totalmente habilitada enquanto pausada (sinais permanecem conectados para retomada instantânea)
 - **Extensão GNOME Shell para Linux**: Implementação inicial do SpotlightDimmer para GNOME Wayland
   - Suporta GNOME Shell 45, 46, 47 e 48
   - Três modos de escurecimento: FullScreen, Partial e PartialWithActive (paridade de funcionalidades com Windows)

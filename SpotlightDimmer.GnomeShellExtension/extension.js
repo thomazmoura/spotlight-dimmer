@@ -7,6 +7,8 @@
  */
 
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -44,6 +46,7 @@ export default class SpotlightDimmerExtension extends Extension {
         this._configChangedId = null;
         this._monitorsChangedId = null;
         this._fullscreenChangedId = null;
+        this._overlaysPaused = false;
 
         // Create overlays for all monitors
         this._createOverlaysForAllMonitors();
@@ -81,6 +84,16 @@ export default class SpotlightDimmerExtension extends Extension {
         // Initial overlay update
         this._updateAllOverlays();
 
+        // Register global keyboard shortcut (Super+Shift+D)
+        this._settings = this.getSettings();
+        Main.wm.addKeybinding(
+            'toggle-dimming',
+            this._settings,
+            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            this._onToggleShortcut.bind(this)
+        );
+
         console.log('SpotlightDimmer: Extension enabled');
     }
 
@@ -89,6 +102,10 @@ export default class SpotlightDimmerExtension extends Extension {
      */
     disable() {
         console.log('SpotlightDimmer: Disabling extension');
+
+        // Remove global keyboard shortcut
+        Main.wm.removeKeybinding('toggle-dimming');
+        this._settings = null;
 
         // Re-enable compositor unredirect to restore default behavior
         try {
@@ -244,10 +261,29 @@ export default class SpotlightDimmerExtension extends Extension {
     }
 
     /**
+     * Handle the toggle-dimming keyboard shortcut.
+     * Pauses/resumes overlay rendering without disconnecting signals.
+     * @private
+     */
+    _onToggleShortcut() {
+        this._overlaysPaused = !this._overlaysPaused;
+
+        if (this._overlaysPaused) {
+            console.log('SpotlightDimmer: Overlays paused via shortcut');
+            this._overlayManager.hideAll();
+        } else {
+            console.log('SpotlightDimmer: Overlays resumed via shortcut');
+            this._updateAllOverlays();
+        }
+    }
+
+    /**
      * Update all overlays based on current focus and configuration.
      * @private
      */
     _updateAllOverlays() {
+        if (this._overlaysPaused) return;
+
         const config = this._configBridge.getConfig();
         const focus = this._focusTracker.getCurrentFocus();
         const nMonitors = global.display.get_n_monitors();

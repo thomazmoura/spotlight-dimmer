@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.spotlightdimmer"
+          path="/org/gnome/shell/extensions/spotlightdimmer/">
+    <key name="toggle-dimming" type="as">
+      <default>['&lt;Super&gt;&lt;Shift&gt;d']</default>
+      <summary>Toggle dimming overlays</summary>
+      <description>Keyboard shortcut to toggle SpotlightDimmer overlays on and off</description>
+    </key>
+  </schema>
+</schemalist>
