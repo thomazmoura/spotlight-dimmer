@@ -36,7 +36,8 @@ pub struct OverlayDef {
 
 /// Calculate overlays for a single monitor.
 ///
-/// `monitor` is the monitor's *work area* (panels/docks excluded).
+/// `monitor` is the monitor's full geometry (panels/docks included, so the
+/// overlays cover them too, matching the Windows client).
 /// `window_rect` is the spotlight target on the focused monitor (window frame
 /// or resolved inner pane rect), `None` on non-focused monitors.
 ///

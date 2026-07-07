@@ -63,8 +63,18 @@ function sendMonitors() {
     adapterCall("UpdateMonitors", JSON.stringify(monitors));
 }
 
+/**
+ * Only windows KWin actually activates reach sendFocus/trackWindow, so a
+ * small blocklist beats enumerating popup types: desktop and dock
+ * activations mean "no spotlight target", everything else (the Kickoff
+ * applet popup, KRunner, dialogs...) is where the user's attention is.
+ */
+function isSpotlightTarget(window) {
+    return window && !window.desktopWindow && !window.dock;
+}
+
 function sendFocus(window) {
-    if (!window || !window.normalWindow) {
+    if (!isSpotlightTarget(window)) {
         adapterCall("FocusCleared");
         return;
     }
@@ -92,7 +102,7 @@ function sendGeometry(window) {
 function trackWindow(window) {
     untrackWindow();
 
-    if (!window || !window.normalWindow) {
+    if (!isSpotlightTarget(window)) {
         return;
     }
 

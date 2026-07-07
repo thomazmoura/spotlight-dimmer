@@ -20,7 +20,9 @@ pub struct Monitor {
     /// Full monitor geometry; used to determine the focused monitor and as
     /// the layer-shell surface origin.
     pub geometry: Rect,
-    /// Geometry minus panels/docks; what the calculator dims within.
+    /// Geometry minus panels/docks. Informational: the calculator dims the
+    /// full geometry so panels get covered too (matching the Windows client),
+    /// but adapters still report the work area as part of the D-Bus contract.
     pub work_area: Rect,
     pub scale: f64,
 }
@@ -160,7 +162,7 @@ impl AppState {
             let is_focused = focused_index == Some(i);
             let overlays = calculator::calculate(
                 &self.config.overlay,
-                &monitor.work_area,
+                &monitor.geometry,
                 if is_focused {
                     window_rect.as_ref()
                 } else {
@@ -250,7 +252,7 @@ mod tests {
         assert_eq!(payload.monitors[0].key, "0");
         assert!(payload.monitors[0].overlays.is_empty());
 
-        // Monitor 1: full work-area overlay
+        // Monitor 1: overlay covering the full monitor geometry
         let overlays = &payload.monitors[1].overlays;
         assert_eq!(overlays.len(), 1);
         assert_eq!(overlays[0].region, region::FULLSCREEN);
@@ -287,7 +289,24 @@ mod tests {
 
         // Edge overlays surround the pane, not the window frame
         let top = overlays.iter().find(|d| d.region == region::TOP).unwrap();
-        assert_eq!(top.height, 232 - 32); // from work-area top (32) to pane top (232)
+        assert_eq!(top.height, 232); // from geometry top (0) to pane top (232)
+    }
+
+    #[test]
+    fn panel_area_outside_work_area_is_dimmed() {
+        // Monitor "0" has a 32px top panel (geometry starts at y=0, work area
+        // at y=32). A window maximized to the work area must still produce a
+        // Top overlay covering the panel strip.
+        let mut state = two_monitor_state();
+        state.config.overlay.mode = DimmingMode::Partial;
+        state.focus = focus(Rect::new(0, 32, 1920, 1048));
+
+        let payload = state.recompute().unwrap();
+        let overlays = &payload.monitors[0].overlays;
+        assert_eq!(overlays.len(), 1);
+        let top = &overlays[0];
+        assert_eq!(top.region, region::TOP);
+        assert_eq!((top.x, top.y, top.width, top.height), (0, 0, 1920, 32));
     }
 
     #[test]
