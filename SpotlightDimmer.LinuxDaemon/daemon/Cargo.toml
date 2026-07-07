@@ -1,0 +1,30 @@
+[package]
+name = "spotlight-dimmer-daemon"
+description = "SpotlightDimmer daemon for Wayland compositors (GNOME, KDE Plasma, wlroots)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "spotlight-dimmer-daemon"
+path = "src/main.rs"
+
+[features]
+default = ["render"]
+# Layer-shell overlay rendering (KDE/wlroots). Disable for a headless build
+# without GTK system dependencies: cargo build --no-default-features
+render = ["dep:gtk4", "dep:gtk4-layer-shell"]
+
+[dependencies]
+spotlight-dimmer-core = { path = "../core" }
+glib = "0.22"
+gio = "0.22"
+# v4_12 for CssProvider::load_from_string; GTK >= 4.12 is a safe floor on
+# any compositor that has layer-shell support in 2024+
+gtk4 = { version = "0.11", optional = true, features = ["v4_12"] }
+gtk4-layer-shell = { version = "0.8", optional = true }
+zbus = "5"
+async-channel = "2"
+futures-lite = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

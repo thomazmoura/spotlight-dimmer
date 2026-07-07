@@ -5,6 +5,17 @@
 **Target:** GNOME Shell 45, 46, 47, 48+
 **Language:** JavaScript (GJS)
 
+> **Architecture update (2026-07):** the extension is now a *thin adapter* for
+> the shared `spotlight-dimmer-daemon` (see `docs/LINUX_DAEMON.md`). The
+> daemon owns configuration, overlay calculation and the wezterm/tmux
+> integration; the extension reports focus/geometry/monitors over D-Bus and
+> renders the overlay rectangles the daemon publishes back (GNOME has no
+> layer-shell, so rendering must stay in the Shell). **The daemon must be
+> installed** (`make install-linux-gnome` in `SpotlightDimmer.LinuxDaemon/`)
+> or no dimming occurs. Sections below describing `calculator.js`,
+> `configBridge.js` and `appIntegrations.js` document logic that now lives in
+> the daemon's Rust crates.
+
 ---
 
 ## Overview

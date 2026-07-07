@@ -1,9 +1,14 @@
 /**
  * SpotlightDimmer - GNOME Shell Extension
  *
- * Main extension entry point that orchestrates all components.
- * Creates semi-transparent overlays to dim inactive displays/regions
- * around the focused window.
+ * Thin compositor adapter for the spotlight-dimmer-daemon. The daemon owns
+ * configuration, overlay calculation and the wezterm/tmux integration; this
+ * extension:
+ * - reports monitors, focus, geometry and title changes over D-Bus
+ * - renders the overlay definitions the daemon publishes back (GNOME has no
+ *   layer-shell, so overlays must be St.Widgets inside the Shell)
+ *
+ * Without the daemon installed and activatable, no dimming occurs.
  */
 
 import GLib from 'gi://GLib';
@@ -13,11 +18,9 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import { OverlayCalculator } from './calculator.js';
-import { ConfigBridge } from './configBridge.js';
 import { OverlayManager } from './overlayManager.js';
 import { FocusTracker } from './focusTracker.js';
-import { AppIntegrations } from './appIntegrations.js';
+import { DaemonBridge } from './daemonBridge.js';
 
 export default class SpotlightDimmerExtension extends Extension {
     /**
@@ -35,64 +38,62 @@ export default class SpotlightDimmerExtension extends Extension {
             console.warn(`SpotlightDimmer: Could not disable unredirect: ${e.message}`);
         }
 
-        // Initialize components
-        this._calculator = new OverlayCalculator();
-        this._configBridge = new ConfigBridge();
         this._overlayManager = new OverlayManager();
         this._focusTracker = new FocusTracker();
-        this._appIntegrations = new AppIntegrations(this._configBridge);
+        this._daemonBridge = new DaemonBridge();
 
         // Signal IDs for cleanup
         this._focusChangedId = null;
         this._geometryChangedId = null;
-        this._configChangedId = null;
+        this._titleChangedId = null;
         this._monitorsChangedId = null;
         this._fullscreenChangedId = null;
-        this._paneRectChangedId = null;
-        this._overlaysPaused = false;
 
-        // Create overlays for all monitors
+        // Create overlay widgets for all monitors
         this._createOverlaysForAllMonitors();
 
-        // Connect focus tracker signals
+        // Daemon events
+        this._daemonBridge.onOverlays = payload => this._applyPayload(payload);
+        this._daemonBridge.onDaemonAppeared = () => this._syncWithDaemon();
+        this._daemonBridge.onDaemonVanished = () => this._overlayManager.hideAll();
+
+        // Compositor events -> daemon
         this._focusChangedId = this._focusTracker.connect(
             'focus-changed',
-            this._onFocusChanged.bind(this)
+            (tracker, window) => this._sendFocus(window)
         );
 
         this._geometryChangedId = this._focusTracker.connect(
             'window-geometry-changed',
-            this._onFocusOrGeometryChanged.bind(this)
+            (tracker, window) => {
+                const rect = this._frameRect(window);
+                if (rect) {
+                    this._daemonBridge.geometryChanged(rect);
+                }
+            }
         );
 
-        // Connect inner-region updates (e.g. tmux pane changes via D-Bus)
-        this._paneRectChangedId = this._appIntegrations.connect(
-            'pane-rect-changed',
-            () => this._updateAllOverlays()
+        this._titleChangedId = this._focusTracker.connect(
+            'window-title-changed',
+            (tracker, window) => this._daemonBridge.titleChanged(window.title ?? '')
         );
 
-        // Connect config changes
-        this._configChangedId = this._configBridge.connect(
-            'config-changed',
-            this._onConfigChanged.bind(this)
-        );
-
-        // Connect monitor changes (hot-plug support)
+        // Monitor hot-plug: recreate overlay widgets and re-report monitors
         this._monitorsChangedId = Main.layoutManager.connect(
             'monitors-changed',
             this._onMonitorsChanged.bind(this)
         );
 
-        // Connect to fullscreen state changes (system-wide)
-        // This ensures overlays update when ANY window enters/exits fullscreen
+        // When ANY window enters/exits fullscreen, refresh geometry so the
+        // daemon recalculates (work areas may change with struts)
         this._fullscreenChangedId = global.display.connect(
             'in-fullscreen-changed',
             this._onFullscreenChanged.bind(this)
         );
 
-        // Initial overlay update
-        this._appIntegrations.setFocusedWindow(global.display.focus_window);
-        this._updateAllOverlays();
+        // Start talking to the daemon (AUTO_START activates it if installed);
+        // onDaemonAppeared then performs registration and initial sync
+        this._daemonBridge.init();
 
         // Register global keyboard shortcut (Super+Shift+D)
         this._settings = this.getSettings();
@@ -101,7 +102,7 @@ export default class SpotlightDimmerExtension extends Extension {
             this._settings,
             Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            this._onToggleShortcut.bind(this)
+            () => this._daemonBridge.toggle()
         );
 
         console.log('SpotlightDimmer: Extension enabled');
@@ -113,7 +114,6 @@ export default class SpotlightDimmerExtension extends Extension {
     disable() {
         console.log('SpotlightDimmer: Disabling extension');
 
-        // Remove global keyboard shortcut
         Main.wm.removeKeybinding('toggle-dimming');
         this._settings = null;
 
@@ -125,7 +125,6 @@ export default class SpotlightDimmerExtension extends Extension {
             console.warn(`SpotlightDimmer: Could not enable unredirect: ${e.message}`);
         }
 
-        // Disconnect focus tracker signals
         if (this._focusChangedId) {
             this._focusTracker.disconnect(this._focusChangedId);
             this._focusChangedId = null;
@@ -136,47 +135,134 @@ export default class SpotlightDimmerExtension extends Extension {
             this._geometryChangedId = null;
         }
 
-        // Disconnect config signals
-        if (this._configChangedId) {
-            this._configBridge.disconnect(this._configChangedId);
-            this._configChangedId = null;
+        if (this._titleChangedId) {
+            this._focusTracker.disconnect(this._titleChangedId);
+            this._titleChangedId = null;
         }
 
-        // Disconnect monitor signals
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = null;
         }
 
-        // Disconnect fullscreen signal
         if (this._fullscreenChangedId) {
             global.display.disconnect(this._fullscreenChangedId);
             this._fullscreenChangedId = null;
         }
 
-        // Disconnect app integration signal
-        if (this._paneRectChangedId) {
-            this._appIntegrations.disconnect(this._paneRectChangedId);
-            this._paneRectChangedId = null;
-        }
-
-        // Destroy components
         this._focusTracker?.destroy();
         this._overlayManager?.destroy();
-        this._configBridge?.destroy();
-        this._appIntegrations?.destroy();
+        this._daemonBridge?.destroy();
 
         this._focusTracker = null;
         this._overlayManager = null;
-        this._configBridge = null;
-        this._calculator = null;
-        this._appIntegrations = null;
+        this._daemonBridge = null;
 
         console.log('SpotlightDimmer: Extension disabled');
     }
 
     /**
-     * Create overlays for all connected monitors.
+     * Register with the (re)appeared daemon and send the full current state:
+     * monitors first, then focus, then render the returned snapshot.
+     * @private
+     */
+    async _syncWithDaemon() {
+        await this._daemonBridge.register();
+        this._sendMonitors();
+        this._sendFocus(global.display.focus_window);
+    }
+
+    /**
+     * Render an overlays payload from the daemon. Monitor keys are Mutter
+     * monitor indices as strings ("0", "1"). A paused daemon sends empty
+     * overlay lists, which hides every slot.
+     * @private
+     */
+    _applyPayload(payload) {
+        if (!this._overlayManager || !Array.isArray(payload.monitors)) {
+            return;
+        }
+
+        for (const monitor of payload.monitors) {
+            const index = parseInt(monitor.key, 10);
+            if (Number.isInteger(index) && this._overlayManager.hasMonitor(index)) {
+                this._overlayManager.updateMonitor(index, monitor.overlays);
+            }
+        }
+    }
+
+    /**
+     * Report all monitors (full geometry + work area + scale) to the daemon.
+     * Keys are monitor indices as strings; all rects are Mutter logical
+     * global coordinates.
+     * @private
+     */
+    _sendMonitors() {
+        const nMonitors = global.display.get_n_monitors();
+        const monitors = [];
+
+        for (let i = 0; i < nMonitors; i++) {
+            const geometry = global.display.get_monitor_geometry(i);
+            const workArea = this._getMonitorWorkArea(i);
+            monitors.push({
+                key: String(i),
+                geometry: {
+                    x: geometry.x,
+                    y: geometry.y,
+                    width: geometry.width,
+                    height: geometry.height,
+                },
+                workArea,
+                scale: global.display.get_monitor_scale(i),
+            });
+        }
+
+        this._daemonBridge.updateMonitors(monitors);
+    }
+
+    /**
+     * Report the focused window (or its absence) to the daemon. WM_CLASS and
+     * title are included so the daemon can match app integrations (tmux).
+     * @param {Meta.Window|null} window
+     * @private
+     */
+    _sendFocus(window) {
+        const rect = this._frameRect(window);
+        if (!window || !rect) {
+            this._daemonBridge.focusCleared();
+            return;
+        }
+
+        let wmClass = '';
+        try {
+            wmClass = window.get_wm_class() ?? '';
+        } catch (e) {
+            // Window may have been destroyed
+        }
+
+        this._daemonBridge.focusChanged(wmClass, window.title ?? '', rect);
+    }
+
+    /**
+     * Frame rect of a window as a plain object, or null.
+     * @private
+     */
+    _frameRect(window) {
+        if (!window) {
+            return null;
+        }
+
+        try {
+            const rect = window.get_frame_rect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        } catch (e) {
+            console.warn(`SpotlightDimmer: Error getting frame rect: ${e.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Create overlay widgets for all connected monitors.
      * @private
      */
     _createOverlaysForAllMonitors() {
@@ -204,10 +290,7 @@ export default class SpotlightDimmerExtension extends Extension {
      */
     _getMonitorWorkArea(monitorIndex) {
         try {
-            // Get active workspace
             const workspace = global.workspace_manager.get_active_workspace();
-
-            // Get work area (excludes dock/panel struts)
             const workArea = workspace.get_work_area_for_monitor(monitorIndex);
 
             return {
@@ -229,49 +312,14 @@ export default class SpotlightDimmerExtension extends Extension {
     }
 
     /**
-     * Handle focus change events.
-     * Updates app integration state (WM_CLASS matching, wezterm/tmux lookup)
-     * before recalculating overlays.
-     * @param {FocusTracker} tracker - The focus tracker
-     * @param {Meta.Window|null} window - The focused window
-     * @param {number} monitorIndex - The monitor index
-     * @private
-     */
-    _onFocusChanged(tracker, window, monitorIndex) {
-        this._appIntegrations.setFocusedWindow(window);
-        this._updateAllOverlays();
-    }
-
-    /**
-     * Handle focus or geometry change events.
-     * @param {FocusTracker} tracker - The focus tracker
-     * @param {Meta.Window|null} window - The focused window
-     * @param {number} monitorIndex - The monitor index
-     * @private
-     */
-    _onFocusOrGeometryChanged(tracker, window, monitorIndex) {
-        this._updateAllOverlays();
-    }
-
-    /**
-     * Handle configuration change events.
-     * @private
-     */
-    _onConfigChanged() {
-        console.log('SpotlightDimmer: Config changed, updating overlays');
-        this._updateAllOverlays();
-    }
-
-    /**
-     * Handle fullscreen state changes.
-     * When any window enters/exits fullscreen, update overlays to ensure
-     * other monitors continue to show dimming.
+     * Handle fullscreen state changes: defer (animation), then re-report
+     * monitors (struts may change) and focus geometry.
      * @private
      */
     _onFullscreenChanged() {
-        // Defer update to allow fullscreen transition animation to complete
         GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-            this._updateAllOverlays();
+            this._sendMonitors();
+            this._sendFocus(global.display.focus_window);
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -283,78 +331,11 @@ export default class SpotlightDimmerExtension extends Extension {
     _onMonitorsChanged() {
         console.log('SpotlightDimmer: Monitors changed, recreating overlays');
 
-        // Destroy existing overlays
         this._overlayManager.destroy();
         this._overlayManager = new OverlayManager();
-
-        // Recreate for new monitor configuration
         this._createOverlaysForAllMonitors();
-        this._updateAllOverlays();
-    }
 
-    /**
-     * Handle the toggle-dimming keyboard shortcut.
-     * Pauses/resumes overlay rendering without disconnecting signals.
-     * @private
-     */
-    _onToggleShortcut() {
-        this._overlaysPaused = !this._overlaysPaused;
-
-        if (this._overlaysPaused) {
-            console.log('SpotlightDimmer: Overlays paused via shortcut');
-            this._overlayManager.hideAll();
-        } else {
-            console.log('SpotlightDimmer: Overlays resumed via shortcut');
-            this._updateAllOverlays();
-        }
-    }
-
-    /**
-     * Update all overlays based on current focus and configuration.
-     * @private
-     */
-    _updateAllOverlays() {
-        if (this._overlaysPaused) return;
-
-        const config = this._configBridge.getConfig();
-        const focus = this._focusTracker.getCurrentFocus();
-        const nMonitors = global.display.get_n_monitors();
-
-        const focusedMonitor = focus ? focus.monitor : -1;
-
-        // When an app integration resolves an inner region (e.g. the focused
-        // tmux pane inside WezTerm), spotlight that region instead of the
-        // whole window; null means fall back to the window rect.
-        let windowRect = focus ? focus.rect : null;
-        if (windowRect) {
-            const paneRect = this._appIntegrations.getPaneRect(windowRect);
-            if (paneRect) {
-                windowRect = paneRect;
-            }
-        }
-
-        for (let i = 0; i < nMonitors; i++) {
-            const monitorGeometry = this._getMonitorWorkArea(i);
-            const isFocused = (i === focusedMonitor);
-
-            // Calculate overlay definitions for this monitor
-            const definitions = this._calculator.calculate(
-                config,
-                {
-                    x: monitorGeometry.x,
-                    y: monitorGeometry.y,
-                    width: monitorGeometry.width,
-                    height: monitorGeometry.height,
-                },
-                isFocused ? windowRect : null,
-                isFocused
-            );
-
-            // If definitions is null, calculator signaled to keep existing state
-            // This happens for 0x0 windows during transitions
-            if (definitions !== null) {
-                this._overlayManager.updateMonitor(i, definitions);
-            }
-        }
+        this._sendMonitors();
+        this._sendFocus(global.display.focus_window);
     }
 }

@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Id": "spotlightdimmer",
+        "Name": "SpotlightDimmer",
+        "Description": "Reports focus, geometry and monitor data to the SpotlightDimmer daemon, which dims inactive displays/regions",
+        "Icon": "brightness-low",
+        "Version": "0.1.0",
+        "Authors": [
+            {
+                "Name": "Thomaz Moura",
+                "Email": "padilha.thomaz@gmail.com"
+            }
+        ],
+        "License": "MIT",
+        "EnabledByDefault": true
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

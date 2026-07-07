@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 *.swp
 
 dist/
+
+# Rust build output (SpotlightDimmer.LinuxDaemon)
+SpotlightDimmer.LinuxDaemon/target/

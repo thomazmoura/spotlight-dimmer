@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=SpotlightDimmer Toggle
+Comment=Toggle SpotlightDimmer dimming on/off
+Exec=busctl --user call org.spotlightdimmer.Daemon /org/spotlightdimmer/Daemon org.spotlightdimmer.Daemon1 Toggle
+Icon=brightness-low
+NoDisplay=true

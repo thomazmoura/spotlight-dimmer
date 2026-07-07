@@ -1,14 +1,14 @@
-# tmux Pane Integration (GNOME Shell Extension)
+# tmux Pane Integration
 
 SpotlightDimmer can highlight the **focused tmux pane** inside a terminal
 window instead of the whole window. When the focused window is a configured
 terminal (e.g. WezTerm) whose visible content is a tmux client, the spotlight
 shrinks to the focused pane: sibling panes, the rest of the window, and the
 rest of the display are all dimmed. Whenever pane information is unavailable,
-the extension automatically falls back to the normal whole-window spotlight.
+SpotlightDimmer automatically falls back to the normal whole-window spotlight.
 
-> **Platform**: GNOME Shell extension only (Linux). The Windows client does
-> not support app integrations yet.
+> **Platform**: Linux (GNOME and KDE Plasma via the shared daemon — see
+> `docs/LINUX_DAEMON.md`). The Windows client does not support app integrations yet.
 
 ## How It Works
 
@@ -49,9 +49,9 @@ terminal via TIOCGWINSZ), so no font metrics need to be configured.
 
 ```bash
 mkdir -p ~/.config/SpotlightDimmer/tools
-cp SpotlightDimmer.GnomeShellExtension/tools/spotlight-dimmer-tmux-report.sh \
+cp SpotlightDimmer.LinuxDaemon/tools/spotlight-dimmer-tmux-report.sh \
    ~/.config/SpotlightDimmer/tools/
-cp SpotlightDimmer.GnomeShellExtension/tools/spotlight-dimmer.tmux.conf \
+cp SpotlightDimmer.LinuxDaemon/tools/spotlight-dimmer.tmux.conf \
    ~/.config/SpotlightDimmer/tools/
 chmod +x ~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh
 ```

@@ -1,0 +1,10 @@
+[package]
+name = "spotlight-dimmer-core"
+description = "Platform-agnostic overlay geometry, configuration and state for SpotlightDimmer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,10 @@
+# D-Bus activation file for the SpotlightDimmer daemon.
+# @BINDIR@ is substituted at install time (D-Bus service files cannot use ~).
+# Note: org.spotlightdimmer.PaneTracker is deliberately NOT activatable —
+# tmux hooks must stay silent no-ops when the daemon is down and must never
+# auto-start it from headless/SSH tmux sessions.
+
+[D-BUS Service]
+Name=org.spotlightdimmer.Daemon
+Exec=@BINDIR@/spotlight-dimmer-daemon
+SystemdService=spotlight-dimmer-daemon.service

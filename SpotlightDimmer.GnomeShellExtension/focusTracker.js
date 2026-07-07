@@ -24,6 +24,13 @@ export const FocusTracker = GObject.registerClass({
         'window-geometry-changed': {
             param_types: [GObject.TYPE_OBJECT, GObject.TYPE_INT],
         },
+        // Emitted when the focused window's title changes (terminals change
+        // titles on tmux attach/detach and tab switches without any focus or
+        // geometry event; the daemon uses this to requery wezterm/tmux)
+        // Parameters: window (Meta.Window)
+        'window-title-changed': {
+            param_types: [GObject.TYPE_OBJECT],
+        },
     },
 }, class FocusTracker extends GObject.Object {
     _init() {
@@ -120,6 +127,13 @@ export const FocusTracker = GObject.registerClass({
                 this._onWindowGeometryChangedDeferred();
             });
             this._windowSignalIds.push({ window, id: fullscreenId });
+
+            // Connect to title changes (forwarded to the daemon, which
+            // debounces and requeries the wezterm/tmux integration)
+            const titleId = window.connect('notify::title', () => {
+                this.emit('window-title-changed', window);
+            });
+            this._windowSignalIds.push({ window, id: titleId });
         } catch (e) {
             // Window may have been destroyed during connection
             console.warn(`SpotlightDimmer: Error tracking window: ${e.message}`);
