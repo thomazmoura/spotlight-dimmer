@@ -570,6 +570,27 @@ export class OverlayCalculator {
 
 ---
 
+## tmux Pane Integration (Optional)
+
+The extension can spotlight the **focused tmux pane** inside a configured
+terminal (e.g. WezTerm) instead of the whole window. tmux hooks push the
+focused pane's pixel geometry to a D-Bus interface exported by the extension
+(`org.spotlightdimmer.PaneTracker`), and `wezterm cli` is used to verify that
+the focused terminal content is actually a tmux client (matched by tty).
+
+Components:
+
+- **appIntegrations.js** – D-Bus service, wezterm/tmux resolution, screen-space pane rect computation
+- **tools/spotlight-dimmer-tmux-report.sh** – helper run by tmux hooks (cells → pixels)
+- **tools/spotlight-dimmer.tmux.conf** – tmux hook definitions to source from `~/.tmux.conf`
+- **configBridge.js** – parses the `AppIntegrations` config section
+- **extension.js** – substitutes the pane rect for the window rect when resolved
+
+See [TMUX_INTEGRATION.md](./TMUX_INTEGRATION.md) for setup, coordinate math,
+and troubleshooting.
+
+---
+
 ## GNOME Version Compatibility
 
 ### Breaking Changes by Version

@@ -51,6 +51,7 @@ export const ConfigBridge = GObject.registerClass({
             inactiveOpacity: 153, // ~60%
             activeColor: { r: 0, g: 0, b: 0 },
             activeOpacity: 102, // ~40%
+            appIntegrations: [], // Inner-region highlighting disabled unless configured
         };
     }
 
@@ -91,11 +92,18 @@ export const ConfigBridge = GObject.registerClass({
      * @private
      */
     _parseConfig(data) {
-        if (!data.Overlay) {
+        this._parseOverlayConfig(data.Overlay);
+        this._parseAppIntegrations(data.AppIntegrations);
+    }
+
+    /**
+     * Parse the Overlay section of the configuration.
+     * @private
+     */
+    _parseOverlayConfig(overlay) {
+        if (!overlay) {
             return;
         }
-
-        const overlay = data.Overlay;
 
         // Mode (FullScreen, Partial, PartialWithActive)
         if (overlay.Mode) {
@@ -121,6 +129,28 @@ export const ConfigBridge = GObject.registerClass({
         if (typeof overlay.ActiveOpacity === 'number') {
             this._config.activeOpacity = this._clampOpacity(overlay.ActiveOpacity);
         }
+    }
+
+    /**
+     * Parse the AppIntegrations section: per-application inner-region
+     * highlighting (e.g. the focused tmux pane inside WezTerm).
+     * Entries without a WmClass are ignored.
+     * @private
+     */
+    _parseAppIntegrations(integrations) {
+        if (!Array.isArray(integrations)) {
+            this._config.appIntegrations = [];
+            return;
+        }
+
+        this._config.appIntegrations = integrations
+            .filter(entry => entry && typeof entry.WmClass === 'string' && entry.WmClass.length > 0)
+            .map(entry => ({
+                wmClass: entry.WmClass,
+                provider: entry.Provider || 'tmux',
+                contentOffsetX: Number.isFinite(entry.ContentOffsetX) ? Math.round(entry.ContentOffsetX) : 0,
+                contentOffsetY: Number.isFinite(entry.ContentOffsetY) ? Math.round(entry.ContentOffsetY) : 0,
+            }));
     }
 
     /**

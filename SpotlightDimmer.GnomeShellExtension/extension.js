@@ -17,6 +17,7 @@ import { OverlayCalculator } from './calculator.js';
 import { ConfigBridge } from './configBridge.js';
 import { OverlayManager } from './overlayManager.js';
 import { FocusTracker } from './focusTracker.js';
+import { AppIntegrations } from './appIntegrations.js';
 
 export default class SpotlightDimmerExtension extends Extension {
     /**
@@ -39,6 +40,7 @@ export default class SpotlightDimmerExtension extends Extension {
         this._configBridge = new ConfigBridge();
         this._overlayManager = new OverlayManager();
         this._focusTracker = new FocusTracker();
+        this._appIntegrations = new AppIntegrations(this._configBridge);
 
         // Signal IDs for cleanup
         this._focusChangedId = null;
@@ -46,6 +48,7 @@ export default class SpotlightDimmerExtension extends Extension {
         this._configChangedId = null;
         this._monitorsChangedId = null;
         this._fullscreenChangedId = null;
+        this._paneRectChangedId = null;
         this._overlaysPaused = false;
 
         // Create overlays for all monitors
@@ -54,12 +57,18 @@ export default class SpotlightDimmerExtension extends Extension {
         // Connect focus tracker signals
         this._focusChangedId = this._focusTracker.connect(
             'focus-changed',
-            this._onFocusOrGeometryChanged.bind(this)
+            this._onFocusChanged.bind(this)
         );
 
         this._geometryChangedId = this._focusTracker.connect(
             'window-geometry-changed',
             this._onFocusOrGeometryChanged.bind(this)
+        );
+
+        // Connect inner-region updates (e.g. tmux pane changes via D-Bus)
+        this._paneRectChangedId = this._appIntegrations.connect(
+            'pane-rect-changed',
+            () => this._updateAllOverlays()
         );
 
         // Connect config changes
@@ -82,6 +91,7 @@ export default class SpotlightDimmerExtension extends Extension {
         );
 
         // Initial overlay update
+        this._appIntegrations.setFocusedWindow(global.display.focus_window);
         this._updateAllOverlays();
 
         // Register global keyboard shortcut (Super+Shift+D)
@@ -144,15 +154,23 @@ export default class SpotlightDimmerExtension extends Extension {
             this._fullscreenChangedId = null;
         }
 
+        // Disconnect app integration signal
+        if (this._paneRectChangedId) {
+            this._appIntegrations.disconnect(this._paneRectChangedId);
+            this._paneRectChangedId = null;
+        }
+
         // Destroy components
         this._focusTracker?.destroy();
         this._overlayManager?.destroy();
         this._configBridge?.destroy();
+        this._appIntegrations?.destroy();
 
         this._focusTracker = null;
         this._overlayManager = null;
         this._configBridge = null;
         this._calculator = null;
+        this._appIntegrations = null;
 
         console.log('SpotlightDimmer: Extension disabled');
     }
@@ -208,6 +226,20 @@ export default class SpotlightDimmerExtension extends Extension {
                 height: geometry.height,
             };
         }
+    }
+
+    /**
+     * Handle focus change events.
+     * Updates app integration state (WM_CLASS matching, wezterm/tmux lookup)
+     * before recalculating overlays.
+     * @param {FocusTracker} tracker - The focus tracker
+     * @param {Meta.Window|null} window - The focused window
+     * @param {number} monitorIndex - The monitor index
+     * @private
+     */
+    _onFocusChanged(tracker, window, monitorIndex) {
+        this._appIntegrations.setFocusedWindow(window);
+        this._updateAllOverlays();
     }
 
     /**
@@ -289,7 +321,17 @@ export default class SpotlightDimmerExtension extends Extension {
         const nMonitors = global.display.get_n_monitors();
 
         const focusedMonitor = focus ? focus.monitor : -1;
-        const windowRect = focus ? focus.rect : null;
+
+        // When an app integration resolves an inner region (e.g. the focused
+        // tmux pane inside WezTerm), spotlight that region instead of the
+        // whole window; null means fall back to the window rect.
+        let windowRect = focus ? focus.rect : null;
+        if (windowRect) {
+            const paneRect = this._appIntegrations.getPaneRect(windowRect);
+            if (paneRect) {
+                windowRect = paneRect;
+            }
+        }
 
         for (let i = 0; i < nMonitors; i++) {
             const monitorGeometry = this._getMonitorWorkArea(i);

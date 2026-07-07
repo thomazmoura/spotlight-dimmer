@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **tmux pane highlighting inside WezTerm (GNOME)**: The spotlight can now follow the focused tmux pane instead of the whole terminal window
+  - When WezTerm is focused and running tmux, sibling panes and everything outside the focused pane are dimmed; the highlight follows pane switches, splits, and resizes instantly
+  - New `AppIntegrations` config section maps a window class to an integration provider (`"tmux"`), with per-app `ContentOffsetX`/`ContentOffsetY` to account for terminal padding and tab bars
+  - Event-driven via tmux hooks and a new D-Bus service (`org.spotlightdimmer.PaneTracker`) — no polling
+  - The extension verifies the focused terminal content is a live tmux client (tty matching via `wezterm cli` and `tmux list-clients`) and falls back to whole-window highlighting whenever pane data is unavailable
+  - Ships ready-to-use setup files: `tools/spotlight-dimmer-tmux-report.sh` (geometry reporter run by tmux hooks) and `tools/spotlight-dimmer.tmux.conf` (hook definitions to source from `~/.tmux.conf`)
+  - Full setup guide in `docs/TMUX_INTEGRATION.md`
 - **Global keyboard shortcut (Super+Shift+D)**: Toggle all SpotlightDimmer overlays on/off without disabling the extension
   - Press once to pause: all overlays disappear and focus/window changes won't bring them back
   - Press again to resume: overlays recalculate and appear correctly based on current state
@@ -46,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Destaque de painel tmux dentro do WezTerm (GNOME)**: O spotlight agora pode seguir o painel tmux focado em vez da janela inteira do terminal
+  - Quando o WezTerm está focado e executando tmux, os painéis irmãos e tudo fora do painel focado são escurecidos; o destaque acompanha trocas de painel, divisões e redimensionamentos instantaneamente
+  - Nova seção de configuração `AppIntegrations` mapeia uma classe de janela para um provedor de integração (`"tmux"`), com `ContentOffsetX`/`ContentOffsetY` por aplicativo para compensar padding e barra de abas do terminal
+  - Orientado a eventos via hooks do tmux e um novo serviço D-Bus (`org.spotlightdimmer.PaneTracker`) — sem polling
+  - A extensão verifica se o conteúdo focado do terminal é um cliente tmux ativo (correspondência de tty via `wezterm cli` e `tmux list-clients`) e retorna ao destaque de janela inteira sempre que os dados do painel estiverem indisponíveis
+  - Inclui arquivos de configuração prontos para uso: `tools/spotlight-dimmer-tmux-report.sh` (reportador de geometria executado pelos hooks do tmux) e `tools/spotlight-dimmer.tmux.conf` (definições de hooks para carregar no `~/.tmux.conf`)
+  - Guia completo de instalação em `docs/TMUX_INTEGRATION.md`
 - **Atalho de teclado global (Super+Shift+D)**: Alterne todas as sobreposições do SpotlightDimmer ligadas/desligadas sem desabilitar a extensão
   - Pressione uma vez para pausar: todas as sobreposições desaparecem e mudanças de foco/janela não as trazem de volta
   - Pressione novamente para retomar: sobreposições recalculam e aparecem corretamente com base no estado atual

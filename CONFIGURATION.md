@@ -257,6 +257,39 @@ Number of days to keep old log files before automatic deletion.
 - Range: `1` to `365`
 - **Default**: `7`
 
+## App Integrations (Linux/GNOME only)
+
+The GNOME Shell extension supports an optional top-level `AppIntegrations`
+section that enables highlighting a region *inside* the focused window for
+specific applications. The first provider is `tmux`: when the focused window
+is a configured terminal running tmux, the spotlight targets the focused tmux
+pane instead of the whole window.
+
+```json
+{
+  "Overlay": { "Mode": "PartialWithActive" },
+  "AppIntegrations": [
+    {
+      "WmClass": "org.wezfurlong.wezterm",
+      "Provider": "tmux",
+      "ContentOffsetX": 2,
+      "ContentOffsetY": 0
+    }
+  ]
+}
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `WmClass` | string | (required) | Window class of the terminal to match |
+| `Provider` | string | `"tmux"` | Integration provider (`"tmux"` only for now) |
+| `ContentOffsetX` | integer | `0` | Pixels from window left edge to the terminal cell grid |
+| `ContentOffsetY` | integer | `0` | Pixels from window top edge to the terminal cell grid |
+
+This section is ignored by the Windows client. It also requires tmux-side
+setup (hooks + helper script) — see
+[docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full guide.
+
 ## Hot-Reload Behavior
 
 When you edit and save the configuration file:
