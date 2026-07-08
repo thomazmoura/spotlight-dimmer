@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-07
+
 ### Added
 - **Official .deb packages for Ubuntu/Kubuntu (amd64 and arm64)**: Linux releases now ship ready-to-install packages instead of requiring a build from source
   - `spotlight-dimmer-gnome`: the headless daemon plus the GNOME Shell extension installed system-wide — after installing, log out and back in, then run `gnome-extensions enable spotlightdimmer@thomazmoura.github.io`
@@ -154,4 +156,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extensão desabilita unredirect do compositor via `global.compositor.disable_unredirect()` ao habilitar
   - Garante que sobreposições permaneçam gerenciadas pelo compositor e visíveis quando aplicativos em tela cheia estão rodando
   - Restaura comportamento padrão de unredirect via `global.compositor.enable_unredirect()` ao desabilitar
-
