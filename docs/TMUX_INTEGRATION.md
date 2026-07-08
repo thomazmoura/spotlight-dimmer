@@ -13,7 +13,7 @@ SpotlightDimmer automatically falls back to the normal whole-window spotlight.
 ## How It Works
 
 ```
-tmux hook fires (pane switch, resize, split, window change, ...)
+tmux hook fires (pane switch, resize, split, window change, mode/zoom change, ...)
   └─> spotlight-dimmer-tmux-report.sh
         one `tmux display-message` call, converts pane cells -> pixels
         └─> D-Bus: org.spotlightdimmer.PaneTracker.UpdatePaneGeometry(tty, x, y, w, h)
@@ -163,7 +163,13 @@ gdbus call --session --dest org.spotlightdimmer.PaneTracker \
   "$(tmux display-message -p '#{client_tty}')" 100 100 800 600
 ```
 
-**Verify the hooks are installed**: `tmux show-hooks -g | grep spotlight`
+**Verify the hooks are installed** (session-scope and window-scope hooks are
+listed separately):
+
+```bash
+tmux show-hooks -g | grep spotlight   # client/session hooks
+tmux show-hooks -gw | grep spotlight  # pane/window hooks (mode, layout, ...)
+```
 
 **Run the helper by hand** from inside tmux with `bash -x` to see the
 computed geometry:
