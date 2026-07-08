@@ -1,0 +1,222 @@
+name: Release Linux
+
+on:
+  push:
+    tags:
+      - 'v*-linux'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.1.0-linux)'
+        required: true
+        type: string
+
+jobs:
+  build-debs:
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve and validate tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+
+          if [[ "$TAG" != v*-linux ]]; then
+            echo "::error::Tag must match v*-linux (got: $TAG)"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%-linux}"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libgtk4-layer-shell-dev libglib2.0-dev-bin dpkg-dev jq
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deb
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+
+      - name: Verify Cargo workspace version matches tag
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: |
+          CARGO_VERSION=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "spotlight-dimmer-daemon") | .version')
+
+          if [[ "$CARGO_VERSION" != "${{ steps.version.outputs.version }}" ]]; then
+            echo "::error::Tag version (${{ steps.version.outputs.version }}) does not match Cargo workspace version ($CARGO_VERSION). Update [workspace.package] version in SpotlightDimmer.LinuxDaemon/Cargo.toml."
+            exit 1
+          fi
+
+          echo "✓ Cargo workspace version matches tag: $CARGO_VERSION"
+
+      - name: Run core tests
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo test -p spotlight-dimmer-core
+
+      - name: Recompile GNOME extension schemas
+        run: |
+          glib-compile-schemas --strict SpotlightDimmer.GnomeShellExtension/schemas/
+          echo "✓ gschemas.compiled regenerated (never ship a stale committed copy)"
+
+      - name: Build GNOME .deb (headless daemon + extension)
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo deb -p spotlight-dimmer-daemon --variant gnome
+
+      - name: Build KDE .deb (layer-shell daemon + KWin script)
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo deb -p spotlight-dimmer-daemon --variant kde
+
+      - name: Inspect packages
+        run: |
+          for deb in SpotlightDimmer.LinuxDaemon/target/debian/*.deb; do
+            echo "===== $deb ====="
+            dpkg-deb --info "$deb"
+            dpkg-deb --contents "$deb"
+          done
+
+      - name: Upload .deb artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debs-${{ matrix.arch }}
+          path: SpotlightDimmer.LinuxDaemon/target/debian/*.deb
+          retention-days: 1
+
+  release:
+    needs: build-debs
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+
+          VERSION="${TAG#v}"
+          VERSION="${VERSION%-linux}"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: linux-debs-*
+          merge-multiple: true
+          path: debs
+
+      - name: Extract changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          # The publish command moves [Unreleased] into [X.Y.Z] before tagging,
+          # so extract the released version's section; fall back to [Unreleased]
+          # for manually created tags that skipped the publish command.
+          $ErrorActionPreference = "Continue"
+          $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1" -ChangelogPath "CHANGELOG.linux.md" -Version "${{ steps.version.outputs.version }}" 2>$null
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($changelog)) {
+            Write-Host "Section [${{ steps.version.outputs.version }}] not found or empty - falling back to [Unreleased]"
+            $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1" -ChangelogPath "CHANGELOG.linux.md"
+          }
+
+          # Use multiline string format for GitHub Actions
+          $delimiter = "CHANGELOG_EOF_$(Get-Random)"
+          "changelog<<$delimiter" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          $changelog | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+          $delimiter | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
+
+          Write-Host "Extracted changelog:"
+          Write-Host $changelog
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: 'Spotlight Dimmer for Linux ${{ steps.version.outputs.tag }}'
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
+
+            ---
+
+            ## Installation
+
+            Download the .deb for your desktop and architecture, then install it with apt so
+            runtime dependencies are resolved automatically:
+
+            ### GNOME (Ubuntu)
+
+            ```bash
+            sudo apt install ./spotlight-dimmer-gnome_${{ steps.version.outputs.version }}-1_amd64.deb
+            ```
+
+            Then log out and back in, and enable the extension:
+
+            ```bash
+            gnome-extensions enable spotlightdimmer@thomazmoura.github.io
+            ```
+
+            ### KDE Plasma 6 (Kubuntu)
+
+            ```bash
+            sudo apt install ./spotlight-dimmer-kde_${{ steps.version.outputs.version }}-1_amd64.deb
+            ```
+
+            KWin loads the script automatically. To bind the Meta+Shift+D toggle, open
+            System Settings → Shortcuts and assign it to "Toggle Spotlight Dimmer".
+
+            *(On ARM devices, download the `_arm64.deb` files instead.)*
+
+            ### First run
+
+            Copy the example configuration so dimming is visible immediately (the built-in
+            default is FullScreen mode, which shows nothing on single-monitor setups):
+
+            ```bash
+            mkdir -p ~/.config/SpotlightDimmer
+            cp /usr/share/doc/spotlight-dimmer-gnome/examples/config.example.json ~/.config/SpotlightDimmer/config.json
+            ```
+
+            (Use `spotlight-dimmer-kde` in the path if you installed the KDE package.)
+
+            Notes:
+            - The GNOME and KDE packages conflict with each other on purpose — install the one matching your desktop.
+            - Configuration reference: `/usr/share/doc/<package>/CONFIGURATION.md` and `LINUX_DAEMON.md`.
+            - Windows releases are published separately under `vX.Y.Z-windows` tags.
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'rc') }}
+          files: debs/*.deb

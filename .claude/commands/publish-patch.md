@@ -1,6 +1,6 @@
 # Publish Patch Command
 
-**Description**: Create a patch release by incrementing the patch version (0.0.X)
+**Description**: Create a **Windows** patch release by incrementing the patch version (0.0.X). For the Linux version, use `/publish-linux-patch` instead.
 
 **Usage**: `/publish-patch`
 
@@ -51,7 +51,7 @@ The agent will:
 10. Generate a descriptive commit message based on the changes and CHANGELOG.md
 11. Execute a **single bash command** that does all of the following:
    ```bash
-   git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.Z && git push origin main && git push origin vX.Y.Z
+   git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.Z-windows && git push origin main && git push origin vX.Y.Z-windows
    ```
 
 ## Important Notes:
@@ -64,7 +64,7 @@ The agent will:
 - This allows the user to approve once with a single execution
 - If any git step fails, subsequent steps won't execute (due to `&&` behavior)
 - The commit message should be concise and descriptive
-- Tag format: `vX.Y.Z` (e.g., `v0.8.1`)
+- Tag format: `vX.Y.Z-windows` (e.g., `v0.8.1-windows`) — the `-windows` suffix triggers the Windows release workflow; Linux releases use `vX.Y.Z-linux` tags
 
 ## Commit Message Format (CRITICAL):
 
@@ -103,13 +103,13 @@ Resolved issue where overlays would flicker when moving windows between displays
 
 - Improve display change detection logic
 - Add debouncing for rapid display events
-- Optimize overlay recreation performance" && git pull --rebase origin main && git tag v0.8.1 && git push origin main && git push origin v0.8.1
+- Optimize overlay recreation performance" && git pull --rebase origin main && git tag v0.8.1-windows && git push origin main && git push origin v0.8.1-windows
   ```
 
 **Scenario 2**: Current version is `0.8.0-beta` (beta version)
 - Strip beta suffix and update to `0.8.1` in Directory.Build.props
 - Run validation: build → tests
-- If validation passes, create tag `v0.8.1`
+- If validation passes, create tag `v0.8.1-windows`
 
 **Scenario 3**: Validation fails - Release cancelled
 ```

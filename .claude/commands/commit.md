@@ -17,7 +17,7 @@
 The agent will:
 1. Run the schema generator: `pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1`
 2. Run `git status` and `git diff` to understand changes
-3. Generate a descriptive commit message based on the changes and CHANGELOG.md
+3. Generate a descriptive commit message based on the changes and the relevant changelog (`CHANGELOG.md` for Windows changes, `CHANGELOG.linux.md` for Linux changes)
 4. Execute a **single bash command** that does all of the following:
    ```bash
    git add . && git commit -m "message" && git pull --rebase origin main && git push origin main

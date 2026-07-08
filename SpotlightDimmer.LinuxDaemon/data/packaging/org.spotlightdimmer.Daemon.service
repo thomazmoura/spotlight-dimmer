@@ -1,0 +1,12 @@
+# D-Bus activation file for the SpotlightDimmer daemon (.deb packaging variant)
+# Shipped by the spotlight-dimmer-gnome/-kde packages to /usr/share/dbus-1/services/.
+# Keep in sync with ../org.spotlightdimmer.Daemon.service.in (the per-user
+# `make install-daemon` template); here @BINDIR@ is fixed to /usr/bin.
+# Note: org.spotlightdimmer.PaneTracker is deliberately NOT activatable —
+# tmux hooks must stay silent no-ops when the daemon is down and must never
+# auto-start it from headless/SSH tmux sessions.
+
+[D-BUS Service]
+Name=org.spotlightdimmer.Daemon
+Exec=/usr/bin/spotlight-dimmer-daemon
+SystemdService=spotlight-dimmer-daemon.service

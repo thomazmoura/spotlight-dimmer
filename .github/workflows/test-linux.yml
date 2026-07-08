@@ -1,0 +1,56 @@
+name: Test Linux Build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'SpotlightDimmer.LinuxDaemon/**'
+      - 'SpotlightDimmer.GnomeShellExtension/**'
+      - 'SpotlightDimmer.KwinScript/**'
+      - '.github/workflows/test-linux.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'SpotlightDimmer.LinuxDaemon/**'
+      - 'SpotlightDimmer.GnomeShellExtension/**'
+      - 'SpotlightDimmer.KwinScript/**'
+      - '.github/workflows/test-linux.yml'
+  workflow_dispatch:
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-4-dev libgtk4-layer-shell-dev libglib2.0-dev-bin
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: SpotlightDimmer.LinuxDaemon
+
+      - name: Run core tests
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo test -p spotlight-dimmer-core
+
+      - name: Build headless daemon (GNOME profile)
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo build --release --no-default-features
+
+      - name: Build layer-shell daemon (KDE profile)
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo build --release
+
+      - name: Validate GNOME extension schemas
+        run: glib-compile-schemas --strict --dry-run SpotlightDimmer.GnomeShellExtension/schemas/

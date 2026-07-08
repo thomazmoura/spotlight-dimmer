@@ -28,3 +28,73 @@ async-channel = "2"
 futures-lite = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# -----------------------------------------------------------------------------
+# .deb packaging (cargo-deb). The base section below has no assets — always
+# build with an explicit variant:
+#   cargo deb -p spotlight-dimmer-daemon --variant gnome
+#   cargo deb -p spotlight-dimmer-daemon --variant kde
+# Asset source paths are relative to this crate directory (daemon/).
+# -----------------------------------------------------------------------------
+[package.metadata.deb]
+maintainer = "Thomaz Moura <padilha.thomaz@gmail.com>"
+copyright = "2025-2026, Thomaz Moura"
+license-file = ["../../LICENSE", "0"]
+section = "utils"
+priority = "optional"
+revision = "1"
+depends = "$auto"
+extended-description = """\
+SpotlightDimmer dims inactive displays and regions with click-through \
+overlays, creating a spotlight effect on the active window. It supports the \
+FullScreen, Partial and PartialWithActive modes, multi-monitor with \
+hot-plug, a hot-reloadable JSON configuration at \
+~/.config/SpotlightDimmer/config.json and an optional tmux pane spotlight."""
+
+# GNOME package: headless daemon (no GTK) + the GNOME Shell extension, which
+# renders the overlays itself. After installing, log out/in and enable with:
+#   gnome-extensions enable spotlightdimmer@thomazmoura.github.io
+[package.metadata.deb.variants.gnome]
+name = "spotlight-dimmer-gnome"
+default-features = false
+depends = "$auto, gnome-shell (>= 45)"
+conflicts = "spotlight-dimmer-kde"
+provides = "spotlight-dimmer"
+assets = [
+    ["target/release/spotlight-dimmer-daemon", "usr/bin/", "755"],
+    ["../data/packaging/spotlight-dimmer-daemon.service", "usr/lib/systemd/user/", "644"],
+    ["../data/packaging/org.spotlightdimmer.Daemon.service", "usr/share/dbus-1/services/", "644"],
+    ["../../SpotlightDimmer.GnomeShellExtension/*.js", "usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/", "644"],
+    ["../../SpotlightDimmer.GnomeShellExtension/metadata.json", "usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/", "644"],
+    ["../../SpotlightDimmer.GnomeShellExtension/stylesheet.css", "usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/", "644"],
+    ["../../SpotlightDimmer.GnomeShellExtension/schemas/*", "usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/schemas/", "644"],
+    ["../tools/spotlight-dimmer-tmux-report.sh", "usr/share/spotlight-dimmer/tools/", "755"],
+    ["../tools/spotlight-dimmer.tmux.conf", "usr/share/spotlight-dimmer/tools/", "644"],
+    ["../../config.example.json", "usr/share/doc/spotlight-dimmer-gnome/examples/", "644"],
+    ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
+    ["../../docs/LINUX_DAEMON.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
+    ["../../docs/TMUX_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
+]
+
+# KDE package: daemon with the layer-shell renderer (render feature → GTK4 +
+# gtk4-layer-shell, resolved by $auto/dpkg-shlibdeps) + the KWin script, which
+# KWin auto-loads system-wide (EnabledByDefault in its metadata.json).
+[package.metadata.deb.variants.kde]
+name = "spotlight-dimmer-kde"
+depends = "$auto"
+conflicts = "spotlight-dimmer-gnome"
+provides = "spotlight-dimmer"
+assets = [
+    ["target/release/spotlight-dimmer-daemon", "usr/bin/", "755"],
+    ["../data/packaging/spotlight-dimmer-daemon.service", "usr/lib/systemd/user/", "644"],
+    ["../data/packaging/org.spotlightdimmer.Daemon.service", "usr/share/dbus-1/services/", "644"],
+    ["../../SpotlightDimmer.KwinScript/metadata.json", "usr/share/kwin/scripts/spotlightdimmer/", "644"],
+    ["../../SpotlightDimmer.KwinScript/contents/code/main.js", "usr/share/kwin/scripts/spotlightdimmer/contents/code/", "644"],
+    ["../data/org.spotlightdimmer.toggle.desktop", "usr/share/applications/", "644"],
+    ["../tools/spotlight-dimmer-tmux-report.sh", "usr/share/spotlight-dimmer/tools/", "755"],
+    ["../tools/spotlight-dimmer.tmux.conf", "usr/share/spotlight-dimmer/tools/", "644"],
+    ["../../config.example.json", "usr/share/doc/spotlight-dimmer-kde/examples/", "644"],
+    ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
+    ["../../docs/LINUX_DAEMON.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
+    ["../../docs/TMUX_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
+]

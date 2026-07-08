@@ -38,22 +38,55 @@ To build from source instead, see [Building](#building) below.
 
 ### Linux (Ubuntu / Kubuntu, Wayland)
 
-The Linux version is installed from source. It consists of a shared daemon (`spotlight-dimmer-daemon`) plus a thin adapter for your desktop: a GNOME Shell extension on Ubuntu, or a KWin script on Kubuntu. See [docs/LINUX_DAEMON.md](docs/LINUX_DAEMON.md) for architecture details.
+The Linux version consists of a shared daemon (`spotlight-dimmer-daemon`) plus a thin adapter for your desktop: a GNOME Shell extension on Ubuntu, or a KWin script on Kubuntu. See [docs/LINUX_DAEMON.md](docs/LINUX_DAEMON.md) for architecture details.
 
-**Requirements:**
+**Requirements:** a Wayland session (the default on recent Ubuntu and Kubuntu) with GNOME Shell 45–48 (Ubuntu 24.04 or newer) **or** KDE Plasma 6 (Kubuntu 24.10 or newer).
 
-- A Wayland session (the default on recent Ubuntu and Kubuntu)
-- [Rust via rustup](https://rustup.rs) (to build the daemon)
-- GNOME Shell 45–48 (Ubuntu 24.04 or newer) **or** KDE Plasma 6 (Kubuntu 24.10 or newer)
+#### .deb packages (recommended)
 
-Clone the repository first (the `make` commands below run from the repository root):
+Download the package for your desktop and architecture from the newest Linux release on the [releases page](https://github.com/thomazmoura/spotlight-dimmer/releases) (Linux release tags end in `-linux`), then install it with apt so runtime dependencies are resolved automatically:
+
+```bash
+# Ubuntu (GNOME) — use the _arm64.deb files on ARM devices
+sudo apt install ./spotlight-dimmer-gnome_<version>_amd64.deb
+
+# Kubuntu (KDE Plasma 6)
+sudo apt install ./spotlight-dimmer-kde_<version>_amd64.deb
+```
+
+The two packages intentionally conflict with each other — install the one matching your desktop.
+
+**On GNOME**, log out and back in (Wayland cannot reload GNOME Shell in place), then enable the extension:
+
+```bash
+gnome-extensions enable spotlightdimmer@thomazmoura.github.io
+```
+
+**On KDE**, KWin loads the script automatically — no logout needed. To get the dimming toggle shortcut, open System Settings → Shortcuts, add the "SpotlightDimmer Toggle" application and bind it to **Meta+Shift+D**.
+
+**First run**: packages cannot write to your home directory, so copy the starter configuration once (dimming uses FullScreen mode otherwise, which shows nothing on a single monitor):
+
+```bash
+mkdir -p ~/.config/SpotlightDimmer
+cp /usr/share/doc/spotlight-dimmer-gnome/examples/config.example.json ~/.config/SpotlightDimmer/config.json
+```
+
+(Use `spotlight-dimmer-kde` in the path if you installed the KDE package. The tmux integration tools land in `/usr/share/spotlight-dimmer/tools/`.)
+
+To uninstall: `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`).
+
+> **Upgrading from a source install?** Remove the per-user daemon first (see [Uninstalling](#uninstalling-linux-source-installs)) — a leftover unit in `~/.config/systemd/user/` shadows the packaged one in `/usr/lib/systemd/user/`.
+
+#### Installing from source
+
+Building from source additionally requires [Rust via rustup](https://rustup.rs). Clone the repository first (the `make` commands below run from the repository root):
 
 ```bash
 git clone https://github.com/thomazmoura/spotlight-dimmer.git
 cd spotlight-dimmer
 ```
 
-#### Ubuntu (GNOME)
+##### Ubuntu (GNOME)
 
 On GNOME the daemon computes the overlays and the GNOME Shell extension renders them, so the GTK build dependencies are not needed:
 
@@ -71,7 +104,7 @@ Dimming starts as soon as the extension is enabled — the daemon is D-Bus activ
 
 > If you also want the daemon-side layer-shell renderer built (not used by GNOME), run `sudo apt install libgtk-4-dev libgtk4-layer-shell-dev` and use plain `make install-linux-gnome`.
 
-#### Kubuntu (KDE Plasma 6)
+##### Kubuntu (KDE Plasma 6)
 
 On KDE the daemon renders the overlays itself via the layer-shell protocol, so the GTK development packages are required:
 
@@ -84,7 +117,7 @@ This builds and installs the daemon, installs and enables the KWin script (which
 
 #### First run and troubleshooting (Linux)
 
-Both install targets seed a starter configuration at `~/.config/SpotlightDimmer/config.json` (PartialWithActive mode) if none exists — edits to it apply instantly. Note that **FullScreen mode only dims inactive monitors**, so on a single-monitor setup it shows nothing; use Partial or PartialWithActive there.
+The source-install targets seed a starter configuration at `~/.config/SpotlightDimmer/config.json` (PartialWithActive mode) if none exists — edits to it apply instantly (for .deb installs, copy it manually as shown above). Note that **FullScreen mode only dims inactive monitors**, so on a single-monitor setup it shows nothing; use Partial or PartialWithActive there.
 
 The daemon runs as a systemd **user** service, so status and logs need the `--user` flag:
 
@@ -97,7 +130,7 @@ On KDE, `qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.isScriptLoaded sp
 
 #### Optional: tmux pane spotlight
 
-Both Linux installs also copy the tmux integration tools to `~/.config/SpotlightDimmer/tools/`. To have the spotlight follow the focused tmux pane inside WezTerm, **two** pieces of configuration are needed:
+Source installs copy the tmux integration tools to `~/.config/SpotlightDimmer/tools/`; the .deb packages ship them at `/usr/share/spotlight-dimmer/tools/` (adjust the paths below accordingly). To have the spotlight follow the focused tmux pane inside WezTerm, **two** pieces of configuration are needed:
 
 1. Map WezTerm to the tmux provider by adding an `AppIntegrations` section to `~/.config/SpotlightDimmer/config.json` (the starter config doesn't include it):
 
@@ -120,7 +153,9 @@ source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf
 
 Without both, dimming falls back to highlighting the whole terminal window. See [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full setup guide, including the content offsets for terminal padding and tab bars.
 
-#### Uninstalling (Linux)
+#### Uninstalling (Linux, source installs)
+
+For .deb installs, use `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`) instead. The commands below undo a `make install-linux-*` source install:
 
 ```bash
 # Daemon and tools

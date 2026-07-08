@@ -23,13 +23,36 @@ Write-Host "`n==========================================" -ForegroundColor Cyan
 Write-Host "  Spotlight Dimmer Latest Installer" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-$githubReleaseUrl = "https://github.com/thomazmoura/spotlight-dimmer/releases/latest/download/spotlight-dimmer-installer.exe"
 $tempPath = [System.IO.Path]::GetTempPath()
-$installerPath = Join-Path $tempPath "spotlight-dimmer-installer.exe"
+$installerPath = Join-Path $tempPath "spotlight-dimmer-installer-x64.exe"
 
 try {
-    # Step 1: Download the latest installer
-    Write-Host "`n==> Downloading latest installer from GitHub..." -ForegroundColor Cyan
+    # Step 1: Find the latest Windows release
+    # Releases alternate between Windows (vX.Y.Z-windows) and Linux (vX.Y.Z-linux)
+    # tags, so "releases/latest" cannot be used directly - look up the newest
+    # release whose tag ends in "-windows" instead.
+    Write-Host "`n==> Finding latest Windows release on GitHub..." -ForegroundColor Cyan
+
+    $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/thomazmoura/spotlight-dimmer/releases" -UseBasicParsing
+    $windowsRelease = $releases | Where-Object { $_.tag_name -like "*-windows" -and -not $_.prerelease } | Select-Object -First 1
+
+    if (-not $windowsRelease) {
+        Write-Error "No Windows release (tag ending in '-windows') found"
+        exit 1
+    }
+
+    $installerAsset = $windowsRelease.assets | Where-Object { $_.name -eq "spotlight-dimmer-installer-x64.exe" } | Select-Object -First 1
+
+    if (-not $installerAsset) {
+        Write-Error "Installer asset 'spotlight-dimmer-installer-x64.exe' not found in release $($windowsRelease.tag_name)"
+        exit 1
+    }
+
+    $githubReleaseUrl = $installerAsset.browser_download_url
+
+    # Step 2: Download the installer
+    Write-Host "`n==> Downloading installer from GitHub..." -ForegroundColor Cyan
+    Write-Host "    Release: $($windowsRelease.tag_name)" -ForegroundColor Gray
     Write-Host "    URL: $githubReleaseUrl" -ForegroundColor Gray
     Write-Host "    Destination: $installerPath" -ForegroundColor Gray
 
@@ -61,7 +84,7 @@ try {
     $fileSizeMB = [math]::Round((Get-Item $installerPath).Length / 1MB, 2)
     Write-Host "`n    ✓ Download complete ($fileSizeMB MB)" -ForegroundColor Green
 
-    # Step 2: Run the installer
+    # Step 3: Run the installer
     Write-Host "`n==> Running installer..." -ForegroundColor Cyan
 
     if ($Silent) {
@@ -94,7 +117,7 @@ try {
         }
     }
 
-    # Step 3: Cleanup
+    # Step 4: Cleanup
     Write-Host "`n==> Cleaning up..." -ForegroundColor Cyan
     if (Test-Path $installerPath) {
         Remove-Item -Path $installerPath -Force

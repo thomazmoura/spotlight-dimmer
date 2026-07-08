@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ inputs.version }}"
-          $releaseUrl = "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$version"
+          $releaseUrl = "https://api.github.com/repos/${{ github.repository }}/releases/tags/v$version-windows"
 
           try {
             $headers = @{
@@ -39,11 +39,11 @@ jobs:
               "X-GitHub-Api-Version" = "2022-11-28"
             }
             $response = Invoke-RestMethod -Uri $releaseUrl -Headers $headers
-            Write-Host "✅ Release v$version found"
+            Write-Host "✅ Release v$version-windows found"
             Write-Host "   Release URL: $($response.html_url)"
             Write-Host "   Published: $($response.published_at)"
           } catch {
-            Write-Error "❌ Release v$version not found. Please create and publish the release first."
+            Write-Error "❌ Release v$version-windows not found. Please create and publish the release first."
             Write-Host "   Checked URL: $releaseUrl"
             exit 1
           }
@@ -66,8 +66,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ inputs.version }}"
-          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-x64.exe"
-          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-arm64.exe"
+          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version-windows/spotlight-dimmer-installer-x64.exe"
+          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version-windows/spotlight-dimmer-installer-arm64.exe"
 
           Write-Host "`n========================================="
           Write-Host "Generating Winget manifest"
@@ -254,8 +254,8 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ inputs.version }}"
-          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-x64.exe"
-          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version/spotlight-dimmer-installer-arm64.exe"
+          $installerX64Url = "https://github.com/${{ github.repository }}/releases/download/v$version-windows/spotlight-dimmer-installer-x64.exe"
+          $installerArm64Url = "https://github.com/${{ github.repository }}/releases/download/v$version-windows/spotlight-dimmer-installer-arm64.exe"
 
           Write-Host "`n========================================="
           Write-Host "Submitting Winget manifest"
@@ -308,7 +308,7 @@ jobs:
             Write-Host "🔍 Troubleshooting:"
             Write-Host "  - Verify WINGET_TOKEN secret is configured correctly"
             Write-Host "  - Check that you have forked microsoft/winget-pkgs"
-            Write-Host "  - Ensure the release v$version exists and is published"
+            Write-Host "  - Ensure the release v$version-windows exists and is published"
             Write-Host "  - Review the workflow logs above for specific errors"
           }
 

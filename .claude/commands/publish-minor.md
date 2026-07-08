@@ -1,6 +1,6 @@
 # Publish Minor Command
 
-**Description**: Create a minor release by incrementing the minor version (0.X.0)
+**Description**: Create a **Windows** minor release by incrementing the minor version (0.X.0). For the Linux version, use `/publish-linux-minor` instead.
 
 **Usage**: `/publish-minor`
 
@@ -51,7 +51,7 @@ The agent will:
 10. Generate a descriptive commit message based on the changes and CHANGELOG.md
 11. Execute a **single bash command** that does all of the following:
    ```bash
-   git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.0 && git push origin main && git push origin vX.Y.0
+   git add . && git commit -m "message" && git pull --rebase origin main && git tag vX.Y.0-windows && git push origin main && git push origin vX.Y.0-windows
    ```
 
 ## Important Notes:
@@ -64,7 +64,7 @@ The agent will:
 - This allows the user to approve once with a single execution
 - If any git step fails, subsequent steps won't execute (due to `&&` behavior)
 - The commit message should be concise and descriptive
-- Tag format: `vX.Y.0` (e.g., `v0.9.0`)
+- Tag format: `vX.Y.0-windows` (e.g., `v0.9.0-windows`) — the `-windows` suffix triggers the Windows release workflow; Linux releases use `vX.Y.Z-linux` tags
 - Patch number is always reset to 0 for minor releases
 
 ## Commit Message Format (CRITICAL):
@@ -108,13 +108,13 @@ Implemented global hotkey system for quick dimming control.
 - Add Ctrl+D for toggle dimming
 - Add Ctrl+Shift+D for pause/resume
 - Update configuration with hotkey settings
-- Document keyboard shortcuts in README" && git pull --rebase origin main && git tag v0.9.0 && git push origin main && git push origin v0.9.0
+- Document keyboard shortcuts in README" && git pull --rebase origin main && git tag v0.9.0-windows && git push origin main && git push origin v0.9.0-windows
   ```
 
 **Scenario 2**: Current version is `0.8.1-beta.2` (beta version)
 - Strip beta suffix and update to `0.9.0` in Directory.Build.props
 - Run validation: build → tests
-- If validation passes, create tag `v0.9.0`
+- If validation passes, create tag `v0.9.0-windows`
 
 **Scenario 3**: Validation fails - Release cancelled
 ```

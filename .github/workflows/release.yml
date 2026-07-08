@@ -3,11 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*-windows'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v1.0.0)'
+        description: 'Release tag (e.g., v1.0.0-windows)'
         required: true
         type: string
 
@@ -30,8 +30,13 @@ jobs:
             $version = "${{ github.ref_name }}"
           }
 
-          # Remove 'v' prefix for version number
-          $versionNumber = $version -replace '^v', ''
+          if ($version -notmatch '^v\d.*-windows$') {
+            Write-Host "::error::Tag must match vX.Y.Z-windows (got: $version)"
+            exit 1
+          }
+
+          # Remove 'v' prefix and '-windows' suffix for version number
+          $versionNumber = $version -replace '^v', '' -replace '-windows$', ''
 
           echo "version=$versionNumber" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
           echo "tag=$version" | Out-File -FilePath $Env:GITHUB_OUTPUT -Append
@@ -229,7 +234,16 @@ jobs:
         id: changelog
         shell: pwsh
         run: |
-          $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1"
+          # The publish command moves [Unreleased] into [X.Y.Z] before tagging,
+          # so extract the released version's section; fall back to [Unreleased]
+          # for manually created tags that skipped the publish command.
+          $ErrorActionPreference = "Continue"
+          $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1" -Version "${{ steps.version.outputs.version }}" 2>$null
+
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($changelog)) {
+            Write-Host "Section [${{ steps.version.outputs.version }}] not found or empty - falling back to [Unreleased]"
+            $changelog = & "./SpotlightDimmer.Scripts/Extract-Changelog.ps1"
+          }
 
           # Save the changelog content to output
           # Use multiline string format for GitHub Actions

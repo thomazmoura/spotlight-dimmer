@@ -43,6 +43,50 @@ KDE the daemon renders directly via `gtk4-layer-shell`.
 
 ## Installation
 
+### From .deb packages (recommended)
+
+Each Linux release (tags ending in `-linux`) publishes four packages built by
+`.github/workflows/release-linux.yml`: `spotlight-dimmer-gnome` and
+`spotlight-dimmer-kde`, for amd64 and arm64. Install with
+`sudo apt install ./<package>.deb` so runtime dependencies are resolved
+automatically. The packages conflict with each other on purpose (both ship
+`/usr/bin/spotlight-dimmer-daemon`).
+
+Package contents:
+
+| Path | Contents |
+|---|---|
+| `/usr/bin/spotlight-dimmer-daemon` | The daemon (headless build in the GNOME package, layer-shell build in the KDE package) |
+| `/usr/lib/systemd/user/spotlight-dimmer-daemon.service` | systemd user unit |
+| `/usr/share/dbus-1/services/org.spotlightdimmer.Daemon.service` | D-Bus session activation |
+| `/usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/` | GNOME Shell extension (GNOME package only) |
+| `/usr/share/kwin/scripts/spotlightdimmer/` | KWin script, auto-loaded by KWin (KDE package only) |
+| `/usr/share/applications/org.spotlightdimmer.toggle.desktop` | Toggle launcher for shortcut binding (KDE package only) |
+| `/usr/share/spotlight-dimmer/tools/` | tmux integration tools |
+| `/usr/share/doc/<package>/` | `CONFIGURATION.md`, this document, `TMUX_INTEGRATION.md` and `examples/config.example.json` |
+
+Post-install steps the packages cannot do for you:
+
+- **GNOME**: log out/in, then `gnome-extensions enable spotlightdimmer@thomazmoura.github.io`.
+- **KDE**: bind the "SpotlightDimmer Toggle" launcher to Meta+Shift+D in System Settings → Shortcuts.
+- **Both**: seed your config once — `mkdir -p ~/.config/SpotlightDimmer && cp /usr/share/doc/<package>/examples/config.example.json ~/.config/SpotlightDimmer/config.json`.
+
+> **Note**: a per-user unit left behind by a previous `make install-daemon`
+> (`~/.config/systemd/user/spotlight-dimmer-daemon.service`, plus
+> `~/.local/share/dbus-1/services/org.spotlightdimmer.Daemon.service` and
+> `~/.local/bin/spotlight-dimmer-daemon`) shadows the packaged files — remove
+> them before switching to the .deb (see the README's uninstall section).
+> Likewise, tmux hook installs that reference
+> `~/.config/SpotlightDimmer/tools/` should be updated to
+> `/usr/share/spotlight-dimmer/tools/` when moving to the packages.
+
+The packaging metadata lives in `SpotlightDimmer.LinuxDaemon/daemon/Cargo.toml`
+(`[package.metadata.deb]`, built with `cargo deb --variant gnome|kde`), with
+`/usr/bin`-pathed unit/activation files in
+`SpotlightDimmer.LinuxDaemon/data/packaging/`.
+
+### From source
+
 Build dependencies: [rustup](https://rustup.rs), plus GTK for the layer-shell
 renderer:
 
