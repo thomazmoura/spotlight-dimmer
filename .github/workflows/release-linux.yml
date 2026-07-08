@@ -17,10 +17,22 @@ jobs:
       contents: read
     strategy:
       matrix:
+        # The GNOME variant is headless (no GTK) and is built on the oldest
+        # supported LTS so the resulting .deb stays installable on Ubuntu
+        # 24.04+. The KDE variant links gtk4-layer-shell, which only exists
+        # in Ubuntu 25.10+ repositories, so it is built on 26.04 LTS.
         include:
-          - runner: ubuntu-24.04
+          - variant: gnome
+            runner: ubuntu-24.04
             arch: amd64
-          - runner: ubuntu-24.04-arm
+          - variant: gnome
+            runner: ubuntu-24.04-arm
+            arch: arm64
+          - variant: kde
+            runner: ubuntu-26.04
+            arch: amd64
+          - variant: kde
+            runner: ubuntu-26.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
     steps:
@@ -50,8 +62,13 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-4-dev libgtk4-layer-shell-dev libglib2.0-dev-bin dpkg-dev jq
+          if [[ "${{ matrix.variant }}" == "kde" ]]; then
+            sudo apt-get install -y --no-install-recommends \
+              libgtk-4-dev libgtk4-layer-shell-dev libglib2.0-dev-bin dpkg-dev jq
+          else
+            sudo apt-get install -y --no-install-recommends \
+              libglib2.0-dev libglib2.0-dev-bin dpkg-dev jq
+          fi
 
       - name: Install Rust (stable)
         uses: dtolnay/rust-toolchain@stable
@@ -79,17 +96,14 @@ jobs:
         run: cargo test -p spotlight-dimmer-core
 
       - name: Recompile GNOME extension schemas
+        if: matrix.variant == 'gnome'
         run: |
           glib-compile-schemas --strict SpotlightDimmer.GnomeShellExtension/schemas/
           echo "✓ gschemas.compiled regenerated (never ship a stale committed copy)"
 
-      - name: Build GNOME .deb (headless daemon + extension)
+      - name: Build .deb
         working-directory: SpotlightDimmer.LinuxDaemon
-        run: cargo deb -p spotlight-dimmer-daemon --variant gnome
-
-      - name: Build KDE .deb (layer-shell daemon + KWin script)
-        working-directory: SpotlightDimmer.LinuxDaemon
-        run: cargo deb -p spotlight-dimmer-daemon --variant kde
+        run: cargo deb -p spotlight-dimmer-daemon --variant ${{ matrix.variant }}
 
       - name: Inspect packages
         run: |
@@ -102,7 +116,7 @@ jobs:
       - name: Upload .deb artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-debs-${{ matrix.arch }}
+          name: linux-debs-${{ matrix.variant }}-${{ matrix.arch }}
           path: SpotlightDimmer.LinuxDaemon/target/debian/*.deb
           retention-days: 1
 

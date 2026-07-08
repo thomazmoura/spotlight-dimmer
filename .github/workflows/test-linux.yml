@@ -21,7 +21,10 @@ on:
 
 jobs:
   test-linux:
-    runs-on: ubuntu-24.04
+    # 26.04 because libgtk4-layer-shell-dev (needed by the KDE profile) only
+    # exists in Ubuntu 25.10+ repositories. Release .debs are built per
+    # variant on the matching oldest supported base (see release-linux.yml).
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

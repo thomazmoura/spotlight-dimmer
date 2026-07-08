@@ -34,6 +34,8 @@ The agent will:
    - `cargo test -p spotlight-dimmer-core` - Run the core test suite
    - `cargo build --release` - Build the layer-shell daemon (KDE profile)
    - `cargo build --release --no-default-features` - Build the headless daemon (GNOME profile)
+
+   **KDE-profile fallback**: if `pkg-config --exists gtk4-layer-shell-0` fails, the machine has no gtk4-layer-shell (e.g. Ubuntu 24.04 GNOME boxes — the lib only exists in Ubuntu 25.10+ repositories). Skip the KDE-profile build (`cargo build --release`) and rely on CI instead: the `Test Linux Build` workflow builds that profile on every push touching Linux code, and the `Release Linux` workflow rebuilds it before publishing. The core tests and the headless build must still pass locally.
 6. **If any validation step fails**:
    - **STOP immediately** and cancel the release
    - Revert version changes in `Cargo.toml`, `Cargo.lock` and `SpotlightDimmer.KwinScript/metadata.json`
