@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-08
+
 ### Fixed
 - **Linux release pipeline failure**: The v0.2.0 release pipeline failed before publishing anything because the CI runners (Ubuntu 24.04) do not ship the `libgtk4-layer-shell-dev` package required to build the KDE daemon — that library only exists in Ubuntu 25.10+ repositories. The build now runs per package variant: the GNOME .deb is built on Ubuntu 24.04 so it stays installable on Ubuntu 24.04 LTS and newer, while the KDE .deb is built on Ubuntu 26.04 LTS (it requires Ubuntu 25.10+ either way, since its gtk4-layer-shell runtime dependency is not available on older releases). This makes v0.2.1 the first Linux release with published .deb packages — see the [0.2.0] section below for the full feature list it delivers (the v0.2.0 tag never produced a release).
 
