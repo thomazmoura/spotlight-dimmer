@@ -5,7 +5,7 @@
         "Name": "SpotlightDimmer",
         "Description": "Reports focus, geometry and monitor data to the SpotlightDimmer daemon, which dims inactive displays/regions",
         "Icon": "brightness-low",
-        "Version": "0.2.1",
+        "Version": "0.3.0",
         "Authors": [
             {
                 "Name": "Thomaz Moura",

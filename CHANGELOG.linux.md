@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-12
+
 ### Fixed
 - tmux pane highlight misaligned in windowed mode: The highlight over the focused tmux pane was offset when the terminal (e.g. WezTerm) ran as a regular window, while aligning correctly when maximized. The compositor adapters (KWin script and GNOME extension) now report the window's content area separately from its decorated frame, so title bars and borders no longer skew the highlight — the same configuration works in windowed, maximized and fullscreen states
 
