@@ -50,8 +50,9 @@ Source: "publish\x64\SpotlightDimmer.exe"; DestDir: "{app}"; Flags: ignoreversio
 Source: "publish\x64\SpotlightDimmer.Config.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "publish\x64\SpotlightDimmer.PaneReport.exe"; DestDir: "{app}"; Flags: ignoreversion
 
-; tmux/WSL integration tools (copied by the user into WSL; see docs)
+; tmux/WSL integration tools (installed into WSL by Install-WslTmuxIntegration.ps1; see docs)
 Source: "SpotlightDimmer.WindowsClient\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "SpotlightDimmer.Scripts\Install-WslTmuxIntegration.ps1"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 ; Icon files (required at runtime)
 Source: "spotlight-dimmer-icon.ico"; DestDir: "{app}"; Flags: ignoreversion

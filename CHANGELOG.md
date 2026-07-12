@@ -10,24 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Terminal pane spotlight (Windows Terminal, tmux in WSL2, WezTerm)**: When the focused window is a configured terminal, the spotlight now shrinks from the whole window to the focused pane — native Windows Terminal splits (Alt+Shift+D), tmux panes running inside WSL2, and WezTerm panes are all supported. Configure via the new `AppIntegrations` section in `config.json` (JSON-only for now — not yet editable in the Config GUI; see `docs/WINDOWS_TERMINAL_INTEGRATION.md`). Whenever pane information is unavailable, the normal whole-window spotlight is used, so nothing changes unless you opt in
 - **`SpotlightDimmer.PaneReport.exe` helper**: A tiny AOT-compiled forwarder that tmux hooks inside WSL invoke to report pane geometry to the running app over a named pipe. Ships with the installer together with the WSL-side tools (`tools\spotlight-dimmer-tmux-report.sh` and `tools\spotlight-dimmer.tmux.conf`)
+- **`Install-WslTmuxIntegration.ps1` setup script**: One command now sets up the tmux-in-WSL pane spotlight — it copies the WSL-side tools into the distro, records the `SpotlightDimmer.PaneReport.exe` location for the report script, wires the tmux hooks into `~/.tmux.conf` idempotently, and smoke-tests the whole chain. Works from an installed copy (ships in `tools\`) and from a repository checkout (finds dev build outputs), replacing the previous manual copy/chmod/edit steps
 
 ### Changed
 - **Windows releases now use `vX.Y.Z-windows` tags**: Windows and Linux are now released and versioned independently. Linux changes moved to the new `CHANGELOG.linux.md`, and Linux releases use `vX.Y.Z-linux` tags with their own version numbers. No action is needed for existing installs; winget updates keep working
 
 ### Fixed
 - **Release changelog tooling**: `Move-UnreleasedToVersion.ps1` no longer duplicates the old `[Unreleased]` section on every release (the cause of a stale duplicate block that had accumulated in this changelog), and `Extract-Changelog.ps1` can now extract a released version's section via `-Version` — previously the release workflow read `[Unreleased]` after it had already been emptied, so release notes only worked by accident
+- **Spotlight stuck on the last tmux pane after detaching**: Detaching from tmux (or exiting it) inside WSL left the spotlight shrunk to the last focused pane instead of widening back to the whole terminal window. The `client-detached` hook queried the client's tty after the client was already gone, so the clear message was never sent; the hook now passes the detaching client's tty explicitly (`#{hook_client}`)
 
 ---
 
 ### Adicionado
 - **Spotlight de painel de terminal (Windows Terminal, tmux no WSL2, WezTerm)**: Quando a janela focada é um terminal configurado, o spotlight agora encolhe da janela inteira para o painel focado — divisões nativas do Windows Terminal (Alt+Shift+D), painéis tmux rodando dentro do WSL2 e painéis do WezTerm são todos suportados. Configure através da nova seção `AppIntegrations` no `config.json` (apenas JSON por enquanto — ainda não editável na interface de configuração; veja `docs/WINDOWS_TERMINAL_INTEGRATION.md`). Sempre que a informação do painel não estiver disponível, o spotlight normal de janela inteira é usado, então nada muda a menos que você opte por ativar
 - **Utilitário `SpotlightDimmer.PaneReport.exe`**: Um pequeno encaminhador compilado com AOT que os hooks do tmux dentro do WSL invocam para reportar a geometria do painel ao aplicativo em execução através de um named pipe. Distribuído com o instalador junto com as ferramentas do lado WSL (`tools\spotlight-dimmer-tmux-report.sh` e `tools\spotlight-dimmer.tmux.conf`)
+- **Script de configuração `Install-WslTmuxIntegration.ps1`**: Um único comando agora configura o spotlight de painel tmux-no-WSL — ele copia as ferramentas do lado WSL para a distro, registra a localização do `SpotlightDimmer.PaneReport.exe` para o script de relatório, adiciona os hooks do tmux ao `~/.tmux.conf` de forma idempotente e testa toda a cadeia. Funciona a partir de uma cópia instalada (distribuído em `tools\`) e de um checkout do repositório (encontra builds de desenvolvimento), substituindo os passos manuais anteriores de copiar/chmod/editar
 
 ### Alterado
 - **Releases do Windows agora usam tags `vX.Y.Z-windows`**: Windows e Linux agora são lançados e versionados de forma independente. As mudanças do Linux foram movidas para o novo `CHANGELOG.linux.md`, e os releases Linux usam tags `vX.Y.Z-linux` com numeração de versão própria. Nenhuma ação é necessária para instalações existentes; atualizações via winget continuam funcionando
 
 ### Corrigido
 - **Ferramentas de changelog de release**: O `Move-UnreleasedToVersion.ps1` não duplica mais a seção `[Unreleased]` antiga a cada release (a causa de um bloco duplicado obsoleto que havia se acumulado neste changelog), e o `Extract-Changelog.ps1` agora pode extrair a seção de uma versão lançada via `-Version` — antes o workflow de release lia a `[Unreleased]` depois que ela já havia sido esvaziada, então as notas de release só funcionavam por acidente
+- **Spotlight preso no último painel tmux após desanexar**: Desanexar do tmux (ou sair dele) dentro do WSL deixava o spotlight encolhido no último painel focado em vez de voltar a cobrir a janela inteira do terminal. O hook `client-detached` consultava o tty do cliente depois que o cliente já havia desaparecido, então a mensagem de limpeza nunca era enviada; o hook agora passa o tty do cliente que está desanexando explicitamente (`#{hook_client}`)
 
 ## [0.8.12] - 2025-11-11
 

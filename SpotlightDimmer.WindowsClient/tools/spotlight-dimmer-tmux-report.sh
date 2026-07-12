@@ -25,7 +25,11 @@
 set -u
 
 mode=update
-[ "${1:-}" = "--clear" ] && mode=clear
+clear_tty=""
+if [ "${1:-}" = "--clear" ]; then
+    mode=clear
+    clear_tty="${2:-}"
+fi
 
 # ----------------------------------------------------------------------------
 # Locate SpotlightDimmer.PaneReport.exe
@@ -64,6 +68,19 @@ find_exe() {
 exe="$(find_exe)" || exit 0
 
 # ----------------------------------------------------------------------------
+# Clear: sent from the client-detached hook, where the client is already gone
+# and cannot be queried - its tty arrives as a hook-expanded argument instead.
+# The query fallback covers manual invocations from inside a live client.
+# ----------------------------------------------------------------------------
+if [ "$mode" = "clear" ]; then
+    tty="$clear_tty"
+    [ -n "$tty" ] || tty="$(tmux display-message -p '#{client_tty}' 2>/dev/null)"
+    [ -n "$tty" ] || exit 0
+    "$exe" "v1|clear|tty=$tty" >/dev/null 2>&1 || true
+    exit 0
+fi
+
+# ----------------------------------------------------------------------------
 # Gather geometry - everything needed in a single tmux call
 # ----------------------------------------------------------------------------
 info="$(tmux display-message -p '#{pane_left}|#{pane_top}|#{pane_width}|#{pane_height}|#{client_width}|#{client_height}|#{status}|#{status-position}|#{client_tty}|#{session_id}' 2>/dev/null)" || exit 0
@@ -72,11 +89,6 @@ IFS='|' read -r pane_left pane_top pane_width pane_height client_width client_he
 
 # Without a client (detached context) there is nothing useful to report.
 [ -n "${tty:-}" ] || exit 0
-
-if [ "$mode" = "clear" ]; then
-    "$exe" "v1|clear|tty=$tty" >/dev/null 2>&1 || true
-    exit 0
-fi
 
 [ "${pane_width:-0}" -gt 0 ] 2>/dev/null || exit 0
 [ "${client_width:-0}" -gt 0 ] 2>/dev/null || exit 0

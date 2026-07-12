@@ -120,7 +120,28 @@ below are only needed for tmux-in-WSL.
 
 ### 2. Install the WSL-side tools (tmux only)
 
-The installer ships the tools in `<install dir>\tools`
+**Recommended: one command from PowerShell.** The
+`Install-WslTmuxIntegration.ps1` script performs steps 2 and 3 in one go —
+it copies the tools into the distro, normalizes line endings, records the
+`SpotlightDimmer.PaneReport.exe` location for the report script, wires
+`~/.tmux.conf` idempotently (re-running never duplicates the line), reloads a
+running tmux server, and smoke-tests the forwarder through WSL interop:
+
+```powershell
+# Installed copy (default per-user install):
+& "$env:LOCALAPPDATA\Programs\Spotlight Dimmer\tools\Install-WslTmuxIntegration.ps1"
+
+# Or from a repository checkout (also finds dev build outputs):
+.\SpotlightDimmer.Scripts\Install-WslTmuxIntegration.ps1
+```
+
+Options: `-Distribution <name>` targets a specific WSL distro,
+`-PaneReportExePath`/`-ToolsSourceDir` override the automatic probing, and
+`-SkipTmuxConf` leaves `~/.tmux.conf` untouched. Re-run the script after
+moving the exe (e.g. after installing a release over a dev build) — it
+refreshes the recorded path.
+
+**Manual alternative.** The installer ships the tools in `<install dir>\tools`
 (`%LOCALAPPDATA%\Programs\Spotlight Dimmer\tools` for a default per-user
 install). From inside WSL:
 
@@ -259,15 +280,32 @@ Validated on Windows 11 with Windows Terminal:
 - [x] Transient `accLocation` failure right after `split-pane` (handled via
       debounce re-probe)
 
-Still needing validation on a machine with the full environment (this
-machine had no WSL):
+Validated on Windows 11 with Windows Terminal + WSL2 (Ubuntu 26.04,
+tmux 3.6):
 
-- [ ] ConPTY reports `client_cell_width` = 0 inside WSL2 (design assumes it;
-      if it ever reports real values the cell math is unaffected)
-- [ ] `WT_SESSION` visibility inside WSL2 on current Windows Terminal releases
-- [ ] End-to-end tmux hook latency through WSL interop (budget: < ~100 ms
-      perceived)
-- [ ] `client-detached` hook delivering the clear message with the detached
-      client's tty
+- [x] tmux hook → report script → PaneReport.exe (WSL interop) → named pipe →
+      overlay chain end-to-end: split, pane switch, zoom/unzoom, and resize
+      all move the spotlight to the focused pane's pixel rect
+- [x] `WT_SESSION` is visible inside WSL2 on current Windows Terminal
+      releases (WT injects it into `WSLENV` itself)
+- [x] End-to-end tmux hook latency through WSL interop: ~165 ms from tmux
+      command to report received with a non-AOT (JIT) debug build of
+      PaneReport.exe; the AOT release exe is faster. Perceptually fine.
+- [x] `client-detached` clear delivers the detached client's tty — via
+      `#{hook_client}` in the hook (`#{client_tty}` expands empty because the
+      client is already gone when the hook runs; this was a bug found and
+      fixed during validation)
+- [x] ConPTY cell size inside WSL2: contrary to the original design
+      assumption, tmux 3.6 reports real values (`client_cell_width` = 10,
+      `client_cell_height` = 20), not 0. The cell math never uses them, so
+      behavior is unaffected either way; the cells-based wire protocol stays.
+
+Still needing validation (no WezTerm on the validation machine):
+
 - [ ] WezTerm-on-Windows: `wezterm cli list` reporting non-zero
       `pixel_width`/`pixel_height`, and `WEZTERM_PANE` propagation via `WSLENV`
+
+Known limitation: a report whose clear is never delivered (tmux server
+killed, WSL VM torn down, terminal crash) lingers and keeps shrinking the
+spotlight of the matched terminal. Detach/attach any tmux client or touch
+`config.json` (a config reload clears all stored reports) to recover.
