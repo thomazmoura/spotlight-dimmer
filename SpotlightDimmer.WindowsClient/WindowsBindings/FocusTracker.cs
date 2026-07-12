@@ -33,6 +33,15 @@ internal class FocusTracker : IDisposable
     /// </summary>
     public event Action<int, Core.Rectangle>? WindowPositionChanged;
 
+    /// <summary>
+    /// Fired when the foreground window itself changes (not on mere movement).
+    /// Provides: (hwnd, processId, processName). Used by the terminal pane
+    /// tracker to match the focused app against AppIntegrations.
+    /// </summary>
+    public event Action<IntPtr, uint, string?>? ForegroundWindowChanged;
+
+    private IntPtr _lastNotifiedForegroundWindow = IntPtr.Zero;
+
     public int CurrentFocusedDisplayIndex => _focusChangeHandler.CurrentFocusedDisplayIndex;
     public Core.Rectangle? CurrentWindowRect => _focusChangeHandler.CurrentWindowRect;
     public bool HasFocus => _focusChangeHandler.HasFocus;
@@ -203,7 +212,15 @@ internal class FocusTracker : IDisposable
 
         var focusedDisplayIndex = _monitorManager.GetDisplayIndexForWindow(foregroundWindow);
 
-        string? processName = WinApi.GetProcessName(foregroundWindow) ?? "unknown";
+        string? processName = WinApi.GetProcessName(foregroundWindow, out var processId) ?? "unknown";
+
+        // Notify pane tracking before the focus result is processed, so the
+        // integration match is current when overlay updates run below.
+        if (foregroundWindow != _lastNotifiedForegroundWindow)
+        {
+            _lastNotifiedForegroundWindow = foregroundWindow;
+            ForegroundWindowChanged?.Invoke(foregroundWindow, processId, processName);
+        }
 
         // CRITICAL: For UWP apps (ApplicationFrameHost), get the actual content window
         // The foreground window is just the frame - the content is in a child window

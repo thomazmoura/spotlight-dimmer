@@ -121,6 +121,44 @@ public class OverlayConfig
 }
 
 /// <summary>
+/// Configuration for a per-application integration that lets the spotlight
+/// shrink from the whole window to an inner region (e.g. a terminal pane).
+/// Matched against the focused window's process name.
+/// </summary>
+public class AppIntegration
+{
+    /// <summary>
+    /// Process executable name to match, including extension (e.g. "WindowsTerminal.exe").
+    /// Matching is case-insensitive. Entries with an empty ProcessName are ignored.
+    /// </summary>
+    public string ProcessName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Integration provider that resolves the inner region:
+    /// - "windows-terminal": Focused Windows Terminal pane via accessibility, with optional
+    ///   tmux pane sub-resolution when pane reports are received.
+    /// - "wezterm": Focused WezTerm pane via the `wezterm cli`, with optional tmux pane
+    ///   sub-resolution joined through the WEZTERM_PANE environment variable.
+    /// - "tmux": Generic terminal running tmux full-window; the tmux pane grid is mapped
+    ///   over the window's content area directly.
+    /// Default: "tmux"
+    /// </summary>
+    public string Provider { get; set; } = "tmux";
+
+    /// <summary>
+    /// Pixels from the matched content area's left edge to the terminal cell grid
+    /// (window padding). Default: 0
+    /// </summary>
+    public int ContentOffsetX { get; set; } = 0;
+
+    /// <summary>
+    /// Pixels from the matched content area's top edge to the terminal cell grid
+    /// (window padding plus tab bar height, if any). Default: 0
+    /// </summary>
+    public int ContentOffsetY { get; set; } = 0;
+}
+
+/// <summary>
 /// Application configuration that can be serialized to/from JSON.
 /// This represents the user-facing configuration structure.
 /// </summary>
@@ -182,6 +220,36 @@ public class AppConfig
     /// The name of the currently active profile, or null if none/custom.
     /// </summary>
     public string? CurrentProfile { get; set; } = null;
+
+    /// <summary>
+    /// Per-application integrations that let the spotlight target an inner region
+    /// of the focused window (e.g. a terminal pane) instead of the whole window.
+    /// Empty by default; configured via JSON only (not yet editable in the Config GUI).
+    /// </summary>
+    public List<AppIntegration> AppIntegrations { get; set; } = new();
+
+    /// <summary>
+    /// Finds the first integration whose ProcessName matches the given process name
+    /// (case-insensitive). Entries with an empty ProcessName are skipped.
+    /// </summary>
+    /// <param name="processName">The focused window's process name (e.g. "WindowsTerminal.exe").</param>
+    /// <returns>The matching integration, or null when none matches.</returns>
+    public AppIntegration? MatchIntegration(string? processName)
+    {
+        if (string.IsNullOrEmpty(processName))
+            return null;
+
+        foreach (var integration in AppIntegrations)
+        {
+            if (!string.IsNullOrEmpty(integration.ProcessName) &&
+                string.Equals(integration.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
+            {
+                return integration;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Converts this AppConfig to an OverlayCalculationConfig.

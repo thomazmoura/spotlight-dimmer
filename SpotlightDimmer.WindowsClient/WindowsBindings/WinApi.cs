@@ -75,7 +75,9 @@ internal static partial class WinApi
 
     // Windows Event Hook constants
     public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    public const uint EVENT_OBJECT_FOCUS = 0x8005;
     public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+    public const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
     public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
     public const uint WINEVENT_SKIPOWNPROCESS = 0x0002;
 
@@ -546,6 +548,29 @@ internal static partial class WinApi
     [LibraryImport("user32.dll", SetLastError = true)]
     public static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    /// <summary>
+    /// GUI state of a thread (focused window, active window, caret, ...).
+    /// Used to discover the terminal's focused control when the pane tracker
+    /// arms its hooks after the focus event already fired.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct GUITHREADINFO
+    {
+        public int cbSize;
+        public uint flags;
+        public IntPtr hwndActive;
+        public IntPtr hwndFocus;
+        public IntPtr hwndCapture;
+        public IntPtr hwndMenuOwner;
+        public IntPtr hwndMoveSize;
+        public IntPtr hwndCaret;
+        public RECT rcCaret;
+    }
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetGUIThreadInfo(uint idThread, ref GUITHREADINFO lpgui);
+
     [LibraryImport("kernel32.dll", SetLastError = true)]
     public static partial IntPtr OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
 
@@ -589,6 +614,10 @@ internal static partial class WinApi
 
     // Custom message for application reset (renderer/display changes)
     public const uint WM_APP_RESET = WM_TRAYICON + 1; // 0x8001
+
+    // Custom message posted by the pane report pipe server to marshal reports
+    // onto the main thread (see PaneTrackerPipeServer/TerminalPaneTracker)
+    public const uint WM_APP_PANE_REPORT = WM_TRAYICON + 2; // 0x8002
 
     // Mouse messages for tray icon
     public const uint WM_LBUTTONDOWN = 0x0201;
@@ -695,10 +724,19 @@ internal static partial class WinApi
     /// </summary>
     public static string? GetProcessName(IntPtr hWnd)
     {
+        return GetProcessName(hWnd, out _);
+    }
+
+    /// <summary>
+    /// Gets the process name (executable file name) and process id for a window.
+    /// Returns null (and processId 0) if unable to get the process name.
+    /// </summary>
+    public static string? GetProcessName(IntPtr hWnd, out uint processId)
+    {
+        processId = 0;
         try
         {
             // Get process ID
-            uint processId;
             GetWindowThreadProcessId(hWnd, out processId);
             if (processId == 0)
                 return null;

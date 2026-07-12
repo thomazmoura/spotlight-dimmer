@@ -121,6 +121,17 @@ var cachedConfig = configManager.Current.ToOverlayConfig();
 // so we need to retry checking the count at intervals
 var currentDisplayCount = cachedDisplays.Length;
 
+// Terminal pane tracking: lets the spotlight shrink to a terminal pane
+// (Windows Terminal pane, tmux pane in WSL, wezterm pane) when the focused
+// process matches a configured AppIntegration. See docs/WINDOWS_TERMINAL_INTEGRATION.md.
+var paneReportPipeServer = new PaneTrackerPipeServer(LoggingConfiguration.GetLogger<PaneTrackerPipeServer>());
+var weztermCliClient = new WeztermCliClient(LoggingConfiguration.GetLogger<WeztermCliClient>());
+var paneTracker = new TerminalPaneTracker(
+    configManager.Current,
+    paneReportPipeServer,
+    weztermCliClient,
+    LoggingConfiguration.GetLogger<TerminalPaneTracker>());
+
 // Helper function to update overlays (zero allocations - uses cached values)
 void UpdateOverlays(int displayIndex, Rectangle windowBounds)
 {
@@ -128,7 +139,14 @@ void UpdateOverlays(int displayIndex, Rectangle windowBounds)
     if (systemTray.IsPaused)
         return;
 
-    appState.Calculate(cachedDisplays, windowBounds, displayIndex, cachedConfig);
+    // When a terminal pane is resolved, it substitutes the window bounds in
+    // the overlay math (mirrors the Linux daemon's inner_rect substitution).
+    // Pure struct math over cached state - no allocations on the drag path.
+    var bounds = paneTracker.TryResolveInnerRect(windowBounds, out var innerRect)
+        ? innerRect
+        : windowBounds;
+
+    appState.Calculate(cachedDisplays, bounds, displayIndex, cachedConfig);
     renderer.UpdateOverlays(appState.DisplayStates);
 }
 
@@ -140,6 +158,18 @@ var focusChangeHandler = new FocusChangeHandler(overlayUpdateService);
 
 // Create focus tracker with the handler
 var focusTracker = new FocusTracker(monitorManager, focusChangeHandler, focusTrackerLogger);
+
+// Wire pane tracking into the focus pipeline
+focusTracker.ForegroundWindowChanged += (hwnd, pid, processName) =>
+    paneTracker.SetFocusedWindow(hwnd, pid, processName);
+
+paneTracker.PaneStateChanged += () =>
+{
+    if (focusTracker.HasFocus && focusTracker.CurrentWindowRect.HasValue)
+    {
+        UpdateOverlays(focusTracker.CurrentFocusedDisplayIndex, focusTracker.CurrentWindowRect.Value);
+    }
+};
 
 // ========================================================================
 // System Tray Event Handlers
@@ -406,6 +436,9 @@ configManager.ConfigurationChanged += (newAppConfig) =>
     // Update cached config when configuration changes
     cachedConfig = newAppConfig.ToOverlayConfig();
 
+    // Re-match the focused window against the (possibly changed) AppIntegrations
+    paneTracker.OnConfigChanged(newAppConfig);
+
     // Reconfigure logging if logging settings changed
     LoggingConfiguration.Reconfigure(newAppConfig);
 
@@ -473,6 +506,7 @@ displayChangeMonitor.CheckDisplaysRequested += () =>
 };
 
 // Start tracking
+paneTracker.Start();
 focusTracker.Start();
 
 logger.LogInformation("SpotlightDimmer is running");
@@ -633,6 +667,8 @@ finally
 
     systemTray.Dispose();
     focusTracker.Dispose();
+    paneTracker.Dispose();
+    paneReportPipeServer.Dispose();
     displayChangeMonitor.Dispose();
     renderer.Dispose();
     configManager.Dispose();

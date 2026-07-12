@@ -48,6 +48,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; Main executables from x64 publish directory
 Source: "publish\x64\SpotlightDimmer.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "publish\x64\SpotlightDimmer.Config.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "publish\x64\SpotlightDimmer.PaneReport.exe"; DestDir: "{app}"; Flags: ignoreversion
+
+; tmux/WSL integration tools (copied by the user into WSL; see docs)
+Source: "SpotlightDimmer.WindowsClient\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion
 
 ; Icon files (required at runtime)
 Source: "spotlight-dimmer-icon.ico"; DestDir: "{app}"; Flags: ignoreversion

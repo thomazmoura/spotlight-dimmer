@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer.WindowsClie
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer.Tests", "SpotlightDimmer.Tests\SpotlightDimmer.Tests.csproj", "{CAAFA213-FE99-4E41-8FD6-2215983D1680}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpotlightDimmer.PaneReport", "SpotlightDimmer.PaneReport\SpotlightDimmer.PaneReport.csproj", "{335A9202-0147-4AF9-BB77-394F3323335C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{CAAFA213-FE99-4E41-8FD6-2215983D1680}.Release|x64.Build.0 = Release|Any CPU
 		{CAAFA213-FE99-4E41-8FD6-2215983D1680}.Release|x86.ActiveCfg = Release|Any CPU
 		{CAAFA213-FE99-4E41-8FD6-2215983D1680}.Release|x86.Build.0 = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|x64.Build.0 = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Debug|x86.Build.0 = Debug|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|x64.ActiveCfg = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|x64.Build.0 = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|x86.ActiveCfg = Release|Any CPU
+		{335A9202-0147-4AF9-BB77-394F3323335C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

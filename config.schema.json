@@ -34,6 +34,13 @@
         "string"
       ],
       "description": "The name of the currently active profile, or null if using custom settings"
+    },
+    "AppIntegrations": {
+      "type": "array",
+      "description": "Per-application integrations that let the spotlight target an inner region of the focused window (e.g. a terminal pane) instead of the whole window",
+      "items": {
+        "$ref": "#/definitions/AppIntegration"
+      }
     }
   },
   "definitions": {
@@ -117,6 +124,31 @@
         },
         "ActiveOpacity": {
           "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "AppIntegration": {
+      "type": "object",
+      "description": "A per-application integration matched against the focused window's process name",
+      "additionalProperties": false,
+      "properties": {
+        "ProcessName": {
+          "type": "string",
+          "description": "Process executable name to match, including extension (e.g. 'WindowsTerminal.exe'). Case-insensitive."
+        },
+        "Provider": {
+          "type": "string",
+          "description": "Integration provider: 'windows-terminal' (focused WT pane via accessibility, with optional tmux sub-resolution), 'wezterm' (focused WezTerm pane via the wezterm CLI, with optional tmux sub-resolution), or 'tmux' (generic terminal running tmux full-window). Default: 'tmux'"
+        },
+        "ContentOffsetX": {
+          "type": "integer",
+          "description": "Pixels from the matched content area's left edge to the terminal cell grid (window padding). Default: 0",
+          "format": "int32"
+        },
+        "ContentOffsetY": {
+          "type": "integer",
+          "description": "Pixels from the matched content area's top edge to the terminal cell grid (padding plus tab bar height, if any). Default: 0",
           "format": "int32"
         }
       }

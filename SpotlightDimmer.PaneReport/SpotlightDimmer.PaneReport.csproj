@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SpotlightDimmer.PaneReport</AssemblyName>
+
+    <!-- AOT and Self-Contained Configuration: this exe is invoked from WSL
+         via Windows interop on every tmux hook, so startup time matters.
+         AOT + no dependencies keeps invocations in the tens of milliseconds. -->
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+
+    <!-- Optimization -->
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+  </PropertyGroup>
+
+</Project>

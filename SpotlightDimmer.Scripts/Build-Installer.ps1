@@ -84,6 +84,14 @@ try {
         exit $LASTEXITCODE
     }
 
+    # Step 4b: Build SpotlightDimmer.PaneReport with Native AOT (tmux/WSL integration helper)
+    Write-Host "`n==> Building SpotlightDimmer.PaneReport (Native AOT)..." -ForegroundColor Cyan
+    dotnet publish SpotlightDimmer.PaneReport/SpotlightDimmer.PaneReport.csproj -c Release -r win-x64 -o publish
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to build SpotlightDimmer.PaneReport"
+        exit $LASTEXITCODE
+    }
+
     # Step 5: Verify build outputs
     Write-Host "`n==> Verifying build outputs..." -ForegroundColor Cyan
     Write-Host "    Contents of publish/:" -ForegroundColor Gray
@@ -100,7 +108,11 @@ try {
         Write-Error "SpotlightDimmer.Config.exe not found in publish/"
         exit 1
     }
-    Write-Host "`n    ✓ Both executables built successfully" -ForegroundColor Green
+    if (-not (Test-Path "publish/SpotlightDimmer.PaneReport.exe")) {
+        Write-Error "SpotlightDimmer.PaneReport.exe not found in publish/"
+        exit 1
+    }
+    Write-Host "`n    ✓ All executables built successfully" -ForegroundColor Green
 
     # Step 6: Verify required icon files exist
     Write-Host "`n==> Verifying icon files..." -ForegroundColor Cyan

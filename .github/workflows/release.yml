@@ -55,11 +55,17 @@ jobs:
       - name: Build x64 - SpotlightDimmer.Config with AOT
         run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-x64 -o publish/x64
 
+      - name: Build x64 - SpotlightDimmer.PaneReport with AOT
+        run: dotnet publish SpotlightDimmer.PaneReport/SpotlightDimmer.PaneReport.csproj -c Release -r win-x64 -o publish/x64
+
       - name: Build ARM64 - SpotlightDimmer.WindowsClient with AOT
         run: dotnet publish SpotlightDimmer.WindowsClient/SpotlightDimmer.WindowsClient.csproj -c Release -r win-arm64 -o publish/arm64
 
       - name: Build ARM64 - SpotlightDimmer.Config with AOT
         run: dotnet publish SpotlightDimmer.Config/SpotlightDimmer.Config.csproj -c Release -r win-arm64 -o publish/arm64
+
+      - name: Build ARM64 - SpotlightDimmer.PaneReport with AOT
+        run: dotnet publish SpotlightDimmer.PaneReport/SpotlightDimmer.PaneReport.csproj -c Release -r win-arm64 -o publish/arm64
 
       - name: Verify build outputs
         shell: pwsh
@@ -77,6 +83,11 @@ jobs:
             exit 1
           }
 
+          if (-not (Test-Path "publish/x64/SpotlightDimmer.PaneReport.exe")) {
+            Write-Host "::error::x64 SpotlightDimmer.PaneReport.exe not found!"
+            exit 1
+          }
+
           Write-Host "✓ x64 executables built successfully"
 
           Write-Host "`nChecking ARM64 build outputs:"
@@ -89,6 +100,11 @@ jobs:
 
           if (-not (Test-Path "publish/arm64/SpotlightDimmer.Config.exe")) {
             Write-Host "::error::ARM64 SpotlightDimmer.Config.exe not found!"
+            exit 1
+          }
+
+          if (-not (Test-Path "publish/arm64/SpotlightDimmer.PaneReport.exe")) {
+            Write-Host "::error::ARM64 SpotlightDimmer.PaneReport.exe not found!"
             exit 1
           }
 

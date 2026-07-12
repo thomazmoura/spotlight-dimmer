@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Terminal pane spotlight (Windows Terminal, tmux in WSL2, WezTerm)**: When the focused window is a configured terminal, the spotlight now shrinks from the whole window to the focused pane — native Windows Terminal splits (Alt+Shift+D), tmux panes running inside WSL2, and WezTerm panes are all supported. Configure via the new `AppIntegrations` section in `config.json` (JSON-only for now — not yet editable in the Config GUI; see `docs/WINDOWS_TERMINAL_INTEGRATION.md`). Whenever pane information is unavailable, the normal whole-window spotlight is used, so nothing changes unless you opt in
+- **`SpotlightDimmer.PaneReport.exe` helper**: A tiny AOT-compiled forwarder that tmux hooks inside WSL invoke to report pane geometry to the running app over a named pipe. Ships with the installer together with the WSL-side tools (`tools\spotlight-dimmer-tmux-report.sh` and `tools\spotlight-dimmer.tmux.conf`)
+
 ### Changed
 - **Windows releases now use `vX.Y.Z-windows` tags**: Windows and Linux are now released and versioned independently. Linux changes moved to the new `CHANGELOG.linux.md`, and Linux releases use `vX.Y.Z-linux` tags with their own version numbers. No action is needed for existing installs; winget updates keep working
 
@@ -14,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release changelog tooling**: `Move-UnreleasedToVersion.ps1` no longer duplicates the old `[Unreleased]` section on every release (the cause of a stale duplicate block that had accumulated in this changelog), and `Extract-Changelog.ps1` can now extract a released version's section via `-Version` — previously the release workflow read `[Unreleased]` after it had already been emptied, so release notes only worked by accident
 
 ---
+
+### Adicionado
+- **Spotlight de painel de terminal (Windows Terminal, tmux no WSL2, WezTerm)**: Quando a janela focada é um terminal configurado, o spotlight agora encolhe da janela inteira para o painel focado — divisões nativas do Windows Terminal (Alt+Shift+D), painéis tmux rodando dentro do WSL2 e painéis do WezTerm são todos suportados. Configure através da nova seção `AppIntegrations` no `config.json` (apenas JSON por enquanto — ainda não editável na interface de configuração; veja `docs/WINDOWS_TERMINAL_INTEGRATION.md`). Sempre que a informação do painel não estiver disponível, o spotlight normal de janela inteira é usado, então nada muda a menos que você opte por ativar
+- **Utilitário `SpotlightDimmer.PaneReport.exe`**: Um pequeno encaminhador compilado com AOT que os hooks do tmux dentro do WSL invocam para reportar a geometria do painel ao aplicativo em execução através de um named pipe. Distribuído com o instalador junto com as ferramentas do lado WSL (`tools\spotlight-dimmer-tmux-report.sh` e `tools\spotlight-dimmer.tmux.conf`)
 
 ### Alterado
 - **Releases do Windows agora usam tags `vX.Y.Z-windows`**: Windows e Linux agora são lançados e versionados de forma independente. As mudanças do Linux foram movidas para o novo `CHANGELOG.linux.md`, e os releases Linux usam tags `vX.Y.Z-linux` com numeração de versão própria. Nenhuma ação é necessária para instalações existentes; atualizações via winget continuam funcionando

@@ -12,6 +12,8 @@ namespace SpotlightDimmer.Core;
 [JsonSerializable(typeof(OverlayConfig))]
 [JsonSerializable(typeof(SystemConfig))]
 [JsonSerializable(typeof(Profile))]
+[JsonSerializable(typeof(AppIntegration))]
+[JsonSerializable(typeof(List<AppIntegration>))]
 internal partial class AppConfigJsonContext : JsonSerializerContext
 {
 }

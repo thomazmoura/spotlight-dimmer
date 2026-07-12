@@ -257,13 +257,58 @@ Number of days to keep old log files before automatic deletion.
 - Range: `1` to `365`
 - **Default**: `7`
 
-## App Integrations (Linux/GNOME only)
+## App Integrations
 
-The GNOME Shell extension supports an optional top-level `AppIntegrations`
-section that enables highlighting a region *inside* the focused window for
-specific applications. The first provider is `tmux`: when the focused window
-is a configured terminal running tmux, the spotlight targets the focused tmux
-pane instead of the whole window.
+Both platforms support an optional top-level `AppIntegrations` section that
+enables highlighting a region *inside* the focused window for specific
+applications — typically the focused **terminal pane** instead of the whole
+terminal window.
+
+### Windows
+
+The Windows client matches integrations by **process name** and supports three
+providers. This section is JSON-only for now (not yet editable in the Config
+GUI).
+
+```json
+{
+  "Overlay": { "Mode": "PartialWithActive" },
+  "AppIntegrations": [
+    {
+      "ProcessName": "WindowsTerminal.exe",
+      "Provider": "windows-terminal",
+      "ContentOffsetX": 8,
+      "ContentOffsetY": 8
+    },
+    {
+      "ProcessName": "wezterm-gui.exe",
+      "Provider": "wezterm"
+    }
+  ]
+}
+```
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `ProcessName` | string | (required) | Executable name to match, e.g. `"WindowsTerminal.exe"` (case-insensitive) |
+| `Provider` | string | `"tmux"` | `"windows-terminal"`, `"wezterm"`, or `"tmux"` (generic) |
+| `ContentOffsetX` | integer | `0` | Pixels of padding from the content area's left/right/bottom edges to the terminal cell grid |
+| `ContentOffsetY` | integer | `0` | Pixels from the content area's top edge to the cell grid (padding + tab bar) |
+
+Providers:
+- **`windows-terminal`**: spotlights the focused native Windows Terminal pane
+  (Alt+Shift+D splits). When the pane runs tmux inside WSL, the spotlight
+  shrinks further to the focused tmux pane (requires the tmux hooks setup).
+- **`wezterm`**: spotlights the focused WezTerm pane via the `wezterm` CLI,
+  with the same optional tmux-in-WSL sub-resolution.
+- **`tmux`**: generic provider for any other terminal running tmux full-window.
+
+See [docs/WINDOWS_TERMINAL_INTEGRATION.md](docs/WINDOWS_TERMINAL_INTEGRATION.md)
+for the full guide, including the WSL/tmux hook setup.
+
+### Linux (GNOME/KDE)
+
+The Linux daemon matches integrations by **window class**:
 
 ```json
 {
@@ -286,8 +331,7 @@ pane instead of the whole window.
 | `ContentOffsetX` | integer | `0` | Pixels from window left edge to the terminal cell grid |
 | `ContentOffsetY` | integer | `0` | Pixels from window top edge to the terminal cell grid |
 
-This section is ignored by the Windows client. It also requires tmux-side
-setup (hooks + helper script) — see
+It also requires tmux-side setup (hooks + helper script) — see
 [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full guide.
 
 ## Hot-Reload Behavior

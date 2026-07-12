@@ -162,6 +162,39 @@ class Program
         {
             currentProfileProp.Description = "The name of the currently active profile, or null if using custom settings";
         }
+
+        // Customize AppIntegrations array
+        if (schema.Properties.TryGetValue("AppIntegrations", out var appIntegrationsProperty))
+        {
+            appIntegrationsProperty.Description = "Per-application integrations that let the spotlight target an inner region of the focused window (e.g. a terminal pane) instead of the whole window";
+
+            var appIntegrationsSchema = appIntegrationsProperty.ActualSchema;
+            if (appIntegrationsSchema.Item != null)
+            {
+                var integrationSchema = appIntegrationsSchema.Item.ActualSchema;
+                integrationSchema.Description = "A per-application integration matched against the focused window's process name";
+
+                if (integrationSchema.Properties.TryGetValue("ProcessName", out var processNameProp))
+                {
+                    processNameProp.Description = "Process executable name to match, including extension (e.g. 'WindowsTerminal.exe'). Case-insensitive.";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("Provider", out var providerProp))
+                {
+                    providerProp.Description = "Integration provider: 'windows-terminal' (focused WT pane via accessibility, with optional tmux sub-resolution), 'wezterm' (focused WezTerm pane via the wezterm CLI, with optional tmux sub-resolution), or 'tmux' (generic terminal running tmux full-window). Default: 'tmux'";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("ContentOffsetX", out var offsetXProp))
+                {
+                    offsetXProp.Description = "Pixels from the matched content area's left edge to the terminal cell grid (window padding). Default: 0";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("ContentOffsetY", out var offsetYProp))
+                {
+                    offsetYProp.Description = "Pixels from the matched content area's top edge to the terminal cell grid (padding plus tab bar height, if any). Default: 0";
+                }
+            }
+        }
     }
 
     /// <summary>

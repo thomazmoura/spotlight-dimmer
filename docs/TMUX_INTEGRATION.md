@@ -8,7 +8,8 @@ rest of the display are all dimmed. Whenever pane information is unavailable,
 SpotlightDimmer automatically falls back to the normal whole-window spotlight.
 
 > **Platform**: Linux (GNOME and KDE Plasma via the shared daemon — see
-> `docs/LINUX_DAEMON.md`). The Windows client does not support app integrations yet.
+> `docs/LINUX_DAEMON.md`). For the Windows equivalent (Windows Terminal panes,
+> tmux in WSL2, WezTerm) see `docs/WINDOWS_TERMINAL_INTEGRATION.md`.
 
 ## How It Works
 
