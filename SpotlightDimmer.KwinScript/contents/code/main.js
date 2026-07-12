@@ -25,6 +25,10 @@ const ADAPTER_IFACE = "org.spotlightdimmer.Adapter1";
 let trackedWindow = null;
 let trackedHandlers = null;
 
+// Daemon protocol version from RegisterAdapter. Assume v1 until the reply
+// arrives so an old daemon never receives the v2 methods it doesn't export.
+let daemonProtocol = 1;
+
 function adapterCall(method, ...args) {
     try {
         callDBus(SERVICE, OBJECT_PATH, ADAPTER_IFACE, method, ...args);
@@ -80,6 +84,16 @@ function sendFocus(window) {
     }
 
     const frame = roundRect(window.frameGeometry);
+    if (daemonProtocol >= 2) {
+        adapterCall(
+            "FocusChanged2",
+            window.resourceClass ?? "",
+            window.caption ?? "",
+            JSON.stringify(windowRects(window, frame))
+        );
+        return;
+    }
+
     adapterCall(
         "FocusChanged",
         window.resourceClass ?? "",
@@ -90,7 +104,28 @@ function sendFocus(window) {
 
 function sendGeometry(window) {
     const frame = roundRect(window.frameGeometry);
+    if (daemonProtocol >= 2) {
+        adapterCall("GeometryChanged2", JSON.stringify(windowRects(window, frame)));
+        return;
+    }
+
     adapterCall("GeometryChanged", frame.x, frame.y, frame.width, frame.height);
+}
+
+/**
+ * The FocusChanged2/GeometryChanged2 payload. JSON like UpdateMonitors:
+ * KWin's callDBus cannot marshal nested structs and silently truncates calls
+ * with more than 9 arguments ("Too many arguments, ignoring N").
+ *
+ * clientGeometry excludes server-side decorations, so the daemon can anchor
+ * inner-pane (tmux) highlights to the window content in both windowed and
+ * maximized states. Equals frameGeometry for CSD windows.
+ */
+function windowRects(window, frame) {
+    return {
+        frame,
+        client: roundRect(window.clientGeometry),
+    };
 }
 
 /**
@@ -143,6 +178,7 @@ function register() {
             "RegisterAdapter", "kwin", {},
             (protocolVersion) => {
                 print(`SpotlightDimmer: registered with daemon (protocol v${protocolVersion})`);
+                daemonProtocol = protocolVersion;
                 sendMonitors();
                 const active = workspace.activeWindow;
                 trackWindow(active);

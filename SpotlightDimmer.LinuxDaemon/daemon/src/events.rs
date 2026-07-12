@@ -32,6 +32,9 @@ pub enum Event {
         wm_class: String,
         title: String,
         frame: Rect,
+        /// Client-area rect (decorations excluded); `None` from protocol v1
+        /// adapters.
+        client: Option<Rect>,
     },
     FocusCleared {
         sender: String,
@@ -39,6 +42,7 @@ pub enum Event {
     GeometryChanged {
         sender: String,
         frame: Rect,
+        client: Option<Rect>,
     },
     /// The focused window's title changed (tmux attach/detach and wezterm tab
     /// switches change the title without any focus/geometry event).

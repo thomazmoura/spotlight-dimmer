@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- tmux pane highlight misaligned in windowed mode: The highlight over the focused tmux pane was offset when the terminal (e.g. WezTerm) ran as a regular window, while aligning correctly when maximized. The compositor adapters (KWin script and GNOME extension) now report the window's content area separately from its decorated frame, so title bars and borders no longer skew the highlight — the same configuration works in windowed, maximized and fullscreen states
+
+### Changed
+- `ContentOffsetX`/`ContentOffsetY` are now measured from the window's content area (decorations excluded) instead of the decorated frame: If you previously added your title bar height or border width to these values to compensate, remove that compensation — only your terminal's internal chrome (padding, tab bar) belongs there. The adapter protocol was bumped to v2; older adapters keep working with the previous frame-based behavior
+
+---
+
+### Corrigido
+- Destaque do painel do tmux desalinhado em modo janela: O destaque sobre o painel do tmux em foco ficava deslocado quando o terminal (por exemplo, WezTerm) rodava como uma janela comum, embora alinhasse corretamente quando maximizado. Os adaptadores de compositor (script do KWin e extensão do GNOME) agora reportam a área de conteúdo da janela separadamente da moldura decorada, então barras de título e bordas não deslocam mais o destaque — a mesma configuração funciona nos estados janela, maximizado e tela cheia
+
+### Alterado
+- `ContentOffsetX`/`ContentOffsetY` agora são medidos a partir da área de conteúdo da janela (excluindo decorações) em vez da moldura decorada: Se você antes adicionava a altura da barra de título ou a largura das bordas a esses valores para compensar, remova essa compensação — apenas o chrome interno do seu terminal (padding, barra de abas) pertence a esses valores. O protocolo do adaptador foi elevado para v2; adaptadores antigos continuam funcionando com o comportamento anterior baseado na moldura
+
 ## [0.2.1] - 2026-07-08
 
 ### Fixed

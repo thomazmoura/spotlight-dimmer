@@ -111,6 +111,7 @@ impl IntegrationState {
 
         pane::pane_rect(
             &focus.frame,
+            focus.client.as_ref(),
             (integration.content_offset_x, integration.content_offset_y),
             (active_pane.offset_x, active_pane.offset_y),
             pane_data,

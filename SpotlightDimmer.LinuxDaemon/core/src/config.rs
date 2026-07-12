@@ -65,8 +65,10 @@ pub struct AppIntegration {
     pub wm_class: String,
     /// Currently only "tmux" is meaningful.
     pub provider: String,
-    /// Pixel offset from the window frame origin to the terminal content
-    /// origin (window decorations, tab bar, padding).
+    /// Pixel offset from the window client-area origin (decorations
+    /// excluded) to the terminal cell grid: tab bar, window padding. Window
+    /// decorations are reported separately by the adapter (protocol v2) and
+    /// must not be folded in here.
     pub content_offset_x: i32,
     pub content_offset_y: i32,
 }

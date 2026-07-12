@@ -33,6 +33,10 @@ pub struct Focus {
     pub wm_class: String,
     pub title: String,
     pub frame: Rect,
+    /// Client-area rect (decorations excluded); `None` when the adapter
+    /// doesn't report one (protocol v1). Used as the base origin for inner
+    /// pane resolution so window decorations don't skew the highlight.
+    pub client: Option<Rect>,
 }
 
 /// Overlays for one monitor, addressed by the adapter's monitor key.
@@ -216,6 +220,7 @@ mod tests {
             wm_class: "test".into(),
             title: "Test".into(),
             frame,
+            client: None,
         })
     }
 

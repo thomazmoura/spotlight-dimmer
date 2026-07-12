@@ -37,12 +37,20 @@ const ADAPTER_INTERFACE_XML = `
       <arg type="i" name="width" direction="in"/>
       <arg type="i" name="height" direction="in"/>
     </method>
+    <method name="FocusChanged2">
+      <arg type="s" name="wmClass" direction="in"/>
+      <arg type="s" name="title" direction="in"/>
+      <arg type="s" name="rectsJson" direction="in"/>
+    </method>
     <method name="FocusCleared"/>
     <method name="GeometryChanged">
       <arg type="i" name="x" direction="in"/>
       <arg type="i" name="y" direction="in"/>
       <arg type="i" name="width" direction="in"/>
       <arg type="i" name="height" direction="in"/>
+    </method>
+    <method name="GeometryChanged2">
+      <arg type="s" name="rectsJson" direction="in"/>
     </method>
     <method name="TitleChanged">
       <arg type="s" name="title" direction="in"/>
@@ -98,6 +106,9 @@ export class DaemonBridge {
         this._overlaysSignalId = null;
         this._lastSerial = 0;
         this._destroyed = false;
+        // Daemon protocol version from RegisterAdapter. Assume v1 until the
+        // reply arrives so an old daemon never receives v2 methods.
+        this._protocolVersion = 1;
     }
 
     /**
@@ -171,6 +182,7 @@ export class DaemonBridge {
             };
             const [version] = await this._adapter.RegisterAdapterAsync('gnome', capabilities);
             console.log(`SpotlightDimmer: registered with daemon (protocol v${version})`);
+            this._protocolVersion = version;
         } catch (e) {
             console.warn(`SpotlightDimmer: RegisterAdapter failed: ${e.message}`);
             return;
@@ -194,7 +206,21 @@ export class DaemonBridge {
             e => console.warn(`SpotlightDimmer: UpdateMonitors failed: ${e.message}`));
     }
 
-    focusChanged(wmClass, title, rect) {
+    /**
+     * @param {Object} rect - decorated frame rect {x, y, width, height}
+     * @param {Object|null} clientRect - client-area rect (decorations
+     *   excluded); when present and the daemon speaks protocol v2 it anchors
+     *   inner-pane (tmux) highlights independently of decoration size.
+     *   Rects travel as JSON (the contract's KWin-safe format).
+     */
+    focusChanged(wmClass, title, rect, clientRect = null) {
+        if (this._protocolVersion >= 2 && clientRect) {
+            this._adapter?.FocusChanged2Async(
+                wmClass, title, JSON.stringify({ frame: rect, client: clientRect })
+            ).catch(e => console.warn(`SpotlightDimmer: FocusChanged2 failed: ${e.message}`));
+            return;
+        }
+
         this._adapter?.FocusChangedAsync(
             wmClass, title, rect.x, rect.y, rect.width, rect.height
         ).catch(e => console.warn(`SpotlightDimmer: FocusChanged failed: ${e.message}`));
@@ -205,7 +231,14 @@ export class DaemonBridge {
             e => console.warn(`SpotlightDimmer: FocusCleared failed: ${e.message}`));
     }
 
-    geometryChanged(rect) {
+    geometryChanged(rect, clientRect = null) {
+        if (this._protocolVersion >= 2 && clientRect) {
+            this._adapter?.GeometryChanged2Async(
+                JSON.stringify({ frame: rect, client: clientRect })
+            ).catch(e => console.warn(`SpotlightDimmer: GeometryChanged2 failed: ${e.message}`));
+            return;
+        }
+
         this._adapter?.GeometryChangedAsync(
             rect.x, rect.y, rect.width, rect.height
         ).catch(e => console.warn(`SpotlightDimmer: GeometryChanged failed: ${e.message}`));

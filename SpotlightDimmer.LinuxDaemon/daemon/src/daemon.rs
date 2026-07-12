@@ -113,12 +113,14 @@ impl Daemon {
                 wm_class,
                 title,
                 frame,
+                client,
             } => {
                 self.ensure_registered(&sender);
                 self.state.focus = Some(Focus {
                     wm_class: wm_class.clone(),
                     title,
                     frame,
+                    client,
                 });
                 self.integration
                     .set_focused_window(&self.state.config, Some(&wm_class), &self.tx);
@@ -133,10 +135,15 @@ impl Daemon {
                 self.apply().await;
             }
 
-            Event::GeometryChanged { sender, frame } => {
+            Event::GeometryChanged {
+                sender,
+                frame,
+                client,
+            } => {
                 self.ensure_registered(&sender);
                 if let Some(focus) = self.state.focus.as_mut() {
                     focus.frame = frame;
+                    focus.client = client;
                     self.apply().await;
                 }
             }

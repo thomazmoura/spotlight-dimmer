@@ -328,8 +328,14 @@ The Linux daemon matches integrations by **window class**:
 |-----|------|---------|-------------|
 | `WmClass` | string | (required) | Window class of the terminal to match |
 | `Provider` | string | `"tmux"` | Integration provider (`"tmux"` only for now) |
-| `ContentOffsetX` | integer | `0` | Pixels from window left edge to the terminal cell grid |
-| `ContentOffsetY` | integer | `0` | Pixels from window top edge to the terminal cell grid |
+| `ContentOffsetX` | integer | `0` | Pixels from the window content area's left edge to the terminal cell grid (terminal padding) |
+| `ContentOffsetY` | integer | `0` | Pixels from the window content area's top edge to the terminal cell grid (terminal padding + tab bar) |
+
+`ContentOffsetX/Y` are measured from the window's *content area* (client
+area, decorations excluded), not the decorated frame — title bars and borders
+are reported by the compositor adapter and compensated automatically, so the
+same values work in windowed and maximized states. Only your terminal's
+internal chrome (padding, tab bar) belongs here.
 
 It also requires tmux-side setup (hooks + helper script) — see
 [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full guide.

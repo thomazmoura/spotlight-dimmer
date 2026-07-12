@@ -68,7 +68,7 @@ export default class SpotlightDimmerExtension extends Extension {
             (tracker, window) => {
                 const rect = this._frameRect(window);
                 if (rect) {
-                    this._daemonBridge.geometryChanged(rect);
+                    this._daemonBridge.geometryChanged(rect, this._clientRect(window));
                 }
             }
         );
@@ -240,7 +240,8 @@ export default class SpotlightDimmerExtension extends Extension {
             // Window may have been destroyed
         }
 
-        this._daemonBridge.focusChanged(wmClass, window.title ?? '', rect);
+        this._daemonBridge.focusChanged(
+            wmClass, window.title ?? '', rect, this._clientRect(window));
     }
 
     /**
@@ -257,6 +258,29 @@ export default class SpotlightDimmerExtension extends Extension {
             return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
         } catch (e) {
             console.warn(`SpotlightDimmer: Error getting frame rect: ${e.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Client-area rect (decorations excluded) as a plain object, or null when
+     * unavailable — the daemon then falls back to the frame rect. Equals the
+     * frame rect for CSD windows; differs for X11 server-side decorations.
+     * Deliberately not get_buffer_rect(), which includes CSD shadows.
+     * @private
+     */
+    _clientRect(window) {
+        if (!window) {
+            return null;
+        }
+
+        try {
+            const rect = window.frame_rect_to_client_rect(window.get_frame_rect());
+            if (!rect || rect.width <= 0 || rect.height <= 0) {
+                return null;
+            }
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        } catch (e) {
             return null;
         }
     }

@@ -99,11 +99,14 @@ Add an `AppIntegrations` section to `~/.config/SpotlightDimmer/config.json`:
 |-----|------|---------|-------------|
 | `WmClass` | string | (required) | Window class to match. Find it with `Alt+F2` → `lg` → `global.display.focus_window.get_wm_class()`, or `xprop WM_CLASS` on X11 |
 | `Provider` | string | `"tmux"` | Integration provider. Only `"tmux"` exists today |
-| `ContentOffsetX` | integer | `0` | Pixels from the window's left edge to the terminal cell grid (window padding) |
-| `ContentOffsetY` | integer | `0` | Pixels from the window's top edge to the terminal cell grid (padding + tab bar height, if any) |
+| `ContentOffsetX` | integer | `0` | Pixels from the window content area's left edge to the terminal cell grid (window padding) |
+| `ContentOffsetY` | integer | `0` | Pixels from the window content area's top edge to the terminal cell grid (padding + tab bar height, if any) |
 
-`ContentOffsetX/Y` mirror your terminal's chrome. For WezTerm they come from
-`window_padding` and the tab bar: with `enable_tab_bar = false` and
+`ContentOffsetX/Y` mirror your terminal's *internal* chrome, measured from the
+client area (window content, decorations excluded — adapters report it
+separately from the decorated frame, so title bars and borders are accounted
+for automatically in both windowed and maximized states). For WezTerm they
+come from `window_padding` and the tab bar: with `enable_tab_bar = false` and
 `window_padding = { left = '2px' }`, use `ContentOffsetX: 2, ContentOffsetY: 0`.
 A few pixels of error is not visually noticeable in a dimming overlay.
 
@@ -115,20 +118,30 @@ The config file itself hot-reloads without restarting.
 ## Coordinate System
 
 ```
-screen_x = frame.x + ContentOffsetX + wezterm_pane_origin_x + tmux_rel_x
-screen_y = frame.y + ContentOffsetY + wezterm_pane_origin_y + tmux_rel_y
+screen_x = client.x + ContentOffsetX + wezterm_pane_origin_x + tmux_rel_x
+screen_y = client.y + ContentOffsetY + wezterm_pane_origin_y + tmux_rel_y
 
-where (computed by the helper script, pixels relative to the content origin):
+where:
+  client = the window's client-area rect (decorations excluded), as reported
+  by the compositor adapter; falls back to the decorated frame rect when the
+  adapter doesn't provide one (protocol v1)
+
+and (computed by the helper script, pixels relative to the content origin):
   tmux_rel_x = pane_left * cell_width
   tmux_rel_y = status_bar_rows_at_top * cell_height + pane_top * cell_height
 
-and (computed by the extension from `wezterm cli list`):
+and (computed by the daemon from `wezterm cli list`):
   wezterm_pane_origin_* = the wezterm-native pane's cell origin, for setups
   that split wezterm itself; 0 when tmux fills the whole tab
 ```
 
-The final rect is clamped to the window frame, so a misconfigured offset can
-never highlight outside the window.
+Basing the origin on the client area (not the decorated frame) keeps the
+highlight aligned in both windowed and maximized states: decorations appear
+and disappear with the window state, while the terminal's internal chrome
+covered by `ContentOffsetX/Y` does not.
+
+The final rect is clamped to the client area, so a misconfigured offset can
+never highlight outside the window content (or onto the title bar).
 
 ## Fallback Behavior
 
@@ -187,4 +200,7 @@ journalctl --user -f -o cat /usr/bin/gnome-shell | grep SpotlightDimmer
 
 **Highlight is misaligned**: adjust `ContentOffsetX/Y` in the config (they
 hot-reload). Vertical misalignment by exactly one cell height usually means a
-status bar / tab bar assumption is off.
+status bar / tab bar assumption is off. Misalignment that only happens in
+windowed (not maximized) mode means the adapter isn't reporting the client
+area — make sure the KWin script / GNOME extension version matches the
+daemon (adapter protocol v2).

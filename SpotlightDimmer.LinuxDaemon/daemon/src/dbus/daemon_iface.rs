@@ -22,6 +22,41 @@ fn sender_of(header: &Header<'_>) -> String {
     header.sender().map(|s| s.to_string()).unwrap_or_default()
 }
 
+/// The FocusChanged2/GeometryChanged2 rects payload:
+/// `{"frame":{"x":..,"y":..,"width":..,"height":..},"client":{...}}`.
+/// JSON (like UpdateMonitors) because KWin's callDBus cannot marshal nested
+/// structs and truncates calls with more than 9 arguments.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WindowRectsJson {
+    frame: Rect,
+    #[serde(default)]
+    client: Option<Rect>,
+}
+
+impl WindowRectsJson {
+    fn parse(method: &str, rects_json: &str) -> Option<WindowRectsJson> {
+        match serde_json::from_str::<WindowRectsJson>(rects_json) {
+            Ok(mut rects) => {
+                // A degenerate client rect means the adapter couldn't
+                // determine the client area; fall back to the frame.
+                if rects
+                    .client
+                    .as_ref()
+                    .is_some_and(|c| c.width <= 0 || c.height <= 0)
+                {
+                    rects.client = None;
+                }
+                Some(rects)
+            }
+            Err(e) => {
+                eprintln!("SpotlightDimmer: invalid {method} payload: {e}");
+                None
+            }
+        }
+    }
+}
+
 /// One monitor as received in the UpdateMonitors JSON payload. JSON (rather
 /// than nested D-Bus structs) because KWin's callDBus only marshals basic
 /// types reliably; the same format keeps the GNOME adapter and busctl
@@ -162,6 +197,31 @@ impl AdapterIface {
             wm_class,
             title,
             frame: Rect::new(x, y, width, height),
+            client: None,
+        });
+    }
+
+    /// Protocol v2 FocusChanged: `rects_json` also carries the client-area
+    /// rect (decorations excluded), which anchors inner-pane resolution so
+    /// the highlight stays aligned in both windowed and maximized states.
+    /// Invalid JSON is logged and ignored.
+    fn focus_changed2(
+        &self,
+        wm_class: String,
+        title: String,
+        rects_json: String,
+        #[zbus(header)] header: Header<'_>,
+    ) {
+        let Some(rects) = WindowRectsJson::parse("FocusChanged2", &rects_json) else {
+            return;
+        };
+
+        let _ = self.tx.send_blocking(Event::FocusChanged {
+            sender: sender_of(&header),
+            wm_class,
+            title,
+            frame: rects.frame,
+            client: rects.client,
         });
     }
 
@@ -182,6 +242,21 @@ impl AdapterIface {
         let _ = self.tx.send_blocking(Event::GeometryChanged {
             sender: sender_of(&header),
             frame: Rect::new(x, y, width, height),
+            client: None,
+        });
+    }
+
+    /// Protocol v2 GeometryChanged: frame plus client-area rect as JSON.
+    /// Invalid JSON is logged and ignored.
+    fn geometry_changed2(&self, rects_json: String, #[zbus(header)] header: Header<'_>) {
+        let Some(rects) = WindowRectsJson::parse("GeometryChanged2", &rects_json) else {
+            return;
+        };
+
+        let _ = self.tx.send_blocking(Event::GeometryChanged {
+            sender: sender_of(&header),
+            frame: rects.frame,
+            client: rects.client,
         });
     }
 

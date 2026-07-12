@@ -139,16 +139,25 @@ Object `/org/spotlightdimmer/Daemon`:
 - `org.spotlightdimmer.Daemon1` — `Toggle() -> b`, properties `Enabled` (bw),
   `ProtocolVersion` (u).
 - `org.spotlightdimmer.Adapter1` — inbound compositor events. All argument
-  types are basic (KWin's `callDBus` cannot marshal nested structs):
+  types are basic (KWin's `callDBus` cannot marshal nested structs, and
+  silently truncates calls with more than 9 arguments — hence JSON payloads
+  for anything structured):
   - `RegisterAdapter(s compositor, a{sv} capabilities) -> u` — capabilities:
-    `renders_overlays` (b). Unknown senders that call other methods are
-    implicitly registered (daemon-restart recovery).
+    `renders_overlays` (b). Returns the protocol version (2). Unknown senders
+    that call other methods are implicitly registered (daemon-restart
+    recovery).
   - `UpdateMonitors(s monitorsJson)` — JSON array of
     `{key, geometry:{x,y,width,height}, workArea:{...}, scale}` in logical
     global coordinates. Keys: GNOME = monitor index ("0"), KWin = connector
     name ("DP-1").
-  - `FocusChanged(s wmClass, s title, i x, i y, i width, i height)`
-  - `FocusCleared()`, `GeometryChanged(iiii)`, `TitleChanged(s)`
+  - `FocusChanged(s wmClass, s title, i x, i y, i width, i height)` —
+    protocol v1; the frame rect doubles as the content origin.
+  - `FocusChanged2(s wmClass, s title, s rectsJson)` — protocol v2;
+    `rectsJson` is `{"frame":{x,y,width,height},"client":{...}}` where
+    `client` is the decoration-excluded client area (anchors inner-pane
+    highlights; omit or send a degenerate rect to fall back to the frame).
+  - `FocusCleared()`, `GeometryChanged(iiii)`,
+    `GeometryChanged2(s rectsJson)`, `TitleChanged(s)`
 - `org.spotlightdimmer.Renderer1` — outbound overlay definitions:
   - `RegisterRenderer() -> s` — returns the current payload snapshot.
   - signal `OverlaysChanged(u serial, s overlaysJson)` — payload:

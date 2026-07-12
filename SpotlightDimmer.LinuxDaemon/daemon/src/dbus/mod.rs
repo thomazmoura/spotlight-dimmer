@@ -17,7 +17,9 @@ pub const DAEMON_NAME: &str = "org.spotlightdimmer.Daemon";
 pub const DAEMON_PATH: &str = "/org/spotlightdimmer/Daemon";
 pub const PANE_TRACKER_NAME: &str = "org.spotlightdimmer.PaneTracker";
 pub const PANE_TRACKER_PATH: &str = "/org/spotlightdimmer/PaneTracker";
-pub const PROTOCOL_VERSION: u32 = 1;
+/// v2: FocusChanged2/GeometryChanged2 carry the client-area rect alongside
+/// the frame, so decorations no longer skew inner-pane (tmux) highlights.
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Connect to the session bus, export all interfaces and claim both
 /// well-known names. Fails if another daemon instance already owns them.
