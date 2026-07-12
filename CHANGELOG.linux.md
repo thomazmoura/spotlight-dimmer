@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **tmux pane border lines left dimmed**: The spotlight over a focused tmux pane stopped at the pane's interior, leaving the border characters around it dimmed like a dark padding. The report script now extends the highlight one cell over every adjacent pane border, so the lines framing the focused pane are highlighted with it (edges touching the terminal or status bar are unaffected)
+
+---
+
+### Corrigido
+- **Linhas de borda do painel tmux deixadas escurecidas**: O spotlight sobre o painel tmux em foco parava no interior do painel, deixando os caracteres de borda ao seu redor escurecidos como um preenchimento escuro. O script de relatório agora estende o destaque uma célula sobre cada borda de painel adjacente, então as linhas que emolduram o painel em foco são destacadas junto com ele (bordas que tocam o terminal ou a barra de status não são afetadas)
+
 ## [0.3.0] - 2026-07-12
 
 ### Fixed

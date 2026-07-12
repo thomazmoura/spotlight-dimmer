@@ -60,6 +60,11 @@ public static class PaneGeometry
     ///
     /// tmux pane coordinates are relative to the window area, which sits below the
     /// status bar when the status bar is at the top; that offset is applied here.
+    ///
+    /// tmux pane coordinates cover only the pane interior: the single-cell border
+    /// lines drawn between panes belong to no pane. Every edge that has an adjacent
+    /// border (i.e. does not touch the window-area edge) is extended by one cell so
+    /// the border characters are highlighted together with the focused pane.
     /// </summary>
     /// <param name="frame">Focused window frame rect (screen space).</param>
     /// <param name="contentRect">Terminal content rect in screen space (the cell grid's bounding box, e.g. the focused Windows Terminal pane control, already shifted by ContentOffsetX/Y).</param>
@@ -81,10 +86,21 @@ public static class PaneGeometry
         // Rows above the pane grid when the status bar is at the top.
         var statusTopRows = report.StatusAtTop ? report.StatusRows : 0;
 
-        var left = (int)Math.Round(report.PaneLeft * cellWidth);
-        var top = (int)Math.Round((statusTopRows + report.PaneTop) * cellHeight);
-        var right = (int)Math.Round((report.PaneLeft + report.PaneWidth) * cellWidth);
-        var bottom = (int)Math.Round((statusTopRows + report.PaneTop + report.PaneHeight) * cellHeight);
+        // Extend edges over adjacent pane borders (window area = grid minus status rows).
+        var windowRows = report.GridRows - report.StatusRows;
+        var leftCell = report.PaneLeft > 0 ? report.PaneLeft - 1 : report.PaneLeft;
+        var topCell = report.PaneTop > 0 ? report.PaneTop - 1 : report.PaneTop;
+        var rightCell = report.PaneLeft + report.PaneWidth;
+        if (rightCell < report.GridCols)
+            rightCell++;
+        var bottomCell = report.PaneTop + report.PaneHeight;
+        if (bottomCell < windowRows)
+            bottomCell++;
+
+        var left = (int)Math.Round(leftCell * cellWidth);
+        var top = (int)Math.Round((statusTopRows + topCell) * cellHeight);
+        var right = (int)Math.Round(rightCell * cellWidth);
+        var bottom = (int)Math.Round((statusTopRows + bottomCell) * cellHeight);
 
         if (right - left <= 0 || bottom - top <= 0)
             return null;

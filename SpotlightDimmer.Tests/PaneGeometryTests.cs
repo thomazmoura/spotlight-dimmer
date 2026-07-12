@@ -72,14 +72,30 @@ public class PaneGeometryTests
     public void CellPaneRect_MapsCellsOverContentRect()
     {
         // Content rect 1600x900 at (100, 200), grid 160x45 -> cell size 10x20.
-        // Right half of a horizontal split: pane at column 80, width 80, full height.
+        // Right half of a horizontal split: border at column 80, pane at column 81,
+        // width 79, full height. The left edge extends over the border column.
         var contentRect = new Rectangle(100, 200, 1600, 900);
         var frame = new Rectangle(100, 200, 1600, 900);
-        var report = MakeReport(80, 0, 80, 45, 160, 45);
+        var report = MakeReport(81, 0, 79, 45, 160, 45);
 
         var result = PaneGeometry.CellPaneRect(frame, contentRect, report);
 
         Assert.Equal(new Rectangle(900, 200, 800, 900), result);
+    }
+
+    [Fact]
+    public void CellPaneRect_InteriorEdgesExtendOverBorders()
+    {
+        // Grid 100x50 over a 1000x500 content rect -> cell size 10x10.
+        // A pane surrounded by borders on all four sides: every edge extends
+        // one cell so the border characters highlight with the pane.
+        var contentRect = new Rectangle(0, 0, 1000, 500);
+        var frame = new Rectangle(0, 0, 1000, 500);
+        var report = MakeReport(10, 10, 30, 20, 100, 50);
+
+        var result = PaneGeometry.CellPaneRect(frame, contentRect, report);
+
+        Assert.Equal(new Rectangle(90, 90, 320, 220), result);
     }
 
     [Fact]
@@ -112,19 +128,22 @@ public class PaneGeometryTests
     [Fact]
     public void CellPaneRect_FractionalCellSizesRoundPerEdge()
     {
-        // 1043px over 46 rows = 22.673...px per row. Edge-based rounding must keep
-        // adjacent panes contiguous: bottom of row 23 == top of row 23.
+        // 1043px over 46 rows = 22.673...px per row. Stacked panes share the border
+        // row 23 (top pane rows 0-22, bottom pane rows 24-45); both extend over it,
+        // and edge-based rounding must keep both at the exact same cell edges:
+        // top pane ends at cell edge 24, bottom pane starts at cell edge 23.
         var contentRect = new Rectangle(0, 0, 1000, 1043);
         var frame = new Rectangle(0, 0, 1000, 1043);
         var top = MakeReport(0, 0, 100, 23, 100, 46);
-        var bottom = MakeReport(0, 23, 100, 23, 100, 46);
+        var bottom = MakeReport(0, 24, 100, 22, 100, 46);
 
         var topRect = PaneGeometry.CellPaneRect(frame, contentRect, top);
         var bottomRect = PaneGeometry.CellPaneRect(frame, contentRect, bottom);
 
         Assert.NotNull(topRect);
         Assert.NotNull(bottomRect);
-        Assert.Equal(topRect.Value.Bottom, bottomRect.Value.Top);
+        Assert.Equal((int)Math.Round(24 * 1043 / 46.0), topRect.Value.Bottom);
+        Assert.Equal((int)Math.Round(23 * 1043 / 46.0), bottomRect.Value.Top);
     }
 
     [Fact]

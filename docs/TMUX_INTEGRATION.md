@@ -140,6 +140,12 @@ highlight aligned in both windowed and maximized states: decorations appear
 and disappear with the window state, while the terminal's internal chrome
 covered by `ContentOffsetX/Y` does not.
 
+tmux pane coordinates cover only the pane interior — the single-cell border
+lines drawn between panes belong to no pane. Each edge that has an adjacent
+border (i.e. does not touch the tmux window-area edge) is extended by one
+cell, so the border characters framing the focused pane are highlighted with
+it instead of being left as a dimmed strip.
+
 The final rect is clamped to the client area, so a misconfigured offset can
 never highlight outside the window content (or onto the title bar).
 

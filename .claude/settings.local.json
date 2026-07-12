@@ -17,7 +17,9 @@
       "WebFetch(domain:gnome.pages.gitlab.gnome.org)",
       "Bash(wc:*)",
       "WebFetch(domain:wayland.app)",
-      "WebFetch(domain:invent.kde.org)"
+      "WebFetch(domain:invent.kde.org)",
+      "PowerShell(dotnet test *)",
+      "PowerShell(pwsh SpotlightDimmer.Scripts/Generate-Schema.ps1)"
     ],
     "deny": [],
     "ask": []
