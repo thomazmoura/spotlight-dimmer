@@ -1,0 +1,7 @@
+# Shell scripts and tmux configs are consumed inside Linux/WSL: they must
+# keep LF endings even on Windows checkouts (a CRLF bash script fails in
+# WSL with "$'\r': command not found"). The Windows release workflow builds
+# the installer from a Windows checkout, so this also protects the shipped
+# tools directory.
+*.sh text eol=lf
+spotlight-dimmer.tmux.conf text eol=lf
