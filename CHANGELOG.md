@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-07-12
+
 ### Added
 - **Terminal pane spotlight (Windows Terminal, tmux in WSL2, WezTerm)**: When the focused window is a configured terminal, the spotlight now shrinks from the whole window to the focused pane — native Windows Terminal splits (Alt+Shift+D), tmux panes running inside WSL2, and WezTerm panes are all supported. Configure via the new `AppIntegrations` section in `config.json` (JSON-only for now — not yet editable in the Config GUI; see `docs/WINDOWS_TERMINAL_INTEGRATION.md`). Whenever pane information is unavailable, the normal whole-window spotlight is used, so nothing changes unless you opt in
 - **`SpotlightDimmer.PaneReport.exe` helper**: A tiny AOT-compiled forwarder that tmux hooks inside WSL invoke to report pane geometry to the running app over a named pipe. Ships with the installer together with the WSL-side tools (`tools\spotlight-dimmer-tmux-report.sh` and `tools\spotlight-dimmer.tmux.conf`)
