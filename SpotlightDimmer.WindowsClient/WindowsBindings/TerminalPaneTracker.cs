@@ -44,6 +44,12 @@ internal class TerminalPaneTracker : IDisposable
     private readonly WeztermCliClient _weztermClient;
     private readonly PaneTrackerState _paneState = new();
 
+    // Report anchors: for each tmux tty, the WT pane control that was focused
+    // when its report arrived (an owned COM reference). A report may only
+    // shrink the pane control it is anchored to - without this, a tmux client
+    // in one WT split/tab would shrink sibling panes and tabs too.
+    private readonly Dictionary<string, MsaaInterop.AccessibleTarget> _reportAnchors = new(StringComparer.Ordinal);
+
     // Must keep references to prevent garbage collection (same pattern as FocusTracker)
     private readonly WinApi.WinEventDelegate _hookDelegate;
     private readonly WinApi.WndProc _wndProcDelegate;
@@ -191,8 +197,8 @@ internal class TerminalPaneTracker : IDisposable
     /// <summary>
     /// Resolves the inner (pane) rect for the focused window, or returns false
     /// to use the whole window. Called from the overlay update hot path: pure
-    /// struct math over cached state plus at most one COM vtable call - no
-    /// allocations.
+    /// struct math over cached state plus a few COM vtable calls (the focused
+    /// control's location and one per anchored report) - no allocations.
     /// </summary>
     public bool TryResolveInnerRect(in Core.Rectangle windowFrame, out Core.Rectangle inner)
     {
@@ -219,9 +225,25 @@ internal class TerminalPaneTracker : IDisposable
             paneRect.IntersectsWith(frame) &&
             paneRect.Width >= MinPaneWidth && paneRect.Height >= MinPaneHeight)
         {
-            // tmux sub-resolution over the focused WT pane's content
-            if (TryResolveCells(frame, ShrinkByContentOffsets(paneRect, match), null, out inner))
+            // tmux sub-resolution over the focused WT pane's content. Only the
+            // report anchored to this control may shrink it - a tmux client in
+            // one split must not shrink sibling panes or tabs. The ladder
+            // fallback stays available while nothing is anchored (reports that
+            // arrived without an identifiable pane control).
+            if (TryFindAnchoredReport(paneRect, out var report))
+            {
+                var cellRect = PaneGeometry.CellPaneRect(frame, ShrinkByContentOffsets(paneRect, match), report);
+                if (cellRect is not null)
+                {
+                    inner = cellRect.Value;
+                    return true;
+                }
+            }
+            else if (_reportAnchors.Count == 0 &&
+                     TryResolveCells(frame, ShrinkByContentOffsets(paneRect, match), null, out inner))
+            {
                 return true;
+            }
 
             // Native WT pane spotlight
             var clamped = PaneGeometry.PaneRect(frame, 0, 0, 0, 0,
@@ -238,6 +260,78 @@ internal class TerminalPaneTracker : IDisposable
         // No usable pane control (accessibility failed): still allow tmux
         // sub-resolution over the whole window content (single-pane WT).
         return TryResolveCells(frame, ShrinkByContentOffsets(frame, match), null, out inner);
+    }
+
+    /// <summary>
+    /// Finds the report anchored to the pane control currently occupying
+    /// <paramref name="paneRect"/>: an anchor matches when its control still
+    /// reports (roughly) the same screen rect as the focused control. Hidden
+    /// controls (background tabs) fail the location query or report a
+    /// different rect, so they never match. No allocations: dictionary struct
+    /// enumerator plus one accLocation call per anchored report.
+    /// </summary>
+    private bool TryFindAnchoredReport(in Core.Rectangle paneRect, out PaneReport report)
+    {
+        report = default;
+
+        foreach (var entry in _reportAnchors)
+        {
+            if (MsaaInterop.TryGetLocation(entry.Value, out var anchorRect) &&
+                RectsRoughlyEqual(anchorRect, paneRect) &&
+                _paneState.TryGetReport(entry.Key, out report))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Rect equality with a small tolerance for rounding between MSAA retrievals.</summary>
+    private static bool RectsRoughlyEqual(in Core.Rectangle a, in Core.Rectangle b)
+    {
+        const int Tolerance = 2;
+        return Math.Abs(a.X - b.X) <= Tolerance &&
+               Math.Abs(a.Y - b.Y) <= Tolerance &&
+               Math.Abs(a.Width - b.Width) <= Tolerance &&
+               Math.Abs(a.Height - b.Height) <= Tolerance;
+    }
+
+    /// <summary>
+    /// Maintains the report → pane-control anchor for an incoming report.
+    /// An existing live anchor is kept even if a different control is focused
+    /// right now: accLocation tracks pane moves on its own, and reports can
+    /// arrive while another control is focused (client-resized fires on window
+    /// resizes regardless of focus). Only a dead anchor is re-established from
+    /// the currently focused control.
+    /// </summary>
+    private void MaintainAnchor(in PaneReport report)
+    {
+        if (report.Tty is null)
+            return;
+
+        if (report.Kind == PaneReportKind.Clear)
+        {
+            if (_reportAnchors.Remove(report.Tty, out var released))
+                MsaaInterop.Release(ref released);
+            return;
+        }
+
+        if (_reportAnchors.TryGetValue(report.Tty, out var existing))
+        {
+            if (MsaaInterop.TryGetLocation(existing, out _))
+                return;
+
+            _reportAnchors.Remove(report.Tty);
+            MsaaInterop.Release(ref existing);
+        }
+
+        if (_matched is { } match && IsProvider(match, "windows-terminal") &&
+            MsaaInterop.TryGetLocation(_focusedPane, out var anchorRect))
+        {
+            _reportAnchors[report.Tty] = MsaaInterop.Clone(_focusedPane);
+            _logger.LogDebug("[PANE] Report anchored: tty={Tty} rect={Rect}", report.Tty, anchorRect);
+        }
     }
 
     private bool TryResolveWezterm(AppIntegration match, in Core.Rectangle frame, out Core.Rectangle inner)
@@ -499,6 +593,7 @@ internal class TerminalPaneTracker : IDisposable
             while (_pipeServer.TryDequeue(out var report))
             {
                 changed |= _paneState.Apply(report, now);
+                MaintainAnchor(in report);
             }
 
             if (changed && _matched is not null)
@@ -557,6 +652,13 @@ internal class TerminalPaneTracker : IDisposable
     public void Dispose()
     {
         DisarmHooks();
+
+        foreach (var entry in _reportAnchors)
+        {
+            var anchor = entry.Value;
+            MsaaInterop.Release(ref anchor);
+        }
+        _reportAnchors.Clear();
 
         if (_messageWindow != IntPtr.Zero)
         {

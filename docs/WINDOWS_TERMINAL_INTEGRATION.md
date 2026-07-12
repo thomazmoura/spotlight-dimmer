@@ -193,16 +193,28 @@ Stored tmux reports are keyed by tty. Because Windows cannot discover a WSL
 pts from the terminal side (the way the Linux daemon matches ttys), selection
 uses a fallback ladder — first match wins:
 
-1. **WEZTERM_PANE hint** — the report's `wz` matches the focused wezterm
+1. **Control anchor** (Windows Terminal only) — each report is anchored to
+   the WT pane control (`IAccessible`) that was focused when it arrived, and
+   only shrinks that control. This is what keeps a tmux client in one WT
+   split or tab from shrinking sibling splits/tabs: focusing a WT pane that
+   is not the tmux host gets the native pane spotlight instead. Anchors
+   compare by the control's live `accLocation` rect, so they survive pane
+   moves/resizes and go quiet while the control is hidden (background tab).
+   An existing live anchor is kept even when a report arrives while another
+   control is focused (`client-resized` fires on window resizes regardless
+   of focus), so the association cannot be stolen.
+2. **WEZTERM_PANE hint** — the report's `wz` matches the focused wezterm
    pane id from `wezterm cli` (deterministic; WezTerm only).
-2. **Single live report** — exactly one tmux client reported (the dominant
-   case).
-3. **Freshest report** — every pane switch fires a tmux hook, so the most
+3. **Single live report** — exactly one tmux client reported. For the WT
+   provider this rung only applies while no anchored reports exist (reports
+   that arrived without an identifiable pane control).
+4. **Freshest report** — every pane switch fires a tmux hook, so the most
    recently updated report almost always belongs to the pane the user just
-   interacted with. Best-effort for multi-tmux-client setups.
-4. **Native pane** — the focused Windows Terminal / WezTerm pane rect without
+   interacted with. Best-effort for multi-tmux-client setups; same anchor
+   restriction as rung 3.
+5. **Native pane** — the focused Windows Terminal / WezTerm pane rect without
    tmux sub-resolution.
-5. **Whole window** — the normal spotlight.
+6. **Whole window** — the normal spotlight.
 
 tmux detach/exit is handled by an explicit `clear` report (the
 `client-detached` hook) plus a debounced re-evaluation on terminal title
@@ -305,7 +317,12 @@ Still needing validation (no WezTerm on the validation machine):
 - [ ] WezTerm-on-Windows: `wezterm cli list` reporting non-zero
       `pixel_width`/`pixel_height`, and `WEZTERM_PANE` propagation via `WSLENV`
 
+Also validated: a tmux client in one WT split or tab no longer shrinks
+sibling splits/tabs — reports are anchored to the WT pane control that
+hosted them (ladder rung 1), verified with a pwsh split next to a tmux
+split and across tab switches.
+
 Known limitation: a report whose clear is never delivered (tmux server
-killed, WSL VM torn down, terminal crash) lingers and keeps shrinking the
-spotlight of the matched terminal. Detach/attach any tmux client or touch
-`config.json` (a config reload clears all stored reports) to recover.
+killed, WSL VM torn down, terminal crash) lingers. Thanks to the control
+anchor it only keeps shrinking the WT pane that hosted the tmux client;
+re-attaching tmux there (or closing that pane) recovers.

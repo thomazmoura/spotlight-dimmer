@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Release changelog tooling**: `Move-UnreleasedToVersion.ps1` no longer duplicates the old `[Unreleased]` section on every release (the cause of a stale duplicate block that had accumulated in this changelog), and `Extract-Changelog.ps1` can now extract a released version's section via `-Version` — previously the release workflow read `[Unreleased]` after it had already been emptied, so release notes only worked by accident
 - **Spotlight stuck on the last tmux pane after detaching**: Detaching from tmux (or exiting it) inside WSL left the spotlight shrunk to the last focused pane instead of widening back to the whole terminal window. The `client-detached` hook queried the client's tty after the client was already gone, so the clear message was never sent; the hook now passes the detaching client's tty explicitly (`#{hook_client}`)
+- **tmux pane geometry applied to the wrong Windows Terminal split/tab**: With tmux running in one Windows Terminal split, focusing a different split (or tab) wrongly shrank its spotlight to the tmux pane's shape instead of highlighting the whole split. Reports are now anchored to the terminal pane control that hosted the tmux client when they arrived, so only that pane is ever shrunk — sibling splits and tabs get their normal full-pane spotlight
 
 ---
 
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Corrigido
 - **Ferramentas de changelog de release**: O `Move-UnreleasedToVersion.ps1` não duplica mais a seção `[Unreleased]` antiga a cada release (a causa de um bloco duplicado obsoleto que havia se acumulado neste changelog), e o `Extract-Changelog.ps1` agora pode extrair a seção de uma versão lançada via `-Version` — antes o workflow de release lia a `[Unreleased]` depois que ela já havia sido esvaziada, então as notas de release só funcionavam por acidente
 - **Spotlight preso no último painel tmux após desanexar**: Desanexar do tmux (ou sair dele) dentro do WSL deixava o spotlight encolhido no último painel focado em vez de voltar a cobrir a janela inteira do terminal. O hook `client-detached` consultava o tty do cliente depois que o cliente já havia desaparecido, então a mensagem de limpeza nunca era enviada; o hook agora passa o tty do cliente que está desanexando explicitamente (`#{hook_client}`)
+- **Geometria de painel tmux aplicada à divisão/aba errada do Windows Terminal**: Com o tmux rodando em uma divisão do Windows Terminal, focar outra divisão (ou aba) encolhia incorretamente o spotlight para o formato do painel tmux em vez de destacar a divisão inteira. Os relatórios agora ficam ancorados ao controle de painel do terminal que hospedava o cliente tmux quando chegaram, então apenas aquele painel é encolhido — divisões e abas vizinhas recebem o spotlight normal de painel inteiro
 
 ## [0.8.12] - 2025-11-11
 

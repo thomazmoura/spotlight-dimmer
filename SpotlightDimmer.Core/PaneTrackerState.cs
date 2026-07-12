@@ -51,6 +51,23 @@ public class PaneTrackerState
     public bool Clear(string tty) => _reportsByTty.Remove(tty);
 
     /// <summary>
+    /// Gets the stored report for a specific tty, bypassing the selection
+    /// ladder. Used when the caller has its own deterministic join (e.g. the
+    /// Windows tracker's control anchors).
+    /// </summary>
+    public bool TryGetReport(string tty, out PaneReport report)
+    {
+        if (_reportsByTty.TryGetValue(tty, out var stored))
+        {
+            report = stored.Report;
+            return true;
+        }
+
+        report = default;
+        return false;
+    }
+
+    /// <summary>
     /// Removes all stored reports (config reload, integration teardown).
     /// </summary>
     public void ClearAll() => _reportsByTty.Clear();

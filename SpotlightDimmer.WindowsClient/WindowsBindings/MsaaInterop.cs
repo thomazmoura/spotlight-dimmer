@@ -238,6 +238,28 @@ internal static unsafe partial class MsaaInterop
     }
 
     /// <summary>
+    /// Returns a target holding an additional COM reference to the same
+    /// accessible object. The clone must be released independently of the
+    /// original via <see cref="Release"/>.
+    /// </summary>
+    public static AccessibleTarget Clone(in AccessibleTarget target)
+    {
+        if (!target.IsValid)
+            return default;
+
+        try
+        {
+            var addRef = (delegate* unmanaged[Stdcall]<IntPtr, uint>)Vtable(target.Accessible)[SlotAddRef];
+            addRef(target.Accessible);
+            return new AccessibleTarget { Accessible = target.Accessible, ChildId = target.ChildId };
+        }
+        catch
+        {
+            return default;
+        }
+    }
+
+    /// <summary>
     /// Releases the COM reference held by the target and invalidates it.
     /// </summary>
     public static void Release(ref AccessibleTarget target)
