@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-07-12
+
 ### Added
 - **App Integrations editable in the Config GUI**: The `AppIntegrations` section (terminal pane spotlight) can now be managed from the configuration window's new **Integrations** tab — add or remove entries and edit the process name, provider (`windows-terminal`, `wezterm`, or `tmux`) and content offsets without manually editing `config.json`. Changes still hot-reload instantly and stay in sync with external edits to the file
 
