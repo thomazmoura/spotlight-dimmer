@@ -79,9 +79,9 @@ v1|clear|tty=/dev/pts/3
 
 ### 1. Configure the integration
 
-Add an `AppIntegrations` section to
-`%AppData%\SpotlightDimmer\config.json` (JSON-only for now — not yet editable
-in the Config GUI):
+Add an entry in the Config GUI's **Integrations** tab, or add an
+`AppIntegrations` section to `%AppData%\SpotlightDimmer\config.json`
+directly:
 
 ```json
 {

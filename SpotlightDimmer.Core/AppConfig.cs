@@ -224,7 +224,7 @@ public class AppConfig
     /// <summary>
     /// Per-application integrations that let the spotlight target an inner region
     /// of the focused window (e.g. a terminal pane) instead of the whole window.
-    /// Empty by default; configured via JSON only (not yet editable in the Config GUI).
+    /// Empty by default; editable in the Config GUI's Integrations tab or via JSON.
     /// </summary>
     public List<AppIntegration> AppIntegrations { get; set; } = new();
 

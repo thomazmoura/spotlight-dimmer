@@ -101,6 +101,9 @@ public partial class ConfigForm : Form
 
             // Set experimental features
             excludeFromScreenCaptureCheckBox.Checked = config.Overlay.ExcludeFromScreenCapture;
+
+            // Populate app integrations
+            PopulateIntegrationsList();
         }
         finally
         {
@@ -356,6 +359,155 @@ public partial class ConfigForm : Form
         {
             profileComboBox.Items.Add(profile.Name);
         }
+    }
+
+    private void PopulateIntegrationsList()
+    {
+        // Preserve selection across reloads (e.g. FileSystemWatcher-triggered LoadConfiguration)
+        var selectedIndex = integrationsListBox.SelectedIndex;
+
+        integrationsListBox.Items.Clear();
+        foreach (var integration in _configManager.Current.AppIntegrations)
+        {
+            var name = string.IsNullOrEmpty(integration.ProcessName) ? "(new entry)" : integration.ProcessName;
+            integrationsListBox.Items.Add($"{name} ({integration.Provider})");
+        }
+
+        integrationsListBox.SelectedIndex = Math.Min(selectedIndex, integrationsListBox.Items.Count - 1);
+
+        PopulateIntegrationDetails();
+    }
+
+    private void PopulateIntegrationDetails()
+    {
+        // Called both from LoadConfiguration (loading) and from the selection handler
+        // (not loading), so save/restore the flag instead of clobbering it
+        var wasLoading = _isLoading;
+        _isLoading = true;
+        try
+        {
+            var integration = GetSelectedIntegration();
+            var hasSelection = integration != null;
+
+            integrationProcessNameTextBox.Enabled = hasSelection;
+            integrationProviderComboBox.Enabled = hasSelection;
+            integrationOffsetXNumericUpDown.Enabled = hasSelection;
+            integrationOffsetYNumericUpDown.Enabled = hasSelection;
+            removeIntegrationButton.Enabled = hasSelection;
+
+            if (integration != null)
+            {
+                integrationProcessNameTextBox.Text = integration.ProcessName;
+                integrationProviderComboBox.SelectedItem = integration.Provider;
+                // Clamp hand-edited JSON values so NumericUpDown.Value doesn't throw
+                integrationOffsetXNumericUpDown.Value = Math.Clamp(integration.ContentOffsetX, 0, 1000);
+                integrationOffsetYNumericUpDown.Value = Math.Clamp(integration.ContentOffsetY, 0, 1000);
+            }
+            else
+            {
+                integrationProcessNameTextBox.Text = string.Empty;
+                integrationProviderComboBox.SelectedIndex = -1;
+                integrationOffsetXNumericUpDown.Value = 0;
+                integrationOffsetYNumericUpDown.Value = 0;
+            }
+        }
+        finally
+        {
+            _isLoading = wasLoading;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the currently selected integration from the live config.
+    /// Never cache the result across events: every watcher reload replaces
+    /// _configManager.Current with a freshly deserialized object.
+    /// </summary>
+    private AppIntegration? GetSelectedIntegration()
+    {
+        var integrations = _configManager.Current.AppIntegrations;
+        var index = integrationsListBox.SelectedIndex;
+        return index >= 0 && index < integrations.Count ? integrations[index] : null;
+    }
+
+    private void OnIntegrationSelected(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        PopulateIntegrationDetails();
+    }
+
+    private void OnAddIntegration(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        _configManager.Current.AppIntegrations.Add(new AppIntegration());
+        SaveConfiguration();
+        PopulateIntegrationsList();
+        integrationsListBox.SelectedIndex = integrationsListBox.Items.Count - 1;
+    }
+
+    private void OnRemoveIntegration(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        var integrations = _configManager.Current.AppIntegrations;
+        var index = integrationsListBox.SelectedIndex;
+        if (index < 0 || index >= integrations.Count)
+            return;
+
+        _logger.LogInformation("Removing app integration: {ProcessName}", integrations[index].ProcessName);
+        integrations.RemoveAt(index);
+        SaveConfiguration();
+        PopulateIntegrationsList();
+    }
+
+    private void OnIntegrationProcessNameLeave(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        var integration = GetSelectedIntegration();
+        if (integration == null)
+            return;
+
+        var processName = integrationProcessNameTextBox.Text.Trim();
+        if (integration.ProcessName == processName)
+            return; // Avoid a spurious save on every focus loss
+
+        integration.ProcessName = processName;
+        SaveConfiguration();
+        PopulateIntegrationsList(); // Refresh the display text in the list
+    }
+
+    private void OnIntegrationProviderChanged(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        var integration = GetSelectedIntegration();
+        if (integration == null)
+            return;
+
+        integration.Provider = integrationProviderComboBox.SelectedItem?.ToString() ?? "tmux";
+        SaveConfiguration();
+        PopulateIntegrationsList(); // Refresh the display text in the list
+    }
+
+    private void OnIntegrationOffsetChanged(object? sender, EventArgs e)
+    {
+        if (_isLoading)
+            return;
+
+        var integration = GetSelectedIntegration();
+        if (integration == null)
+            return;
+
+        integration.ContentOffsetX = (int)integrationOffsetXNumericUpDown.Value;
+        integration.ContentOffsetY = (int)integrationOffsetYNumericUpDown.Value;
+        SaveConfiguration();
     }
 
     private static string? ShowInputDialog(string title, string prompt, string defaultValue = "")

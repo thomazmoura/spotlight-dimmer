@@ -278,37 +278,174 @@ partial class ConfigForm
         experimentalGroupBox.Controls.Add(excludeFromScreenCaptureCheckBox);
         experimentalGroupBox.Controls.Add(experimentalDisclaimerLabel);
 
+        // App Integrations Tab (terminal pane spotlight)
+        var integrationsHeaderLabel = new Label
+        {
+            Text = "Terminal pane spotlight — match a terminal app by process name so the\nspotlight follows the focused pane instead of the whole window.",
+            Location = new Point(15, 15),
+            Size = new Size(450, 40),
+            AutoSize = false,
+            ForeColor = System.Drawing.Color.DarkSlateGray
+        };
+
+        integrationsListBox = new ListBox
+        {
+            Location = new Point(15, 60),
+            Size = new Size(200, 220)
+        };
+        integrationsListBox.SelectedIndexChanged += OnIntegrationSelected;
+
+        addIntegrationButton = new Button
+        {
+            Text = "Add",
+            Location = new Point(15, 290),
+            Size = new Size(95, 28)
+        };
+        addIntegrationButton.Click += OnAddIntegration;
+
+        removeIntegrationButton = new Button
+        {
+            Text = "Remove",
+            Location = new Point(120, 290),
+            Size = new Size(95, 28),
+            Enabled = false
+        };
+        removeIntegrationButton.Click += OnRemoveIntegration;
+
+        var integrationProcessNameLabel = new Label
+        {
+            Text = "Process Name:",
+            Location = new Point(230, 60),
+            Size = new Size(120, 23),
+            AutoSize = true
+        };
+
+        integrationProcessNameTextBox = new TextBox
+        {
+            Location = new Point(230, 83),
+            Size = new Size(235, 27),
+            Enabled = false
+        };
+        integrationProcessNameTextBox.Leave += OnIntegrationProcessNameLeave;
+
+        var integrationProviderLabel = new Label
+        {
+            Text = "Provider:",
+            Location = new Point(230, 120),
+            Size = new Size(120, 23),
+            AutoSize = true
+        };
+
+        integrationProviderComboBox = new ComboBox
+        {
+            Location = new Point(230, 143),
+            Size = new Size(235, 28),
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Enabled = false
+        };
+        integrationProviderComboBox.Items.AddRange(new object[] { "windows-terminal", "wezterm", "tmux" });
+        integrationProviderComboBox.SelectedIndexChanged += OnIntegrationProviderChanged;
+
+        var integrationOffsetXLabel = new Label
+        {
+            Text = "Content Offset X (px):",
+            Location = new Point(230, 181),
+            Size = new Size(145, 23),
+            AutoSize = true
+        };
+
+        integrationOffsetXNumericUpDown = new NumericUpDown
+        {
+            Location = new Point(380, 178),
+            Size = new Size(85, 27),
+            Minimum = 0,
+            Maximum = 1000,
+            Enabled = false
+        };
+        integrationOffsetXNumericUpDown.ValueChanged += OnIntegrationOffsetChanged;
+
+        var integrationOffsetYLabel = new Label
+        {
+            Text = "Content Offset Y (px):",
+            Location = new Point(230, 214),
+            Size = new Size(145, 23),
+            AutoSize = true
+        };
+
+        integrationOffsetYNumericUpDown = new NumericUpDown
+        {
+            Location = new Point(380, 211),
+            Size = new Size(85, 27),
+            Minimum = 0,
+            Maximum = 1000,
+            Enabled = false
+        };
+        integrationOffsetYNumericUpDown.ValueChanged += OnIntegrationOffsetChanged;
+
+        var integrationOffsetsHelpLabel = new Label
+        {
+            Text = "💡 Offsets: pixels from the content area edge to the terminal cell grid\n   (window padding for X, padding + tab bar height for Y).",
+            Location = new Point(230, 250),
+            Size = new Size(240, 60),
+            AutoSize = false,
+            ForeColor = System.Drawing.Color.DarkSlateGray
+        };
+
+        // Tab control hosting the General and Integrations pages
+        var generalTabPage = new TabPage { Text = "General" };
+        var integrationsTabPage = new TabPage { Text = "Integrations" };
+        mainTabControl = new TabControl { Dock = DockStyle.Fill };
+        mainTabControl.TabPages.Add(generalTabPage);
+        mainTabControl.TabPages.Add(integrationsTabPage);
+
         // Form setup
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(480, 700);
+        ClientSize = new Size(490, 740);
         Text = "SpotlightDimmer Configuration";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
 
-        // Add controls
-        Controls.Add(profileLabel);
-        Controls.Add(profileComboBox);
-        Controls.Add(saveProfileButton);
-        Controls.Add(deleteProfileButton);
-        Controls.Add(modeLabel);
-        Controls.Add(modeComboBox);
-        Controls.Add(inactiveColorLabel);
-        Controls.Add(inactiveColorPanel);
-        Controls.Add(inactiveOpacityLabel);
-        Controls.Add(inactiveOpacityTrackBar);
-        Controls.Add(inactiveOpacityValueLabel);
-        Controls.Add(activeColorLabel);
-        Controls.Add(activeColorPanel);
-        Controls.Add(activeOpacityLabel);
-        Controls.Add(activeOpacityTrackBar);
-        Controls.Add(activeOpacityValueLabel);
-        Controls.Add(rendererLabel);
-        Controls.Add(rendererBackendComboBox);
-        Controls.Add(rendererHelpLabel);
-        Controls.Add(loggingGroupBox);
-        Controls.Add(experimentalGroupBox);
+        // Add controls to the General tab
+        generalTabPage.Controls.Add(profileLabel);
+        generalTabPage.Controls.Add(profileComboBox);
+        generalTabPage.Controls.Add(saveProfileButton);
+        generalTabPage.Controls.Add(deleteProfileButton);
+        generalTabPage.Controls.Add(modeLabel);
+        generalTabPage.Controls.Add(modeComboBox);
+        generalTabPage.Controls.Add(inactiveColorLabel);
+        generalTabPage.Controls.Add(inactiveColorPanel);
+        generalTabPage.Controls.Add(inactiveOpacityLabel);
+        generalTabPage.Controls.Add(inactiveOpacityTrackBar);
+        generalTabPage.Controls.Add(inactiveOpacityValueLabel);
+        generalTabPage.Controls.Add(activeColorLabel);
+        generalTabPage.Controls.Add(activeColorPanel);
+        generalTabPage.Controls.Add(activeOpacityLabel);
+        generalTabPage.Controls.Add(activeOpacityTrackBar);
+        generalTabPage.Controls.Add(activeOpacityValueLabel);
+        generalTabPage.Controls.Add(rendererLabel);
+        generalTabPage.Controls.Add(rendererBackendComboBox);
+        generalTabPage.Controls.Add(rendererHelpLabel);
+        generalTabPage.Controls.Add(loggingGroupBox);
+        generalTabPage.Controls.Add(experimentalGroupBox);
+
+        // Add controls to the Integrations tab
+        integrationsTabPage.Controls.Add(integrationsHeaderLabel);
+        integrationsTabPage.Controls.Add(integrationsListBox);
+        integrationsTabPage.Controls.Add(addIntegrationButton);
+        integrationsTabPage.Controls.Add(removeIntegrationButton);
+        integrationsTabPage.Controls.Add(integrationProcessNameLabel);
+        integrationsTabPage.Controls.Add(integrationProcessNameTextBox);
+        integrationsTabPage.Controls.Add(integrationProviderLabel);
+        integrationsTabPage.Controls.Add(integrationProviderComboBox);
+        integrationsTabPage.Controls.Add(integrationOffsetXLabel);
+        integrationsTabPage.Controls.Add(integrationOffsetXNumericUpDown);
+        integrationsTabPage.Controls.Add(integrationOffsetYLabel);
+        integrationsTabPage.Controls.Add(integrationOffsetYNumericUpDown);
+        integrationsTabPage.Controls.Add(integrationOffsetsHelpLabel);
+
+        Controls.Add(mainTabControl);
     }
 
     #endregion
@@ -329,4 +466,12 @@ partial class ConfigForm
     private NumericUpDown logRetentionDaysNumericUpDown = null!;
     private Button openLogsFolderButton = null!;
     private CheckBox excludeFromScreenCaptureCheckBox = null!;
+    private TabControl mainTabControl = null!;
+    private ListBox integrationsListBox = null!;
+    private Button addIntegrationButton = null!;
+    private Button removeIntegrationButton = null!;
+    private TextBox integrationProcessNameTextBox = null!;
+    private ComboBox integrationProviderComboBox = null!;
+    private NumericUpDown integrationOffsetXNumericUpDown = null!;
+    private NumericUpDown integrationOffsetYNumericUpDown = null!;
 }

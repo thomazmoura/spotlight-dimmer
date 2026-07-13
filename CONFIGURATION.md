@@ -267,8 +267,8 @@ terminal window.
 ### Windows
 
 The Windows client matches integrations by **process name** and supports three
-providers. This section is JSON-only for now (not yet editable in the Config
-GUI).
+providers. Entries can be managed from the Config GUI's **Integrations** tab
+or edited directly in JSON.
 
 ```json
 {

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **App Integrations editable in the Config GUI**: The `AppIntegrations` section (terminal pane spotlight) can now be managed from the configuration window's new **Integrations** tab — add or remove entries and edit the process name, provider (`windows-terminal`, `wezterm`, or `tmux`) and content offsets without manually editing `config.json`. Changes still hot-reload instantly and stay in sync with external edits to the file
+
+### Changed
+- **Configuration window reorganized into tabs**: The settings window now has a **General** tab (dimming, colors, renderer, logging, experimental features) and an **Integrations** tab, keeping the window compact instead of growing taller with each new section
+
+---
+
+### Adicionado
+- **Integrações de aplicativos editáveis na interface de configuração**: A seção `AppIntegrations` (spotlight de painel de terminal) agora pode ser gerenciada pela nova aba **Integrations** da janela de configuração — adicione ou remova entradas e edite o nome do processo, o provedor (`windows-terminal`, `wezterm` ou `tmux`) e os offsets de conteúdo sem editar o `config.json` manualmente. As mudanças continuam sendo recarregadas instantaneamente e permanecem sincronizadas com edições externas no arquivo
+
+### Alterado
+- **Janela de configuração reorganizada em abas**: A janela de configurações agora tem uma aba **General** (escurecimento, cores, renderizador, logs, recursos experimentais) e uma aba **Integrations**, mantendo a janela compacta em vez de crescer a cada nova seção
+
 ## [0.9.0] - 2026-07-12
 
 ### Added
