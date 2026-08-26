@@ -118,12 +118,16 @@ impl Daemon {
                 self.ensure_registered(&sender);
                 self.state.focus = Some(Focus {
                     wm_class: wm_class.clone(),
-                    title,
+                    title: title.clone(),
                     frame,
                     client,
                 });
-                self.integration
-                    .set_focused_window(&self.state.config, Some(&wm_class), &self.tx);
+                self.integration.set_focused_window(
+                    &self.state.config,
+                    Some(&wm_class),
+                    &title,
+                    &self.tx,
+                );
                 self.apply().await;
             }
 
@@ -131,7 +135,7 @@ impl Daemon {
                 self.ensure_registered(&sender);
                 self.state.focus = None;
                 self.integration
-                    .set_focused_window(&self.state.config, None, &self.tx);
+                    .set_focused_window(&self.state.config, None, "", &self.tx);
                 self.apply().await;
             }
 
@@ -148,8 +152,13 @@ impl Daemon {
                 }
             }
 
-            Event::TitleChanged { sender } => {
+            Event::TitleChanged { sender, title } => {
                 self.ensure_registered(&sender);
+                // Keep Focus authoritative even when no integration matches
+                if let Some(focus) = self.state.focus.as_mut() {
+                    focus.title = title;
+                }
+
                 if !self.integration.is_active() {
                     return;
                 }
@@ -165,7 +174,13 @@ impl Daemon {
 
             Event::RequeryPane { epoch } => {
                 if epoch == self.title_epoch {
-                    self.integration.requery(&self.tx);
+                    let title = self
+                        .state
+                        .focus
+                        .as_ref()
+                        .map(|f| f.title.clone())
+                        .unwrap_or_default();
+                    self.integration.requery(&title, &self.tx);
                 }
             }
 
@@ -193,10 +208,13 @@ impl Daemon {
 
                     // Re-match the focused window against the new
                     // AppIntegrations and refresh the pane query
-                    let wm_class = self.state.focus.as_ref().map(|f| f.wm_class.clone());
+                    let focus = self.state.focus.as_ref();
+                    let wm_class = focus.map(|f| f.wm_class.clone());
+                    let title = focus.map(|f| f.title.clone()).unwrap_or_default();
                     self.integration.set_focused_window(
                         &self.state.config,
                         wm_class.as_deref(),
+                        &title,
                         &self.tx,
                     );
 

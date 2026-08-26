@@ -319,6 +319,13 @@ The Linux daemon matches integrations by **window class**:
       "Provider": "tmux",
       "ContentOffsetX": 2,
       "ContentOffsetY": 0
+    },
+    {
+      "WmClass": "com.mitchellh.ghostty",
+      "Provider": "tmux",
+      "TtySource": "title",
+      "ContentOffsetX": 2,
+      "ContentOffsetY": 2
     }
   ]
 }
@@ -328,6 +335,7 @@ The Linux daemon matches integrations by **window class**:
 |-----|------|---------|-------------|
 | `WmClass` | string | (required) | Window class of the terminal to match |
 | `Provider` | string | `"tmux"` | Integration provider (`"tmux"` only for now) |
+| `TtySource` | string | `"wezterm"` | How the focused pane's tty is found: `"wezterm"` queries the `wezterm` CLI, `"title"` reads the tty tmux published in the window title (for terminals without a pane-query CLI, such as Ghostty) |
 | `ContentOffsetX` | integer | `0` | Pixels from the window content area's left edge to the terminal cell grid (terminal padding) |
 | `ContentOffsetY` | integer | `0` | Pixels from the window content area's top edge to the terminal cell grid (terminal padding + tab bar) |
 
@@ -336,6 +344,10 @@ area, decorations excluded), not the decorated frame — title bars and borders
 are reported by the compositor adapter and compensated automatically, so the
 same values work in windowed and maximized states. Only your terminal's
 internal chrome (padding, tab bar) belongs here.
+
+`"TtySource": "title"` additionally needs tmux to publish the tty: uncomment
+the Ghostty block in `spotlight-dimmer.tmux.conf` (it appends an invisible
+marker plus `#{client_tty}` to `set-titles-string`).
 
 It also requires tmux-side setup (hooks + helper script) — see
 [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full guide.

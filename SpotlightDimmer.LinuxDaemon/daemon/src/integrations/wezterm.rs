@@ -8,19 +8,11 @@
 //! 3. `tmux list-clients`        -> tty must belong to a live tmux client
 
 use std::cell::Cell;
-use std::ffi::OsStr;
 
 use serde_json::Value;
 
-/// The resolved focused wezterm pane hosting a tmux client.
-/// `offset_x/y` is the pane's cell-grid origin within the terminal content
-/// (non-zero for wezterm-native splits; 0 when tmux fills the tab).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ActivePane {
-    pub tty: String,
-    pub offset_x: i32,
-    pub offset_y: i32,
-}
+use crate::integrations::proc::spawn_json;
+use crate::integrations::tmux::{self, ActivePane};
 
 /// Run the 3-stage query. `current`/`generation` implement the invalidation
 /// pattern from the JS: the caller bumps `current` whenever focus or title
@@ -72,7 +64,7 @@ pub async fn query_active_pane(current: &Cell<u64>, generation: u64) -> Option<A
     let offset_x = (left_col * cell_w).round() as i32;
     let offset_y = (top_row * cell_h).round() as i32;
 
-    let ttys = spawn_lines(&["tmux", "list-clients", "-F", "#{client_tty}"]).await;
+    let ttys = tmux::client_ttys().await;
     if current.get() != generation {
         return None;
     }
@@ -85,43 +77,4 @@ pub async fn query_active_pane(current: &Cell<u64>, generation: u64) -> Option<A
         offset_x,
         offset_y,
     })
-}
-
-/// Spawn a subprocess and parse its stdout as JSON (None on any failure).
-async fn spawn_json(argv: &[&str]) -> Option<Value> {
-    let stdout = spawn_capture(argv).await?;
-    serde_json::from_str(&stdout).ok()
-}
-
-/// Spawn a subprocess and split its stdout into trimmed non-empty lines.
-async fn spawn_lines(argv: &[&str]) -> Option<Vec<String>> {
-    let stdout = spawn_capture(argv).await?;
-    Some(
-        stdout
-            .lines()
-            .map(str::trim)
-            .filter(|l| !l.is_empty())
-            .map(str::to_string)
-            .collect(),
-    )
-}
-
-/// Spawn a subprocess asynchronously; resolves to its stdout, or None when
-/// the binary is missing or the process fails. Never blocks the event loop.
-async fn spawn_capture(argv: &[&str]) -> Option<String> {
-    let argv_os: Vec<&OsStr> = argv.iter().map(OsStr::new).collect();
-
-    let process = gio::Subprocess::newv(
-        &argv_os,
-        gio::SubprocessFlags::STDOUT_PIPE | gio::SubprocessFlags::STDERR_SILENCE,
-    )
-    .ok()?;
-
-    let (stdout, _stderr) = process.communicate_utf8_future(None).await.ok()?;
-
-    if !process.is_successful() {
-        return None;
-    }
-
-    stdout.map(|s| s.to_string())
 }

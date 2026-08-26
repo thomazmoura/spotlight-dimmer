@@ -130,9 +130,9 @@ On KDE, `qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.isScriptLoaded sp
 
 #### Optional: tmux pane spotlight
 
-Source installs copy the tmux integration tools to `~/.config/SpotlightDimmer/tools/`; the .deb packages ship them at `/usr/share/spotlight-dimmer/tools/` (adjust the paths below accordingly). To have the spotlight follow the focused tmux pane inside WezTerm, **two** pieces of configuration are needed:
+Source installs copy the tmux integration tools to `~/.config/SpotlightDimmer/tools/`; the .deb packages ship them at `/usr/share/spotlight-dimmer/tools/` (adjust the paths below accordingly). To have the spotlight follow the focused tmux pane inside WezTerm or Ghostty, **two** pieces of configuration are needed:
 
-1. Map WezTerm to the tmux provider by adding an `AppIntegrations` section to `~/.config/SpotlightDimmer/config.json` (the starter config doesn't include it):
+1. Map the terminal to the tmux provider by adding an `AppIntegrations` section to `~/.config/SpotlightDimmer/config.json` (the starter config doesn't include it):
 
 ```json
 "AppIntegrations": [
@@ -141,9 +141,18 @@ Source installs copy the tmux integration tools to `~/.config/SpotlightDimmer/to
     "Provider": "tmux",
     "ContentOffsetX": 0,
     "ContentOffsetY": 0
+  },
+  {
+    "WmClass": "com.mitchellh.ghostty",
+    "Provider": "tmux",
+    "TtySource": "title",
+    "ContentOffsetX": 2,
+    "ContentOffsetY": 2
   }
 ]
 ```
+
+Ghostty has no CLI to ask which pane is focused, so `"TtySource": "title"` reads the tty that tmux publishes in the window title — which also requires uncommenting the Ghostty block in `spotlight-dimmer.tmux.conf`.
 
 2. Load the reporting hooks by adding to your `~/.tmux.conf` (then reload with `tmux source-file ~/.tmux.conf`):
 

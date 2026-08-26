@@ -4,7 +4,7 @@
 use spotlight_dimmer_core::primitives::Rect;
 use spotlight_dimmer_core::state::Monitor;
 
-use crate::integrations::wezterm::ActivePane;
+use crate::integrations::tmux::ActivePane;
 
 #[derive(Debug)]
 pub enum Event {
@@ -45,11 +45,13 @@ pub enum Event {
         client: Option<Rect>,
     },
     /// The focused window's title changed (tmux attach/detach and wezterm tab
-    /// switches change the title without any focus/geometry event).
+    /// switches change the title without any focus/geometry event). The title
+    /// itself matters for the window-title tty source.
     TitleChanged {
         sender: String,
+        title: String,
     },
-    /// Title-change debounce elapsed; requery wezterm if still relevant.
+    /// Title-change debounce elapsed; requery the pane if still relevant.
     RequeryPane {
         epoch: u64,
     },
@@ -62,7 +64,7 @@ pub enum Event {
     PaneCleared {
         tty: String,
     },
-    /// The async wezterm query chain resolved (or failed -> None).
+    /// The async pane query chain resolved (or failed -> None).
     PaneResolved {
         generation: u64,
         pane: Option<ActivePane>,

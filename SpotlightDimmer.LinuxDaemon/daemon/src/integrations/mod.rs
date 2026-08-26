@@ -3,9 +3,16 @@
 //! The "tmux" provider joins two data sources (appIntegrations.js port):
 //! - push: tmux hooks report the focused pane rect per client tty over the
 //!   PaneTracker D-Bus interface (arrives as Event::PaneUpdated/PaneCleared)
-//! - pull: on focus/title changes the wezterm CLI is queried asynchronously
-//!   to find the focused pane's tty and verify a live tmux client owns it
+//! - pull: on focus/title changes the focused pane's tty is resolved and
+//!   verified against the live tmux clients
+//!
+//! The tty is the join key, and how it is found depends on the terminal
+//! (`TtySource`): WezTerm is asked over its CLI, while terminals without one
+//! (Ghostty) have tmux publish the tty in the window title.
 
+pub mod proc;
+pub mod title;
+pub mod tmux;
 pub mod wezterm;
 
 use std::cell::Cell;
@@ -14,13 +21,13 @@ use std::rc::Rc;
 
 use async_channel::Sender;
 
-use spotlight_dimmer_core::config::{AppConfig, AppIntegration};
+use spotlight_dimmer_core::config::{AppConfig, AppIntegration, TtySource};
 use spotlight_dimmer_core::pane;
 use spotlight_dimmer_core::primitives::Rect;
 use spotlight_dimmer_core::state::Focus;
 
 use crate::events::Event;
-use wezterm::ActivePane;
+use tmux::ActivePane;
 
 /// Per-focused-window integration state, owned by the event loop.
 pub struct IntegrationState {
@@ -29,7 +36,10 @@ pub struct IntegrationState {
     pane_data_by_tty: HashMap<String, Rect>,
     /// Config entry matching the focused window, if any.
     matched: Option<AppIntegration>,
-    /// Focused wezterm pane resolved by the query chain, if any.
+    /// The focused window's current title (the tty source for terminals
+    /// where tmux publishes it there).
+    title: String,
+    /// Focused terminal pane resolved by the query chain, if any.
     active_pane: Option<ActivePane>,
     /// Invalidates in-flight async queries when focus moves on. Shared with
     /// spawned query futures (single-threaded, hence Rc<Cell>).
@@ -41,6 +51,7 @@ impl IntegrationState {
         IntegrationState {
             pane_data_by_tty: HashMap::new(),
             matched: None,
+            title: String::new(),
             active_pane: None,
             generation: Rc::new(Cell::new(0)),
         }
@@ -53,12 +64,13 @@ impl IntegrationState {
     }
 
     /// Update state for a newly focused window (or refreshed config) and
-    /// start a wezterm query when the window matches an integration.
+    /// start a pane query when the window matches an integration.
     /// Port of `setFocusedWindow` (appIntegrations.js).
     pub fn set_focused_window(
         &mut self,
         config: &AppConfig,
         wm_class: Option<&str>,
+        title: &str,
         tx: &Sender<Event>,
     ) {
         // Invalidate any in-flight query
@@ -67,6 +79,7 @@ impl IntegrationState {
         self.matched = wm_class
             .and_then(|c| config.match_integration(c, "tmux"))
             .cloned();
+        self.title = title.to_string();
         self.active_pane = None;
 
         if self.matched.is_some() {
@@ -74,10 +87,12 @@ impl IntegrationState {
         }
     }
 
-    /// Re-run the wezterm query for the current focus (title changed, tmux
-    /// hook fired, config reloaded).
-    pub fn requery(&mut self, tx: &Sender<Event>) {
+    /// Re-run the pane query for the current focus (title changed, tmux hook
+    /// fired, config reloaded). The title is refreshed first: for the
+    /// window-title tty source it *is* the query input.
+    pub fn requery(&mut self, title: &str, tx: &Sender<Event>) {
         if self.matched.is_some() {
+            self.title = title.to_string();
             self.spawn_query(tx);
         }
     }
@@ -124,8 +139,22 @@ impl IntegrationState {
         let generation_cell = self.generation.clone();
         let tx = tx.clone();
 
+        let tty_source = self
+            .matched
+            .as_ref()
+            .map(|i| i.tty_source)
+            .unwrap_or_default();
+        let title = self.title.clone();
+
         glib::spawn_future_local(async move {
-            let pane = wezterm::query_active_pane(&generation_cell, generation).await;
+            let pane = match tty_source {
+                TtySource::WezTermCli => {
+                    wezterm::query_active_pane(&generation_cell, generation).await
+                }
+                TtySource::WindowTitle => {
+                    title::query_active_pane(&title, &generation_cell, generation).await
+                }
+            };
 
             // Don't overwrite a newer query's result with a stale abort
             if generation_cell.get() == generation {

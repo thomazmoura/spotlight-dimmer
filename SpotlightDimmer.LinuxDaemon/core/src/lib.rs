@@ -11,3 +11,4 @@ pub mod config;
 pub mod pane;
 pub mod primitives;
 pub mod state;
+pub mod title;

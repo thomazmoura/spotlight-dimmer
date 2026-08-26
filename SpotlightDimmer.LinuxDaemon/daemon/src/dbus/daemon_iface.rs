@@ -260,11 +260,13 @@ impl AdapterIface {
         });
     }
 
-    fn title_changed(&self, _title: String, #[zbus(header)] header: Header<'_>) {
-        // The title content is not needed, only the change signal: it
-        // triggers a wezterm/tmux requery (appIntegrations.js semantics).
+    fn title_changed(&self, title: String, #[zbus(header)] header: Header<'_>) {
+        // The change itself triggers a tmux requery (appIntegrations.js
+        // semantics); the new title is also the tty source for terminals
+        // where tmux publishes it there.
         let _ = self.tx.send_blocking(Event::TitleChanged {
             sender: sender_of(&header),
+            title,
         });
     }
 }

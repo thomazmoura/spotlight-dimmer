@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **tmux pane highlighting inside Ghostty**: The spotlight can now follow the focused tmux pane in Ghostty, the same way it already did in WezTerm — sibling panes and everything outside the focused pane are dimmed, and the highlight follows pane switches, splits and resizes instantly
+  - Ghostty has no command-line interface to ask which pane is focused, so tmux publishes the information instead: a new optional `"TtySource": "title"` key on an `AppIntegrations` entry tells SpotlightDimmer to read the terminal's tty from the window title, where tmux writes it
+  - To enable it, uncomment the Ghostty block at the end of `spotlight-dimmer.tmux.conf` (it appends an invisible marker plus the tty to tmux's window title) and add an entry with `"WmClass": "com.mitchellh.ghostty"` and `"TtySource": "title"` to `~/.config/SpotlightDimmer/config.json` — see `docs/TMUX_INTEGRATION.md`
+  - Existing WezTerm configurations keep working unchanged: `TtySource` defaults to `"wezterm"`
+  - Known limitation: tmux must fill the whole Ghostty window. Running tmux inside a Ghostty-native split falls back to highlighting the whole window, because Ghostty cannot report where that split sits on screen
+
 ### Fixed
 - **tmux pane border lines left dimmed**: The spotlight over a focused tmux pane stopped at the pane's interior, leaving the border characters around it dimmed like a dark padding. The report script now extends the highlight one cell over every adjacent pane border, so the lines framing the focused pane are highlighted with it (edges touching the terminal or status bar are unaffected)
 
 ---
+
+### Adicionado
+- **Destaque de painel do tmux dentro do Ghostty**: O holofote agora pode seguir o painel focado do tmux no Ghostty, do mesmo modo que já fazia no WezTerm — os painéis vizinhos e todo o resto fora do painel focado ficam escurecidos, e o destaque acompanha trocas de painel, divisões e redimensionamentos instantaneamente
+  - O Ghostty não possui uma interface de linha de comando para perguntar qual painel está focado, então quem publica essa informação é o próprio tmux: a nova chave opcional `"TtySource": "title"` em uma entrada de `AppIntegrations` diz ao SpotlightDimmer para ler o tty do terminal a partir do título da janela, onde o tmux o escreve
+  - Para ativar, descomente o bloco do Ghostty no fim do `spotlight-dimmer.tmux.conf` (ele acrescenta um marcador invisível e o tty ao título da janela do tmux) e adicione uma entrada com `"WmClass": "com.mitchellh.ghostty"` e `"TtySource": "title"` ao `~/.config/SpotlightDimmer/config.json` — veja `docs/TMUX_INTEGRATION.md`
+  - As configurações existentes do WezTerm continuam funcionando sem alteração: o padrão de `TtySource` é `"wezterm"`
+  - Limitação conhecida: o tmux precisa ocupar toda a janela do Ghostty. Rodar o tmux dentro de uma divisão nativa do Ghostty volta a destacar a janela inteira, porque o Ghostty não consegue informar onde essa divisão está na tela
 
 ### Corrigido
 - **Linhas de borda do painel tmux deixadas escurecidas**: O spotlight sobre o painel tmux em foco parava no interior do painel, deixando os caracteres de borda ao seu redor escurecidos como um preenchimento escuro. O script de relatório agora estende o destaque uma célula sobre cada borda de painel adjacente, então as linhas que emolduram o painel em foco são destacadas junto com ele (bordas que tocam o terminal ou a barra de status não são afetadas)

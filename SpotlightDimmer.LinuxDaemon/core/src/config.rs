@@ -58,6 +58,29 @@ impl Default for OverlayConfig {
     }
 }
 
+/// How the focused pane's tty (the join key against the geometry pushed by
+/// the tmux hooks) is discovered for a window class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TtySource {
+    /// Ask the WezTerm CLI which pane is focused and which tty it owns.
+    #[default]
+    WezTermCli,
+    /// Read the tty out of the window title, where tmux published it via
+    /// `set-titles-string`. For terminals without a pane-query CLI (Ghostty).
+    WindowTitle,
+}
+
+impl TtySource {
+    /// Unrecognized values keep the default, matching the lenient
+    /// per-field parsing used everywhere else in this module.
+    pub fn parse(s: &str) -> TtySource {
+        match s {
+            "title" => TtySource::WindowTitle,
+            _ => TtySource::WezTermCli,
+        }
+    }
+}
+
 /// One entry of the `AppIntegrations` section: spotlight an inner region of
 /// matching windows (e.g. the focused tmux pane inside WezTerm).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +88,8 @@ pub struct AppIntegration {
     pub wm_class: String,
     /// Currently only "tmux" is meaningful.
     pub provider: String,
+    /// Where the focused pane's tty comes from for this window class.
+    pub tty_source: TtySource,
     /// Pixel offset from the window client-area origin (decorations
     /// excluded) to the terminal cell grid: tab bar, window padding. Window
     /// decorations are reported separately by the adapter (protocol v2) and
@@ -145,7 +170,8 @@ fn parse_overlay(overlay: &Value, out: &mut OverlayConfig) {
 }
 
 /// Entries without a non-empty string WmClass are dropped; Provider defaults
-/// to "tmux"; offsets default to 0 and are rounded to integers.
+/// to "tmux"; TtySource defaults to the WezTerm CLI; offsets default to 0 and
+/// are rounded to integers.
 fn parse_app_integrations(integrations: &Value) -> Vec<AppIntegration> {
     let Some(entries) = integrations.as_array() else {
         return Vec::new();
@@ -165,9 +191,17 @@ fn parse_app_integrations(integrations: &Value) -> Vec<AppIntegration> {
                 .filter(|p| !p.is_empty())
                 .unwrap_or("tmux");
 
+            let tty_source = entry
+                .get("TtySource")
+                .and_then(Value::as_str)
+                .filter(|s| !s.is_empty())
+                .map(TtySource::parse)
+                .unwrap_or_default();
+
             Some(AppIntegration {
                 wm_class: wm_class.to_string(),
                 provider: provider.to_string(),
+                tty_source,
                 content_offset_x: parse_offset(entry.get("ContentOffsetX")),
                 content_offset_y: parse_offset(entry.get("ContentOffsetY")),
             })
@@ -236,6 +270,13 @@ mod tests {
                         "Provider": "tmux",
                         "ContentOffsetX": 8,
                         "ContentOffsetY": 40.6
+                    },
+                    {
+                        "WmClass": "com.mitchellh.ghostty",
+                        "Provider": "tmux",
+                        "TtySource": "title",
+                        "ContentOffsetX": 2,
+                        "ContentOffsetY": 2
                     }
                 ],
                 "System": { "RendererBackend": "Composition" }
@@ -264,13 +305,19 @@ mod tests {
         );
         assert_eq!(config.overlay.active_opacity, 50);
 
-        assert_eq!(config.app_integrations.len(), 1);
+        assert_eq!(config.app_integrations.len(), 2);
         let integration = &config.app_integrations[0];
         assert_eq!(integration.wm_class, "org.wezfurlong.wezterm");
         assert_eq!(integration.provider, "tmux");
+        // Omitted TtySource keeps the WezTerm CLI query chain
+        assert_eq!(integration.tty_source, TtySource::WezTermCli);
         assert_eq!(integration.content_offset_x, 8);
         // Fractional offsets are rounded
         assert_eq!(integration.content_offset_y, 41);
+
+        let ghostty = &config.app_integrations[1];
+        assert_eq!(ghostty.wm_class, "com.mitchellh.ghostty");
+        assert_eq!(ghostty.tty_source, TtySource::WindowTitle);
     }
 
     #[test]
@@ -334,7 +381,35 @@ mod tests {
         assert_eq!(config.app_integrations.len(), 1);
         assert_eq!(config.app_integrations[0].wm_class, "kitty");
         assert_eq!(config.app_integrations[0].provider, "tmux");
+        assert_eq!(config.app_integrations[0].tty_source, TtySource::WezTermCli);
         assert_eq!(config.app_integrations[0].content_offset_x, 0);
+    }
+
+    #[test]
+    fn unknown_or_empty_tty_source_keeps_the_wezterm_default() {
+        let config = AppConfig::from_json(
+            r#"{"AppIntegrations": [
+                {"WmClass": "a", "TtySource": "smoke-signals"},
+                {"WmClass": "b", "TtySource": ""},
+                {"WmClass": "c", "TtySource": "wezterm"},
+                {"WmClass": "d", "TtySource": "title"}
+            ]}"#,
+        )
+        .unwrap();
+        let sources: Vec<TtySource> = config
+            .app_integrations
+            .iter()
+            .map(|i| i.tty_source)
+            .collect();
+        assert_eq!(
+            sources,
+            vec![
+                TtySource::WezTermCli,
+                TtySource::WezTermCli,
+                TtySource::WezTermCli,
+                TtySource::WindowTitle
+            ]
+        );
     }
 
     #[test]
