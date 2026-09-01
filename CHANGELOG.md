@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Configuration files with Linux integrations no longer flagged as invalid**: `config.schema.json` rejected the `WmClass` and `TtySource` keys that the Linux daemon reads from `AppIntegrations`, so anyone sharing one `config.json` between Windows and Linux saw spurious red squiggles in VS Code on a perfectly valid file. Both keys are now part of the schema, documented as Linux-only and ignored by the Windows client
+
+---
+
+### Corrigido
+- **Arquivos de configuração com integrações do Linux não são mais marcados como inválidos**: O `config.schema.json` rejeitava as chaves `WmClass` e `TtySource`, que o daemon Linux lê de `AppIntegrations`, então quem compartilha um mesmo `config.json` entre Windows e Linux via avisos de erro indevidos no VS Code em um arquivo perfeitamente válido. As duas chaves agora fazem parte do schema, documentadas como exclusivas do Linux e ignoradas pelo cliente Windows
+
 ## [0.9.1] - 2026-07-12
 
 ### Added

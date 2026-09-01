@@ -1,0 +1,56 @@
+[package]
+name = "spotlight-dimmer-config"
+description = "GTK4 configuration GUI for SpotlightDimmer on Linux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "spotlight-dimmer-config"
+path = "src/main.rs"
+
+[dependencies]
+spotlight-dimmer-core = { path = "../core" }
+# v4_12 matches the daemon's floor: GTK >= 4.14 ships on Ubuntu 24.04, the
+# oldest base the .deb is built against. ColorDialogButton needs >= 4.10.
+gtk4 = { version = "0.11", features = ["v4_12"] }
+glib = "0.22"
+gio = "0.22"
+serde_json = "1"
+# Only ever used opportunistically: the GUI is a config file editor first and
+# talks to the daemon only when it already owns its bus name.
+zbus = "5"
+async-channel = "2"
+futures-lite = "2"
+
+# -----------------------------------------------------------------------------
+# .deb packaging (cargo-deb):
+#   cargo deb -p spotlight-dimmer-config
+# Deliberately a standalone package with no `conflicts`: it must install
+# alongside either spotlight-dimmer-gnome or spotlight-dimmer-kde. Folding it
+# into the GNOME package would force libgtk-4-1 onto a variant that is built
+# --no-default-features precisely to stay GTK-free.
+# Asset source paths are relative to this crate directory (config-gui/).
+# -----------------------------------------------------------------------------
+[package.metadata.deb]
+name = "spotlight-dimmer-config"
+maintainer = "Thomaz Moura <padilha.thomaz@gmail.com>"
+copyright = "2025-2026, Thomaz Moura"
+license-file = ["../../LICENSE", "0"]
+section = "utils"
+priority = "optional"
+revision = "1"
+depends = "$auto"
+extended-description = """\
+A GTK4 settings window for SpotlightDimmer on Linux: dimming mode, overlay \
+colours and opacity with a live preview, and the terminal pane spotlight \
+(tmux) integrations. It edits ~/.config/SpotlightDimmer/config.json, which \
+the daemon hot-reloads, so changes are visible on screen as they are made. \
+Install alongside spotlight-dimmer-gnome or spotlight-dimmer-kde."""
+assets = [
+    ["target/release/spotlight-dimmer-config", "usr/bin/", "755"],
+    ["../data/org.spotlightdimmer.Config.desktop", "usr/share/applications/", "644"],
+    ["../../SpotlightDimmer.Assets/icon.svg", "usr/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg", "644"],
+    ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-config/", "644"],
+    ["../../docs/LINUX_CONFIG_GUI.md", "usr/share/doc/spotlight-dimmer-config/", "644"],
+]

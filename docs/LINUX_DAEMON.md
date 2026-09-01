@@ -45,12 +45,13 @@ KDE the daemon renders directly via `gtk4-layer-shell`.
 
 ### From .deb packages (recommended)
 
-Each Linux release (tags ending in `-linux`) publishes four packages built by
-`.github/workflows/release-linux.yml`: `spotlight-dimmer-gnome` and
-`spotlight-dimmer-kde`, for amd64 and arm64. Install with
-`sudo apt install ./<package>.deb` so runtime dependencies are resolved
-automatically. The packages conflict with each other on purpose (both ship
-`/usr/bin/spotlight-dimmer-daemon`).
+Each Linux release (tags ending in `-linux`) publishes six packages built by
+`.github/workflows/release-linux.yml`: `spotlight-dimmer-gnome`,
+`spotlight-dimmer-kde` and `spotlight-dimmer-config`, for amd64 and arm64.
+Install with `sudo apt install ./<package>.deb` so runtime dependencies are
+resolved automatically. The two desktop packages conflict with each other on
+purpose (both ship `/usr/bin/spotlight-dimmer-daemon`); the configuration GUI
+is independent and installs alongside either.
 
 Package contents:
 
@@ -62,6 +63,8 @@ Package contents:
 | `/usr/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io/` | GNOME Shell extension (GNOME package only) |
 | `/usr/share/kwin/scripts/spotlightdimmer/` | KWin script, auto-loaded by KWin (KDE package only) |
 | `/usr/share/applications/org.spotlightdimmer.toggle.desktop` | Toggle launcher for shortcut binding (KDE package only) |
+| `/usr/bin/spotlight-dimmer-config` | The settings window (`spotlight-dimmer-config` package only) |
+| `/usr/share/applications/org.spotlightdimmer.Config.desktop` | Settings launcher (`spotlight-dimmer-config` package only) |
 | `/usr/share/spotlight-dimmer/tools/` | tmux integration tools |
 | `/usr/share/doc/<package>/` | `CONFIGURATION.md`, this document, `TMUX_INTEGRATION.md` and `examples/config.example.json` |
 
@@ -69,7 +72,7 @@ Post-install steps the packages cannot do for you:
 
 - **GNOME**: log out/in, then `gnome-extensions enable spotlightdimmer@thomazmoura.github.io`.
 - **KDE**: bind the "SpotlightDimmer Toggle" launcher to Meta+Shift+D in System Settings → Shortcuts.
-- **Both**: seed your config once — `mkdir -p ~/.config/SpotlightDimmer && cp /usr/share/doc/<package>/examples/config.example.json ~/.config/SpotlightDimmer/config.json`.
+- **Both**: seed your config once — `mkdir -p ~/.config/SpotlightDimmer && cp /usr/share/doc/<package>/examples/config.example.json ~/.config/SpotlightDimmer/config.json`. (Or install `spotlight-dimmer-config` and let the settings window write it.)
 
 > **Note**: a per-user unit left behind by a previous `make install-daemon`
 > (`~/.config/systemd/user/spotlight-dimmer-daemon.service`, plus
@@ -81,14 +84,15 @@ Post-install steps the packages cannot do for you:
 > `/usr/share/spotlight-dimmer/tools/` when moving to the packages.
 
 The packaging metadata lives in `SpotlightDimmer.LinuxDaemon/daemon/Cargo.toml`
-(`[package.metadata.deb]`, built with `cargo deb --variant gnome|kde`), with
-`/usr/bin`-pathed unit/activation files in
-`SpotlightDimmer.LinuxDaemon/data/packaging/`.
+(`[package.metadata.deb]`, built with `cargo deb --variant gnome|kde`) and in
+`SpotlightDimmer.LinuxDaemon/config-gui/Cargo.toml` (built with
+`cargo deb -p spotlight-dimmer-config`), with `/usr/bin`-pathed
+unit/activation files in `SpotlightDimmer.LinuxDaemon/data/packaging/`.
 
 ### From source
 
 Build dependencies: [rustup](https://rustup.rs), plus GTK for the layer-shell
-renderer:
+renderer and the settings window:
 
 ```bash
 sudo apt install libgtk-4-dev libgtk4-layer-shell-dev   # Ubuntu/Debian
@@ -101,9 +105,11 @@ make install-linux-gnome   # GNOME: daemon + extension + tmux tools
 make install-linux-kde     # KDE Plasma 6: daemon + KWin script + Meta+Shift+D + tmux tools
 ```
 
-GNOME-only machines can skip the GTK build deps entirely with
-`make install-linux-gnome FEATURES=--no-default-features` (the layer-shell
-renderer is not used on GNOME).
+GNOME-only machines that also skip the settings window can drop the GTK build
+deps entirely with
+`make install-daemon install-config install-gnome install-tools FEATURES=--no-default-features`
+(the layer-shell renderer is not used on GNOME). `libgtk-4-dev` alone is still
+needed for `spotlight-dimmer-config`, which is GTK4 on every desktop.
 
 The daemon is **D-Bus activated**: the GNOME extension watching its bus name
 (or the KWin script's first call) starts it automatically, and the systemd
@@ -116,6 +122,11 @@ Same file and schema as before (shared with the Windows client):
 `~/.config/SpotlightDimmer/config.json`, hot-reloaded on change. The daemon
 consumes `Overlay.*` and `AppIntegrations[]`; see `CONFIGURATION.md` and
 `docs/TMUX_INTEGRATION.md`.
+
+The `spotlight-dimmer-config` settings window edits those two sections with a
+live preview, preserving every other key in the file — see
+[LINUX_CONFIG_GUI.md](LINUX_CONFIG_GUI.md). Hand-editing the JSON still works
+exactly as before; the window picks up external edits while it is open.
 
 ## Toggle shortcut
 

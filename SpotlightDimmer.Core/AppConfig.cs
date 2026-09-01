@@ -156,6 +156,23 @@ public class AppIntegration
     /// (window padding plus tab bar height, if any). Default: 0
     /// </summary>
     public int ContentOffsetY { get; set; } = 0;
+
+    /// <summary>
+    /// Linux only. The window's WM_CLASS to match, case-sensitively
+    /// (e.g. "org.wezfurlong.wezterm"). The Linux counterpart of ProcessName;
+    /// the Windows client ignores it. Declared here so the generated JSON schema
+    /// validates configuration files shared between the two platforms.
+    /// </summary>
+    public string WmClass { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Linux only. How the focused tmux pane's tty is discovered for this window
+    /// class: "title" reads it from the window title (where tmux publishes it via
+    /// set-titles-string), and any other value - "wezterm" being the readable
+    /// spelling of the default - queries the WezTerm CLI. Ignored by the Windows
+    /// client, which resolves panes through the provider instead.
+    /// </summary>
+    public string TtySource { get; set; } = "wezterm";
 }
 
 /// <summary>

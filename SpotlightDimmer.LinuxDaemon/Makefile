@@ -5,8 +5,10 @@
 #   KDE:    make install-linux-kde
 #
 # Build dependencies (Ubuntu/Debian): rustup + libgtk-4-dev libgtk4-layer-shell-dev
-# GNOME-only machines can skip the GTK deps with FEATURES=--no-default-features
-# (disables the layer-shell renderer, which GNOME doesn't use anyway).
+# libgtk-4-dev is required on every desktop now, because the configuration GUI
+# is GTK4. FEATURES=--no-default-features only drops the daemon's layer-shell
+# renderer (which GNOME doesn't use anyway), not the GUI; skip the GUI as well
+# with `make install-daemon install-config install-gnome install-tools`.
 
 PREFIX ?= $(HOME)/.local
 BINDIR := $(PREFIX)/bin
@@ -18,14 +20,16 @@ EXT_DIR := $(HOME)/.local/share/gnome-shell/extensions/$(EXT_UUID)
 KWIN_SRC := ../SpotlightDimmer.KwinScript
 TOOLS_DIR := $(HOME)/.config/SpotlightDimmer/tools
 
-.PHONY: build test install-daemon install-config install-gnome install-kwin \
-        install-kde-shortcut install-tools install-linux-gnome install-linux-kde
+.PHONY: build test install-daemon install-config install-config-gui install-gnome \
+        install-kwin install-kde-shortcut install-tools install-linux-gnome \
+        install-linux-kde
 
 build:
 	cargo build --release $(FEATURES)
 
 test:
 	cargo test -p spotlight-dimmer-core
+	cargo test -p spotlight-dimmer-config
 
 install-daemon: build
 	install -Dm755 target/release/spotlight-dimmer-daemon $(BINDIR)/spotlight-dimmer-daemon
@@ -46,6 +50,15 @@ install-config:
 	  install -Dm644 ../config.example.json $(HOME)/.config/SpotlightDimmer/config.json; \
 	  echo "Starter config installed to ~/.config/SpotlightDimmer/config.json (PartialWithActive mode)"; \
 	fi
+
+# The GTK4 settings window. Independent of the desktop: the same binary and
+# the same config file serve GNOME and KDE.
+install-config-gui: build
+	install -Dm755 target/release/spotlight-dimmer-config $(BINDIR)/spotlight-dimmer-config
+	install -Dm644 data/org.spotlightdimmer.Config.desktop $(PREFIX)/share/applications/org.spotlightdimmer.Config.desktop
+	install -Dm644 ../SpotlightDimmer.Assets/icon.svg $(PREFIX)/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg
+	-update-desktop-database $(PREFIX)/share/applications 2>/dev/null
+	@echo "Settings window installed; launch it with spotlight-dimmer-config or from the application menu."
 
 install-gnome:
 	mkdir -p $(EXT_DIR)
@@ -81,6 +94,6 @@ install-tools:
 	@echo "tmux tools installed; add to ~/.tmux.conf:"
 	@echo "  source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf"
 
-install-linux-gnome: install-daemon install-config install-gnome install-tools
+install-linux-gnome: install-daemon install-config install-config-gui install-gnome install-tools
 
-install-linux-kde: install-daemon install-config install-kwin install-kde-shortcut install-tools
+install-linux-kde: install-daemon install-config install-config-gui install-kwin install-kde-shortcut install-tools

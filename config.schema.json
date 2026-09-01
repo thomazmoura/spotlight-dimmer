@@ -130,7 +130,7 @@
     },
     "AppIntegration": {
       "type": "object",
-      "description": "A per-application integration matched against the focused window's process name",
+      "description": "A per-application integration, matched against the focused window's process name on Windows and its WM_CLASS on Linux",
       "additionalProperties": false,
       "properties": {
         "ProcessName": {
@@ -150,6 +150,14 @@
           "type": "integer",
           "description": "Pixels from the matched content area's top edge to the terminal cell grid (padding plus tab bar height, if any). Default: 0",
           "format": "int32"
+        },
+        "WmClass": {
+          "type": "string",
+          "description": "Linux only. Window WM_CLASS to match, case-sensitively (e.g. 'org.wezfurlong.wezterm'). The Linux counterpart of ProcessName; ignored by the Windows client."
+        },
+        "TtySource": {
+          "type": "string",
+          "description": "Linux only. How the focused tmux pane's tty is discovered: 'title' reads it from the window title (published by tmux via set-titles-string), anything else - 'wezterm' by convention - queries the WezTerm CLI. Default: 'wezterm'. Ignored by the Windows client."
         }
       }
     }

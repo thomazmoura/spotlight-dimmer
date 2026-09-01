@@ -172,7 +172,7 @@ class Program
             if (appIntegrationsSchema.Item != null)
             {
                 var integrationSchema = appIntegrationsSchema.Item.ActualSchema;
-                integrationSchema.Description = "A per-application integration matched against the focused window's process name";
+                integrationSchema.Description = "A per-application integration, matched against the focused window's process name on Windows and its WM_CLASS on Linux";
 
                 if (integrationSchema.Properties.TryGetValue("ProcessName", out var processNameProp))
                 {
@@ -192,6 +192,16 @@ class Program
                 if (integrationSchema.Properties.TryGetValue("ContentOffsetY", out var offsetYProp))
                 {
                     offsetYProp.Description = "Pixels from the matched content area's top edge to the terminal cell grid (padding plus tab bar height, if any). Default: 0";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("WmClass", out var wmClassProp))
+                {
+                    wmClassProp.Description = "Linux only. Window WM_CLASS to match, case-sensitively (e.g. 'org.wezfurlong.wezterm'). The Linux counterpart of ProcessName; ignored by the Windows client.";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("TtySource", out var ttySourceProp))
+                {
+                    ttySourceProp.Description = "Linux only. How the focused tmux pane's tty is discovered: 'title' reads it from the window title (published by tmux via set-titles-string), anything else - 'wezterm' by convention - queries the WezTerm CLI. Default: 'wezterm'. Ignored by the Windows client.";
                 }
             }
         }

@@ -1009,6 +1009,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
+name = "spotlight-dimmer-config"
+version = "0.3.0"
+dependencies = [
+ "async-channel",
+ "futures-lite",
+ "gio",
+ "glib",
+ "gtk4",
+ "serde_json",
+ "spotlight-dimmer-core",
+ "zbus",
+]
+
+[[package]]
 name = "spotlight-dimmer-core"
 version = "0.3.0"
 dependencies = [

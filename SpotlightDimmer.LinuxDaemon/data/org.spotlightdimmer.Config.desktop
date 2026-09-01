@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Spotlight Dimmer Settings
+GenericName=Spotlight Dimmer Configuration
+Comment=Configure dimming mode, overlay colours and terminal pane integrations
+Exec=spotlight-dimmer-config
+Icon=org.spotlightdimmer.Config
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=dimmer;overlay;monitor;focus;spotlight;
+StartupNotify=true
+StartupWMClass=org.spotlightdimmer.Config

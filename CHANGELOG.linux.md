@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Settings window for Linux (`spotlight-dimmer-config`)**: Dimming mode, overlay colours and opacity no longer have to be edited by hand in `config.json` — a native GTK4 window now exposes them with a colour picker, sliders and a live preview showing a focused monitor next to an unfocused one, so the effect of a change is visible before applying it. Because the daemon hot-reloads the same file, the overlays on screen follow the sliders as you drag them
+  - Launch it from the application menu as **Spotlight Dimmer Settings**, or run `spotlight-dimmer-config`
+  - Opacity is shown as both the stored `0-255` value and a percentage, which is what the number actually means
+  - An **Integrations** tab manages the terminal pane spotlight (`AppIntegrations`): add or remove entries and edit the window class, provider, tty source and content offsets without touching JSON
+  - Works on GNOME and KDE Plasma, and follows the system GTK theme (Breeze on Kubuntu, Adwaita on Ubuntu)
+  - Ships as a separate `spotlight-dimmer-config` package that installs alongside either `spotlight-dimmer-gnome` or `spotlight-dimmer-kde`; from source, `make install-config-gui` (included in `make install-linux-gnome` and `make install-linux-kde`)
+  - Settings the Linux daemon does not use — `System`, `Profiles`, `CurrentProfile`, `ConfigVersion` — are preserved untouched when the window saves, so a `config.json` shared with the Windows client is never damaged
+  - Safe by design: writes are debounced and atomic (the daemon never sees a half-written file), edits made in another editor are picked up while the window is open, a `config.json` with a syntax error is never overwritten without explicit confirmation, and opening the window never starts a daemon you deliberately stopped
+  - See `docs/LINUX_CONFIG_GUI.md`
+
 - **tmux pane highlighting inside Ghostty**: The spotlight can now follow the focused tmux pane in Ghostty, the same way it already did in WezTerm — sibling panes and everything outside the focused pane are dimmed, and the highlight follows pane switches, splits and resizes instantly
   - Ghostty has no command-line interface to ask which pane is focused, so tmux publishes the information instead: a new optional `"TtySource": "title"` key on an `AppIntegrations` entry tells SpotlightDimmer to read the terminal's tty from the window title, where tmux writes it
   - To enable it, uncomment the Ghostty block at the end of `spotlight-dimmer.tmux.conf` (it appends an invisible marker plus the tty to tmux's window title) and add an entry with `"WmClass": "com.mitchellh.ghostty"` and `"TtySource": "title"` to `~/.config/SpotlightDimmer/config.json` — see `docs/TMUX_INTEGRATION.md`
@@ -20,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Janela de configuração para Linux (`spotlight-dimmer-config`)**: O modo de escurecimento, as cores e as opacidades das sobreposições não precisam mais ser editados à mão no `config.json` — uma janela GTK4 nativa agora oferece seletor de cores, controles deslizantes e uma pré-visualização ao vivo mostrando um monitor em foco ao lado de um fora de foco, de modo que o efeito de uma mudança é visível antes de aplicá-la. Como o daemon recarrega o mesmo arquivo automaticamente, as sobreposições na tela acompanham os controles enquanto você os arrasta
+  - Abra pelo menu de aplicativos como **Spotlight Dimmer Settings** ou execute `spotlight-dimmer-config`
+  - A opacidade é exibida tanto no valor armazenado de `0-255` quanto em porcentagem, que é o que o número realmente significa
+  - Uma aba **Integrations** gerencia o spotlight de painel de terminal (`AppIntegrations`): adicione ou remova entradas e edite a classe da janela, o provedor, a origem do tty e os offsets de conteúdo sem mexer em JSON
+  - Funciona no GNOME e no KDE Plasma, e segue o tema GTK do sistema (Breeze no Kubuntu, Adwaita no Ubuntu)
+  - Distribuída como um pacote `spotlight-dimmer-config` separado, que instala junto com o `spotlight-dimmer-gnome` ou o `spotlight-dimmer-kde`; a partir do código-fonte, `make install-config-gui` (já incluído em `make install-linux-gnome` e `make install-linux-kde`)
+  - Configurações que o daemon Linux não utiliza — `System`, `Profiles`, `CurrentProfile`, `ConfigVersion` — são preservadas intactas ao salvar, então um `config.json` compartilhado com o cliente Windows nunca é danificado
+  - Segura por construção: as gravações são agrupadas e atômicas (o daemon nunca lê um arquivo pela metade), edições feitas em outro editor são detectadas com a janela aberta, um `config.json` com erro de sintaxe nunca é sobrescrito sem confirmação explícita, e abrir a janela nunca inicia um daemon que você parou de propósito
+  - Veja `docs/LINUX_CONFIG_GUI.md`
+
 - **Destaque de painel do tmux dentro do Ghostty**: O holofote agora pode seguir o painel focado do tmux no Ghostty, do mesmo modo que já fazia no WezTerm — os painéis vizinhos e todo o resto fora do painel focado ficam escurecidos, e o destaque acompanha trocas de painel, divisões e redimensionamentos instantaneamente
   - O Ghostty não possui uma interface de linha de comando para perguntar qual painel está focado, então quem publica essa informação é o próprio tmux: a nova chave opcional `"TtySource": "title"` em uma entrada de `AppIntegrations` diz ao SpotlightDimmer para ler o tty do terminal a partir do título da janela, onde o tmux o escreve
   - Para ativar, descomente o bloco do Ghostty no fim do `spotlight-dimmer.tmux.conf` (ele acrescenta um marcador invisível e o tty ao título da janela do tmux) e adicione uma entrada com `"WmClass": "com.mitchellh.ghostty"` e `"TtySource": "title"` ao `~/.config/SpotlightDimmer/config.json` — veja `docs/TMUX_INTEGRATION.md`

@@ -47,6 +47,10 @@ jobs:
         working-directory: SpotlightDimmer.LinuxDaemon
         run: cargo test -p spotlight-dimmer-core
 
+      - name: Run config GUI tests
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo test -p spotlight-dimmer-config
+
       - name: Build headless daemon (GNOME profile)
         working-directory: SpotlightDimmer.LinuxDaemon
         run: cargo build --release --no-default-features
@@ -54,6 +58,10 @@ jobs:
       - name: Build layer-shell daemon (KDE profile)
         working-directory: SpotlightDimmer.LinuxDaemon
         run: cargo build --release
+
+      - name: Build configuration GUI
+        working-directory: SpotlightDimmer.LinuxDaemon
+        run: cargo build --release -p spotlight-dimmer-config
 
       - name: Validate GNOME extension schemas
         run: glib-compile-schemas --strict --dry-run SpotlightDimmer.GnomeShellExtension/schemas/

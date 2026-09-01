@@ -7,11 +7,26 @@ SpotlightDimmer supports **dynamic configuration** with real-time hot-reloading.
 The configuration file is stored at:
 - **Windows**: `%AppData%\SpotlightDimmer\config.json`
   - Typically: `C:\Users\<YourUsername>\AppData\Roaming\SpotlightDimmer\config.json`
+- **Linux**: `~/.config/SpotlightDimmer/config.json`
+  - Or `$XDG_CONFIG_HOME/SpotlightDimmer/config.json` when that variable is set
 
 This location works consistently whether you run the application:
 - As a debug build from Visual Studio
 - As a release build
 - As an installed application (via installer)
+
+## Editing It
+
+Every option below can be edited by hand, but both platforms ship a settings
+window that writes the same file, with hot-reload making changes visible
+immediately:
+
+- **Windows**: `SpotlightDimmer.Config` (the Config GUI).
+- **Linux**: `spotlight-dimmer-config` ("Spotlight Dimmer Settings"), a GTK4
+  window covering the `Overlay` and `AppIntegrations` sections with a live
+  preview — see [docs/LINUX_CONFIG_GUI.md](docs/LINUX_CONFIG_GUI.md). It
+  preserves keys it does not show (`System`, `Profiles`, `CurrentProfile`),
+  which are consumed by the Windows client only.
 
 ## Automatic Creation
 
@@ -338,6 +353,11 @@ The Linux daemon matches integrations by **window class**:
 | `TtySource` | string | `"wezterm"` | How the focused pane's tty is found: `"wezterm"` queries the `wezterm` CLI, `"title"` reads the tty tmux published in the window title (for terminals without a pane-query CLI, such as Ghostty) |
 | `ContentOffsetX` | integer | `0` | Pixels from the window content area's left edge to the terminal cell grid (terminal padding) |
 | `ContentOffsetY` | integer | `0` | Pixels from the window content area's top edge to the terminal cell grid (terminal padding + tab bar) |
+
+`WmClass` and `TtySource` are Linux-only keys: the Windows client ignores
+them, and the Windows client's `ProcessName` is likewise ignored on Linux, so a
+single `config.json` can carry both platforms' entries. Entries can be managed
+from the **Integrations** tab of the `spotlight-dimmer-config` settings window.
 
 `ContentOffsetX/Y` are measured from the window's *content area* (client
 area, decorations excluded), not the decorated frame — title bars and borders

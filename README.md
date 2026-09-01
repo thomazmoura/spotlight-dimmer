@@ -56,6 +56,14 @@ sudo apt install ./spotlight-dimmer-kde_<version>_amd64.deb
 
 The two packages intentionally conflict with each other — install the one matching your desktop.
 
+Optionally add the settings window, which works on both desktops and installs alongside either package:
+
+```bash
+sudo apt install ./spotlight-dimmer-config_<version>_amd64.deb
+```
+
+It edits the same `config.json` with a live preview — see [docs/LINUX_CONFIG_GUI.md](docs/LINUX_CONFIG_GUI.md).
+
 **On GNOME**, log out and back in (Wayland cannot reload GNOME Shell in place), then enable the extension:
 
 ```bash
@@ -71,9 +79,9 @@ mkdir -p ~/.config/SpotlightDimmer
 cp /usr/share/doc/spotlight-dimmer-gnome/examples/config.example.json ~/.config/SpotlightDimmer/config.json
 ```
 
-(Use `spotlight-dimmer-kde` in the path if you installed the KDE package. The tmux integration tools land in `/usr/share/spotlight-dimmer/tools/`.)
+(Use `spotlight-dimmer-kde` in the path if you installed the KDE package. The tmux integration tools land in `/usr/share/spotlight-dimmer/tools/`. If you installed `spotlight-dimmer-config`, you can skip this step and set everything up in the settings window instead.)
 
-To uninstall: `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`).
+To uninstall: `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`, plus `spotlight-dimmer-config` if installed).
 
 > **Upgrading from a source install?** Remove the per-user daemon first (see [Uninstalling](#uninstalling-linux-source-installs)) — a leftover unit in `~/.config/systemd/user/` shadows the packaged one in `/usr/lib/systemd/user/`.
 
