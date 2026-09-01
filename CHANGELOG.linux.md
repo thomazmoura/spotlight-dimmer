@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-01
+
 ### Added
 - **Settings window for Linux (`spotlight-dimmer-config`)**: Dimming mode, overlay colours and opacity no longer have to be edited by hand in `config.json` — a native GTK4 window now exposes them with a colour picker, sliders and a live preview showing a focused monitor next to an unfocused one, so the effect of a change is visible before applying it. Because the daemon hot-reloads the same file, the overlays on screen follow the sliders as you drag them
   - Launch it from the application menu as **Spotlight Dimmer Settings**, or run `spotlight-dimmer-config`
