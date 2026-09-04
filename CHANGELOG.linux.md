@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **tmux integration silently disabling other tools' hooks**: The shipped `spotlight-dimmer.tmux.conf` registered its hooks with `set-hook -g`, which *replaces* the whole hook list for an event instead of adding to it — so sourcing it wiped out hooks belonging to any other tmux tool that used the same events (session managers, status-bar plugins), and those tools could just as silently wipe out SpotlightDimmer's in return, leaving the pane spotlight dead with no error. Hooks are now appended with `set-hook -ag`, and each event is probed first so re-sourcing your config (which TPM does on its own while loading plugins) never stacks up duplicate reports. Nothing to change on your side beyond reinstalling the tools and reloading tmux; the manual "merge it into your existing hook" step in `docs/TMUX_INTEGRATION.md` is no longer needed
+
+---
+
+### Corrigido
+- **Integração com o tmux desativando silenciosamente hooks de outras ferramentas**: O `spotlight-dimmer.tmux.conf` distribuído registrava seus hooks com `set-hook -g`, que *substitui* toda a lista de hooks de um evento em vez de acrescentar — então carregá-lo apagava hooks pertencentes a qualquer outra ferramenta de tmux que usasse os mesmos eventos (gerenciadores de sessão, plugins de barra de status), e essas ferramentas podiam apagar os do SpotlightDimmer da mesma forma silenciosa, deixando o spotlight de painel inoperante sem nenhum erro. Agora os hooks são acrescentados com `set-hook -ag`, e cada evento é verificado antes, de modo que recarregar sua configuração (o que o TPM faz sozinho ao carregar plugins) nunca acumula relatórios duplicados. Nada a mudar do seu lado além de reinstalar as ferramentas e recarregar o tmux; o passo manual de "mesclar no seu hook existente" no `docs/TMUX_INTEGRATION.md` deixa de ser necessário
+
 ## [0.4.0] - 2026-09-01
 
 ### Added

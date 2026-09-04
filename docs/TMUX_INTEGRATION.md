@@ -74,9 +74,10 @@ source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf
 
 Then reload: `tmux source-file ~/.tmux.conf`
 
-> The snippet uses `set-hook -g`, which **replaces** existing global hooks for
-> the same events. If you already define one of these hooks, merge the
-> `run-shell` command into your hook instead.
+> The snippet registers its hooks with `set-hook -ag` (append), and probes each
+> event first so re-sourcing your config never stacks up duplicates. Hooks
+> belonging to other tools on the same events are left untouched, so there is
+> nothing to merge by hand.
 
 ### 3. Configure the integration
 
