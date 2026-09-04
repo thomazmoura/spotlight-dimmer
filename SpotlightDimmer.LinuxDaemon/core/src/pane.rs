@@ -53,6 +53,69 @@ pub fn pane_rect(
     })
 }
 
+/// Compute the screen-space rect of a focused inner region reported in
+/// terminal **cells** instead of pixels (the Herdr provider).
+///
+/// Herdr publishes its layout in cell coordinates and, unlike tmux, does not
+/// report the terminal's cell pixel size. The grid is mapped proportionally
+/// onto the window's content box instead, which needs no font metrics and
+/// follows resize, font and DPI changes for free.
+///
+/// - `grid`: total size of the terminal cell grid (columns, rows), i.e. the
+///   whole surface Herdr draws on, sidebar and tab bar included
+/// - `cells`: the focused pane rect in that grid
+/// - `content_offset`: the terminal's internal padding, applied on *both*
+///   sides of each axis (the cell grid is inset by it)
+///
+/// Clamped to the client area and `None` when empty, exactly like
+/// [`pane_rect`].
+pub fn pane_rect_from_cells(
+    frame: &Rect,
+    client: Option<&Rect>,
+    content_offset: (i32, i32),
+    grid: (i32, i32),
+    cells: &Rect,
+) -> Option<Rect> {
+    let base = client.unwrap_or(frame);
+    let (cols, rows) = grid;
+    if cols <= 0 || rows <= 0 {
+        return None;
+    }
+
+    // The cell grid sits inside the padding on both sides of each axis.
+    let inner_width = base.width - 2 * content_offset.0;
+    let inner_height = base.height - 2 * content_offset.1;
+    if inner_width <= 0 || inner_height <= 0 {
+        return None;
+    }
+
+    let origin_x = base.x + content_offset.0;
+    let origin_y = base.y + content_offset.1;
+
+    // Map both edges (rather than origin + scaled size) so adjacent panes
+    // stay flush: rounding cannot open a gap or an overlap between them.
+    let left = origin_x + scale(cells.x, inner_width, cols);
+    let right = origin_x + scale(cells.right(), inner_width, cols);
+    let top = origin_y + scale(cells.y, inner_height, rows);
+    let bottom = origin_y + scale(cells.bottom(), inner_height, rows);
+
+    let rect = Rect {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+    }
+    .clamp_to(base);
+
+    (rect.width > 0 && rect.height > 0).then_some(rect)
+}
+
+/// `cell * span / count`, rounded to the nearest pixel.
+fn scale(cell: i32, span: i32, count: i32) -> i32 {
+    let scaled = cell as i64 * span as i64 * 2 + count as i64;
+    (scaled / (count as i64 * 2)) as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,6 +206,93 @@ mod tests {
         assert_eq!(
             (windowed.x - windowed_client.x, windowed.y - windowed_client.y),
             (maximized.x - FRAME.x, maximized.y - FRAME.y)
+        );
+    }
+}
+
+#[cfg(test)]
+mod cell_tests {
+    use super::*;
+
+    // 200x100 client area, 2px padding on every side -> a 196x96 cell grid.
+    const CLIENT: Rect = Rect::new(0, 0, 200, 100);
+    const GRID: (i32, i32) = (98, 48); // 2px per column, 2px per row
+    const OFFSET: (i32, i32) = (2, 2);
+
+    #[test]
+    fn maps_the_whole_grid_onto_the_content_box() {
+        let all = Rect::new(0, 0, 98, 48);
+        let result = pane_rect_from_cells(&CLIENT, Some(&CLIENT), OFFSET, GRID, &all).unwrap();
+        assert_eq!(result, Rect::new(2, 2, 196, 96));
+    }
+
+    #[test]
+    fn skips_the_sidebar_and_tab_bar() {
+        // Herdr's pane area starts after the sidebar (x) and tab bar (y)
+        let pane = Rect::new(26, 1, 72, 47);
+        let result = pane_rect_from_cells(&CLIENT, Some(&CLIENT), OFFSET, GRID, &pane).unwrap();
+        assert_eq!(result, Rect::new(2 + 52, 2 + 2, 144, 94));
+    }
+
+    #[test]
+    fn adjacent_panes_stay_flush() {
+        // 98 columns split 49/49 must not leave a seam or overlap
+        let left = pane_rect_from_cells(
+            &CLIENT,
+            Some(&CLIENT),
+            OFFSET,
+            GRID,
+            &Rect::new(0, 0, 49, 48),
+        )
+        .unwrap();
+        let right = pane_rect_from_cells(
+            &CLIENT,
+            Some(&CLIENT),
+            OFFSET,
+            GRID,
+            &Rect::new(49, 0, 49, 48),
+        )
+        .unwrap();
+        assert_eq!(left.right(), right.x);
+    }
+
+    #[test]
+    fn falls_back_to_the_frame_without_a_client_rect() {
+        let frame = Rect::new(10, 20, 200, 100);
+        let result =
+            pane_rect_from_cells(&frame, None, (0, 0), (100, 50), &Rect::new(50, 25, 50, 25))
+                .unwrap();
+        assert_eq!(result, Rect::new(110, 70, 100, 50));
+    }
+
+    #[test]
+    fn clamps_to_the_client_area() {
+        // A stale grid (fewer columns than the pane claims) must not paint
+        // outside the window
+        let result = pane_rect_from_cells(
+            &CLIENT,
+            Some(&CLIENT),
+            OFFSET,
+            (10, 10),
+            &Rect::new(0, 0, 40, 40),
+        )
+        .unwrap();
+        // Left/top keep the padding origin; right/bottom stop at the window
+        assert_eq!(result, Rect::new(2, 2, 198, 98));
+    }
+
+    #[test]
+    fn degenerate_input_yields_nothing() {
+        assert!(
+            pane_rect_from_cells(&CLIENT, None, OFFSET, (0, 48), &Rect::new(0, 0, 1, 1)).is_none()
+        );
+        // Zero-width pane
+        assert!(
+            pane_rect_from_cells(&CLIENT, None, OFFSET, GRID, &Rect::new(0, 0, 0, 48)).is_none()
+        );
+        // Padding larger than the window
+        assert!(
+            pane_rect_from_cells(&CLIENT, None, (150, 2), GRID, &Rect::new(0, 0, 98, 48)).is_none()
         );
     }
 }

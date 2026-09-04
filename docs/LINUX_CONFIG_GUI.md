@@ -55,20 +55,28 @@ drops them. Edit those by hand or from the Windows configuration app.
 ### Integrations
 
 The terminal pane spotlight: match a terminal window by its `WM_CLASS` so the
-spotlight follows the focused tmux pane instead of the whole window. This
-needs the tmux hooks as well — see [TMUX_INTEGRATION.md](TMUX_INTEGRATION.md).
+spotlight follows the focused pane instead of the whole window. The `tmux`
+provider needs the tmux hooks as well — see
+[TMUX_INTEGRATION.md](TMUX_INTEGRATION.md); the `herdr` provider reads the
+layout from the Herdr session socket — see
+[HERDR_INTEGRATION.md](HERDR_INTEGRATION.md).
 
 - **WM_CLASS** — matched case-sensitively. To find a window's:
   - KDE: `qdbus6 org.kde.KWin /KWin org.kde.KWin.queryWindowInfo`, then click
     the window.
   - GNOME: Alt+F2, `lg`, Windows tab, read `wm_class`.
   - Known-good values: `org.wezfurlong.wezterm`, `com.mitchellh.ghostty`.
-- **Provider** — `tmux` is the only provider the Linux daemon implements.
-- **Tty source** — how the focused pane's tty is discovered:
+- **Provider** — `tmux` (pane geometry pushed by the tmux hooks) or `herdr`
+  (layout read from the Herdr session socket). The rows below adapt: the tty
+  source belongs to `tmux`, the socket path to `herdr`.
+- **Tty source** (`tmux`) — how the focused pane's tty is discovered:
   - *WezTerm CLI* (`wezterm`): asks `wezterm cli` which pane is focused.
   - *Window title* (`title`): reads it from the window title, where tmux
     publishes it via `set-titles-string`. Use this for terminals with no
     pane-query CLI, such as Ghostty.
+- **Herdr socket** (`herdr`) — leave empty for the default session
+  (`$HERDR_SOCKET_PATH`, then `~/.config/herdr/herdr.sock`). A named session
+  listens on `~/.config/herdr/sessions/<name>/herdr.sock`.
 - **Content offset X / Y** — pixels from the window's client area edge to the
   terminal cell grid (padding for X, padding plus tab bar height for Y).
   Window decorations are reported separately by the compositor adapter and

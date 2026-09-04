@@ -74,6 +74,7 @@ assets = [
     ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
     ["../../docs/LINUX_DAEMON.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
     ["../../docs/TMUX_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
+    ["../../docs/HERDR_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-gnome/", "644"],
 ]
 
 # KDE package: daemon with the layer-shell renderer (render feature → GTK4 +
@@ -97,4 +98,5 @@ assets = [
     ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
     ["../../docs/LINUX_DAEMON.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
     ["../../docs/TMUX_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
+    ["../../docs/HERDR_INTEGRATION.md", "usr/share/doc/spotlight-dimmer-kde/", "644"],
 ]

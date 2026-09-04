@@ -66,7 +66,7 @@ Package contents:
 | `/usr/bin/spotlight-dimmer-config` | The settings window (`spotlight-dimmer-config` package only) |
 | `/usr/share/applications/org.spotlightdimmer.Config.desktop` | Settings launcher (`spotlight-dimmer-config` package only) |
 | `/usr/share/spotlight-dimmer/tools/` | tmux integration tools |
-| `/usr/share/doc/<package>/` | `CONFIGURATION.md`, this document, `TMUX_INTEGRATION.md` and `examples/config.example.json` |
+| `/usr/share/doc/<package>/` | `CONFIGURATION.md`, this document, `TMUX_INTEGRATION.md`, `HERDR_INTEGRATION.md` and `examples/config.example.json` |
 
 Post-install steps the packages cannot do for you:
 
@@ -120,8 +120,8 @@ nothing to start manually.
 
 Same file and schema as before (shared with the Windows client):
 `~/.config/SpotlightDimmer/config.json`, hot-reloaded on change. The daemon
-consumes `Overlay.*` and `AppIntegrations[]`; see `CONFIGURATION.md` and
-`docs/TMUX_INTEGRATION.md`.
+consumes `Overlay.*` and `AppIntegrations[]`; see `CONFIGURATION.md`,
+`docs/TMUX_INTEGRATION.md` and `docs/HERDR_INTEGRATION.md`.
 
 The `spotlight-dimmer-config` settings window edits those two sections with a
 live preview, preserving every other key in the file — see

@@ -349,12 +349,13 @@ The Linux daemon matches integrations by **window class**:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `WmClass` | string | (required) | Window class of the terminal to match |
-| `Provider` | string | `"tmux"` | Integration provider (`"tmux"` only for now) |
-| `TtySource` | string | `"wezterm"` | How the focused pane's tty is found: `"wezterm"` queries the `wezterm` CLI, `"title"` reads the tty tmux published in the window title (for terminals without a pane-query CLI, such as Ghostty) |
+| `Provider` | string | `"tmux"` | Integration provider: `"tmux"` or `"herdr"` |
+| `TtySource` | string | `"wezterm"` | `"tmux"` provider only. How the focused pane's tty is found: `"wezterm"` queries the `wezterm` CLI, `"title"` reads the tty tmux published in the window title (for terminals without a pane-query CLI, such as Ghostty) |
+| `SocketPath` | string | (empty) | `"herdr"` provider only. Herdr session socket; empty uses `$HERDR_SOCKET_PATH`, then `~/.config/herdr/herdr.sock` |
 | `ContentOffsetX` | integer | `0` | Pixels from the window content area's left edge to the terminal cell grid (terminal padding) |
 | `ContentOffsetY` | integer | `0` | Pixels from the window content area's top edge to the terminal cell grid (terminal padding + tab bar) |
 
-`WmClass` and `TtySource` are Linux-only keys: the Windows client ignores
+`WmClass`, `TtySource` and `SocketPath` are Linux-only keys: the Windows client ignores
 them, and the Windows client's `ProcessName` is likewise ignored on Linux, so a
 single `config.json` can carry both platforms' entries. Entries can be managed
 from the **Integrations** tab of the `spotlight-dimmer-config` settings window.
@@ -371,6 +372,11 @@ marker plus `#{client_tty}` to `set-titles-string`).
 
 It also requires tmux-side setup (hooks + helper script) — see
 [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full guide.
+
+The `"herdr"` provider needs no hooks: the daemon subscribes to the Herdr
+session socket itself. It only asks that Herdr publish the workspace in the
+window title, so the daemon can tell which window is showing it — see
+[docs/HERDR_INTEGRATION.md](docs/HERDR_INTEGRATION.md).
 
 ## Hot-Reload Behavior
 

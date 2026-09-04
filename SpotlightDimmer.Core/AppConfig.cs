@@ -141,6 +141,8 @@ public class AppIntegration
     ///   sub-resolution joined through the WEZTERM_PANE environment variable.
     /// - "tmux": Generic terminal running tmux full-window; the tmux pane grid is mapped
     ///   over the window's content area directly.
+    /// - "herdr": Linux only. Generic terminal running a Herdr client full-window; the
+    ///   focused pane's cell layout is read from the Herdr session socket.
     /// Default: "tmux"
     /// </summary>
     public string Provider { get; set; } = "tmux";
@@ -173,6 +175,14 @@ public class AppIntegration
     /// client, which resolves panes through the provider instead.
     /// </summary>
     public string TtySource { get; set; } = "wezterm";
+
+    /// <summary>
+    /// Linux only, "herdr" provider. Path of the Herdr session socket to read the
+    /// layout from. Empty (the default) uses $HERDR_SOCKET_PATH when set, then the
+    /// default session socket at ~/.config/herdr/herdr.sock; a named session listens
+    /// on ~/.config/herdr/sessions/&lt;name&gt;/herdr.sock. Ignored by the Windows client.
+    /// </summary>
+    public string SocketPath { get; set; } = string.Empty;
 }
 
 /// <summary>

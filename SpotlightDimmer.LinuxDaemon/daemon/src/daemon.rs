@@ -44,9 +44,12 @@ impl Daemon {
         state.set_enabled(shared.enabled());
         state.monitors = load_monitor_cache();
 
+        let mut integration = IntegrationState::new();
+        integration.ensure_providers(&state.config, &tx);
+
         Ok(Daemon {
             state,
-            integration: IntegrationState::new(),
+            integration,
             shared,
             tx,
             emitter,
@@ -180,7 +183,15 @@ impl Daemon {
                         .as_ref()
                         .map(|f| f.title.clone())
                         .unwrap_or_default();
-                    self.integration.requery(&title, &self.tx);
+                    if self.integration.requery(&title, &self.tx) {
+                        self.apply().await;
+                    }
+                }
+            }
+
+            Event::HerdrLayout(layout) => {
+                if self.integration.update_herdr_layout(layout) {
+                    self.apply().await;
                 }
             }
 
@@ -217,6 +228,8 @@ impl Daemon {
                         &title,
                         &self.tx,
                     );
+                    self.integration
+                        .ensure_providers(&self.state.config, &self.tx);
 
                     self.apply().await;
                 }

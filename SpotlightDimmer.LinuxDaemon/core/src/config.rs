@@ -86,7 +86,8 @@ impl TtySource {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppIntegration {
     pub wm_class: String,
-    /// Currently only "tmux" is meaningful.
+    /// "tmux" (pane geometry pushed by the tmux hooks) or "herdr" (layout
+    /// read from the Herdr session socket).
     pub provider: String,
     /// Where the focused pane's tty comes from for this window class.
     pub tty_source: TtySource,
@@ -96,6 +97,9 @@ pub struct AppIntegration {
     /// must not be folded in here.
     pub content_offset_x: i32,
     pub content_offset_y: i32,
+    /// "herdr" provider: the session socket to read the layout from. Empty
+    /// means `$HERDR_SOCKET_PATH`, then the default session socket.
+    pub socket_path: String,
 }
 
 /// Full configuration consumed by the Linux daemon.
@@ -137,6 +141,31 @@ impl AppConfig {
         self.app_integrations
             .iter()
             .find(|i| i.wm_class == wm_class && i.provider == provider)
+    }
+
+    /// Every integration matching a window's WM_CLASS, in config order and
+    /// whatever the provider. A window class can legitimately have one entry
+    /// per provider: the same terminal may run tmux in one window and Herdr
+    /// in another, and each provider recognizes its own windows.
+    pub fn match_window<'a>(
+        &'a self,
+        wm_class: &'a str,
+    ) -> impl Iterator<Item = &'a AppIntegration> + 'a {
+        let wm_class = if wm_class.is_empty() {
+            None
+        } else {
+            Some(wm_class)
+        };
+
+        self.app_integrations
+            .iter()
+            .filter(move |i| Some(i.wm_class.as_str()) == wm_class)
+    }
+
+    /// Whether any entry uses `provider` (i.e. whether its data source is
+    /// worth connecting to at all).
+    pub fn uses_provider(&self, provider: &str) -> bool {
+        self.app_integrations.iter().any(|i| i.provider == provider)
     }
 }
 
@@ -198,12 +227,18 @@ fn parse_app_integrations(integrations: &Value) -> Vec<AppIntegration> {
                 .map(TtySource::parse)
                 .unwrap_or_default();
 
+            let socket_path = entry
+                .get("SocketPath")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+
             Some(AppIntegration {
                 wm_class: wm_class.to_string(),
                 provider: provider.to_string(),
                 tty_source,
                 content_offset_x: parse_offset(entry.get("ContentOffsetX")),
                 content_offset_y: parse_offset(entry.get("ContentOffsetY")),
+                socket_path: socket_path.to_string(),
             })
         })
         .collect()
@@ -422,5 +457,74 @@ mod tests {
         assert!(config.match_integration("kitty", "other").is_none());
         assert!(config.match_integration("alacritty", "tmux").is_none());
         assert!(config.match_integration("", "tmux").is_none());
+    }
+}
+
+#[cfg(test)]
+mod herdr_config_tests {
+    use super::*;
+
+    const JSON: &str = r#"{
+        "AppIntegrations": [
+            {
+                "WmClass": "com.mitchellh.ghostty",
+                "Provider": "herdr",
+                "SocketPath": "/run/user/1000/herdr.sock",
+                "ContentOffsetX": 2,
+                "ContentOffsetY": 2
+            },
+            { "WmClass": "org.wezfurlong.wezterm", "Provider": "tmux" }
+        ]
+    }"#;
+
+    #[test]
+    fn parses_the_herdr_provider_and_socket_path() {
+        let config = AppConfig::from_json(JSON).unwrap();
+        let ghostty = config
+            .match_integration("com.mitchellh.ghostty", "herdr")
+            .unwrap();
+        assert_eq!(ghostty.socket_path, "/run/user/1000/herdr.sock");
+        assert_eq!(ghostty.content_offset_x, 2);
+        // Omitted SocketPath stays empty (resolved from the environment)
+        let wezterm = config
+            .match_integration("org.wezfurlong.wezterm", "tmux")
+            .unwrap();
+        assert_eq!(wezterm.socket_path, "");
+    }
+
+    #[test]
+    fn matches_every_entry_for_a_window_class() {
+        let config = AppConfig::from_json(JSON).unwrap();
+        let providers: Vec<_> = config
+            .match_window("com.mitchellh.ghostty")
+            .map(|i| i.provider.as_str())
+            .collect();
+        assert_eq!(providers, ["herdr"]);
+        assert_eq!(config.match_window("kitty").count(), 0);
+        assert_eq!(config.match_window("").count(), 0);
+    }
+
+    #[test]
+    fn a_window_class_can_carry_one_entry_per_provider() {
+        // The same terminal running tmux in one window and Herdr in another
+        let json = r#"{"AppIntegrations": [
+            {"WmClass": "com.mitchellh.ghostty", "Provider": "tmux", "TtySource": "title"},
+            {"WmClass": "com.mitchellh.ghostty", "Provider": "herdr"}
+        ]}"#;
+        let config = AppConfig::from_json(json).unwrap();
+        let providers: Vec<_> = config
+            .match_window("com.mitchellh.ghostty")
+            .map(|i| i.provider.as_str())
+            .collect();
+        assert_eq!(providers, ["tmux", "herdr"]);
+    }
+
+    #[test]
+    fn reports_which_providers_are_in_use() {
+        let config = AppConfig::from_json(JSON).unwrap();
+        assert!(config.uses_provider("herdr"));
+        assert!(config.uses_provider("tmux"));
+        assert!(!config.uses_provider("zellij"));
+        assert!(!AppConfig::default().uses_provider("herdr"));
     }
 }

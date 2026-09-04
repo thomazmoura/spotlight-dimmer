@@ -22,6 +22,38 @@ pub fn parse_tty(title: &str) -> Option<&str> {
     tty.starts_with("/dev/").then_some(tty)
 }
 
+/// Marker introducing the Herdr session key in a window title.
+///
+/// Herdr has no tty to publish (its panes are its own ptys), so the marker
+/// carries the focused workspace instead: `ui.window_title` in Herdr's
+/// config.toml is a template, and appending `\u{2063}sd:herdr:{workspace}`
+/// both flags the window as a Herdr client and says which workspace it is
+/// showing. See docs/HERDR_INTEGRATION.md.
+pub const HERDR_MARKER: &str = "\u{2063}sd:herdr:";
+
+/// The Herdr session key announced by the last marker in `title`, if any.
+pub fn parse_herdr_key(title: &str) -> Option<&str> {
+    let start = title.rfind(HERDR_MARKER)? + HERDR_MARKER.len();
+    let key = title[start..]
+        .split(|c: char| c.is_whitespace())
+        .next()
+        .unwrap_or("");
+
+    (!key.is_empty()).then_some(key)
+}
+
+/// Whether a title marker key identifies the workspace Herdr currently has
+/// focused. `*` (or a template Herdr left unexpanded) matches anything, which
+/// is what a single-window setup wants; otherwise the key must name the
+/// workspace by label or id. Labels are matched by prefix because the marker
+/// stops at the first space, so a label with spaces is truncated in the title.
+pub fn herdr_key_matches(key: &str, workspace_id: &str, workspace_label: &str) -> bool {
+    key == "*"
+        || key == "{workspace}"
+        || key == workspace_id
+        || (!key.is_empty() && workspace_label.starts_with(key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -63,5 +95,43 @@ mod tests {
         assert_eq!(parse_tty("zsh\u{2063}sd:"), None);
         assert_eq!(parse_tty("zsh\u{2063}sd: /dev/pts/7"), None);
         assert_eq!(parse_tty("zsh\u{2063}sd:none"), None);
+    }
+}
+
+#[cfg(test)]
+mod herdr_tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_workspace_key() {
+        assert_eq!(
+            parse_herdr_key("abelha1621: spotlight-dimmer\u{2063}sd:herdr:spotlight-dimmer"),
+            Some("spotlight-dimmer")
+        );
+        assert_eq!(parse_herdr_key("plain shell title"), None);
+        // Marker with an empty expansion is not a key
+        assert_eq!(parse_herdr_key("herdr\u{2063}sd:herdr:"), None);
+    }
+
+    #[test]
+    fn the_tty_parser_ignores_a_herdr_marker() {
+        // Both markers share the `sd:` prefix; a Herdr key must never be
+        // mistaken for a tmux client tty.
+        assert_eq!(parse_tty("herdr\u{2063}sd:herdr:default"), None);
+    }
+
+    #[test]
+    fn keys_match_by_id_label_or_wildcard() {
+        assert!(herdr_key_matches("*", "w18", "spotlight-dimmer"));
+        assert!(herdr_key_matches("{workspace}", "w18", "spotlight-dimmer"));
+        assert!(herdr_key_matches("w18", "w18", "spotlight-dimmer"));
+        assert!(herdr_key_matches(
+            "spotlight-dimmer",
+            "w18",
+            "spotlight-dimmer"
+        ));
+        // Truncated at the first space, so a spaced label matches by prefix
+        assert!(herdr_key_matches("dev", "w17", "dev environment"));
+        assert!(!herdr_key_matches("other", "w18", "spotlight-dimmer"));
     }
 }

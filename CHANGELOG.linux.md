@@ -7,10 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Herdr pane spotlight (`"Provider": "herdr"`)**: The spotlight can now follow the focused pane of a [Herdr](https://herdr.dev) session, the way it already follows a tmux pane — the sidebar, the tab bar and the sibling panes are dimmed along with the rest of the screen. Unlike tmux there are no hooks to install: the daemon subscribes to Herdr's session socket and re-reads the focused layout whenever focus, tabs, workspaces or splits change, and falls back to the whole-window spotlight whenever Herdr is not running
+  - Add an `AppIntegrations` entry with `"Provider": "herdr"` and your terminal's `WmClass` (or add it in the settings window's **Integrations** tab), and append the marker to Herdr's window title template: `window_title = "{hostname}: {workspace}⁣sd:herdr:{workspace}"` in `~/.config/herdr/config.toml`. That marker is what tells the daemon which window is showing which Herdr workspace
+  - `SocketPath` picks a named session (`~/.config/herdr/sessions/<name>/herdr.sock`); leaving it empty uses the default session
+  - No cell size to configure: Herdr reports its layout in terminal cells, which are mapped proportionally onto the window, so font, DPI and resize changes are followed automatically
+  - Requires Herdr 0.8.2 or newer. Full setup guide in `docs/HERDR_INTEGRATION.md`
+  - Known limitation: Herdr's API reports panes only, so focus moving into the sidebar (spaces / agents panels) and popups such as a `type = "popup"` binding are not highlighted — those regions stay dimmed until Herdr exposes them
+
 ### Fixed
 - **tmux integration silently disabling other tools' hooks**: The shipped `spotlight-dimmer.tmux.conf` registered its hooks with `set-hook -g`, which *replaces* the whole hook list for an event instead of adding to it — so sourcing it wiped out hooks belonging to any other tmux tool that used the same events (session managers, status-bar plugins), and those tools could just as silently wipe out SpotlightDimmer's in return, leaving the pane spotlight dead with no error. Hooks are now appended with `set-hook -ag`, and each event is probed first so re-sourcing your config (which TPM does on its own while loading plugins) never stacks up duplicate reports. Nothing to change on your side beyond reinstalling the tools and reloading tmux; the manual "merge it into your existing hook" step in `docs/TMUX_INTEGRATION.md` is no longer needed
 
 ---
+
+### Adicionado
+- **Spotlight de painel do Herdr (`"Provider": "herdr"`)**: O spotlight agora pode seguir o painel em foco de uma sessão do [Herdr](https://herdr.dev), como já faz com um painel do tmux — a barra lateral, a barra de abas e os painéis vizinhos ficam escurecidos junto com o resto da tela. Diferente do tmux, não há hooks a instalar: o daemon assina o socket da sessão do Herdr e relê o layout em foco sempre que foco, abas, espaços ou divisões mudam, e volta ao spotlight de janela inteira sempre que o Herdr não está em execução
+  - Adicione uma entrada em `AppIntegrations` com `"Provider": "herdr"` e o `WmClass` do seu terminal (ou adicione pela aba **Integrations** da janela de configurações) e acrescente o marcador ao modelo de título de janela do Herdr: `window_title = "{hostname}: {workspace}⁣sd:herdr:{workspace}"` em `~/.config/herdr/config.toml`. É esse marcador que informa ao daemon qual janela está mostrando qual espaço do Herdr
+  - `SocketPath` escolhe uma sessão nomeada (`~/.config/herdr/sessions/<nome>/herdr.sock`); deixando vazio, usa a sessão padrão
+  - Nenhum tamanho de célula a configurar: o Herdr informa o layout em células do terminal, que são mapeadas proporcionalmente sobre a janela, então mudanças de fonte, DPI e redimensionamento são acompanhadas automaticamente
+  - Requer o Herdr 0.8.2 ou mais recente. Guia completo de instalação em `docs/HERDR_INTEGRATION.md`
+  - Limitação conhecida: a API do Herdr informa apenas painéis, então o foco indo para a barra lateral (painéis de espaços / agentes) e popups como um atalho `type = "popup"` não são destacados — essas regiões continuam escurecidas até que o Herdr as exponha
 
 ### Corrigido
 - **Integração com o tmux desativando silenciosamente hooks de outras ferramentas**: O `spotlight-dimmer.tmux.conf` distribuído registrava seus hooks com `set-hook -g`, que *substitui* toda a lista de hooks de um evento em vez de acrescentar — então carregá-lo apagava hooks pertencentes a qualquer outra ferramenta de tmux que usasse os mesmos eventos (gerenciadores de sessão, plugins de barra de status), e essas ferramentas podiam apagar os do SpotlightDimmer da mesma forma silenciosa, deixando o spotlight de painel inoperante sem nenhum erro. Agora os hooks são acrescentados com `set-hook -ag`, e cada evento é verificado antes, de modo que recarregar sua configuração (o que o TPM faz sozinho ao carregar plugins) nunca acumula relatórios duplicados. Nada a mudar do seu lado além de reinstalar as ferramentas e recarregar o tmux; o passo manual de "mesclar no seu hook existente" no `docs/TMUX_INTEGRATION.md` deixa de ser necessário

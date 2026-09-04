@@ -170,6 +170,8 @@ source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf
 
 Without both, dimming falls back to highlighting the whole terminal window. See [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full setup guide, including the content offsets for terminal padding and tab bars.
 
+Running [Herdr](https://herdr.dev) instead of tmux? Use `"Provider": "herdr"` — the daemon reads the focused pane's layout straight from the Herdr session socket, so there are no hooks to install. See [docs/HERDR_INTEGRATION.md](docs/HERDR_INTEGRATION.md).
+
 #### Uninstalling (Linux, source installs)
 
 For .deb installs, use `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`) instead. The commands below undo a `make install-linux-*` source install:

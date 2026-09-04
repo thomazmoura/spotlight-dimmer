@@ -10,6 +10,7 @@
 //! (`TtySource`): WezTerm is asked over its CLI, while terminals without one
 //! (Ghostty) have tmux publish the tty in the window title.
 
+pub mod herdr;
 pub mod proc;
 pub mod title;
 pub mod tmux;
@@ -25,8 +26,11 @@ use spotlight_dimmer_core::config::{AppConfig, AppIntegration, TtySource};
 use spotlight_dimmer_core::pane;
 use spotlight_dimmer_core::primitives::Rect;
 use spotlight_dimmer_core::state::Focus;
+// Aliased: this module also has a `title` submodule (the tty source).
+use spotlight_dimmer_core::title as core_title;
 
 use crate::events::Event;
+use herdr::HerdrLayout;
 use tmux::ActivePane;
 
 /// Per-focused-window integration state, owned by the event loop.
@@ -34,13 +38,21 @@ pub struct IntegrationState {
     /// Latest pane rect per tmux client tty (pixels relative to the terminal
     /// content origin), fed by the PaneTracker D-Bus interface.
     pane_data_by_tty: HashMap<String, Rect>,
-    /// Config entry matching the focused window, if any.
-    matched: Option<AppIntegration>,
+    /// Config entries matching the focused window. A window class can carry
+    /// one entry per provider (the same terminal may run tmux in one window
+    /// and Herdr in another); each provider recognizes its own windows by the
+    /// marker in the title, so they are simply tried in order.
+    matched: Vec<AppIntegration>,
     /// The focused window's current title (the tty source for terminals
     /// where tmux publishes it there).
     title: String,
     /// Focused terminal pane resolved by the query chain, if any.
     active_pane: Option<ActivePane>,
+    /// Latest focused layout published by the Herdr reader thread (cells).
+    herdr_layout: Option<HerdrLayout>,
+    /// The Herdr reader thread is started once, on the first config that
+    /// asks for the provider, and runs for the process lifetime.
+    herdr_started: bool,
     /// Invalidates in-flight async queries when focus moves on. Shared with
     /// spawned query futures (single-threaded, hence Rc<Cell>).
     generation: Rc<Cell<u64>>,
@@ -50,9 +62,11 @@ impl IntegrationState {
     pub fn new() -> IntegrationState {
         IntegrationState {
             pane_data_by_tty: HashMap::new(),
-            matched: None,
+            matched: Vec::new(),
             title: String::new(),
             active_pane: None,
+            herdr_layout: None,
+            herdr_started: false,
             generation: Rc::new(Cell::new(0)),
         }
     }
@@ -60,7 +74,7 @@ impl IntegrationState {
     /// True when the focused window has a matching integration (title
     /// changes are only interesting in that case).
     pub fn is_active(&self) -> bool {
-        self.matched.is_some()
+        !self.matched.is_empty()
     }
 
     /// Update state for a newly focused window (or refreshed config) and
@@ -77,24 +91,68 @@ impl IntegrationState {
         self.generation.set(self.generation.get() + 1);
 
         self.matched = wm_class
-            .and_then(|c| config.match_integration(c, "tmux"))
-            .cloned();
+            .map(|c| config.match_window(c).cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
         self.title = title.to_string();
         self.active_pane = None;
 
-        if self.matched.is_some() {
+        if self.has_provider("tmux") {
             self.spawn_query(tx);
         }
+    }
+
+    /// Start the data sources the current config asks for. Idempotent: the
+    /// Herdr reader owns its own reconnect loop, so it is started once and
+    /// never restarted on config reloads.
+    pub fn ensure_providers(&mut self, config: &AppConfig, tx: &Sender<Event>) {
+        if self.herdr_started || !config.uses_provider("herdr") {
+            return;
+        }
+
+        let socket_path = config
+            .app_integrations
+            .iter()
+            .find(|i| i.provider == "herdr")
+            .map(|i| i.socket_path.clone())
+            .unwrap_or_default();
+
+        herdr::spawn(&socket_path, tx.clone());
+        self.herdr_started = true;
+    }
+
+    fn has_provider(&self, provider: &str) -> bool {
+        self.matched.iter().any(|i| i.provider == provider)
     }
 
     /// Re-run the pane query for the current focus (title changed, tmux hook
     /// fired, config reloaded). The title is refreshed first: for the
     /// window-title tty source it *is* the query input.
-    pub fn requery(&mut self, title: &str, tx: &Sender<Event>) {
-        if self.matched.is_some() {
-            self.title = title.to_string();
-            self.spawn_query(tx);
+    /// Returns true when the caller should recompute right away: the Herdr
+    /// join reads the workspace straight out of the title, so a new title is
+    /// already the new answer — there is nothing to wait for.
+    pub fn requery(&mut self, title: &str, tx: &Sender<Event>) -> bool {
+        if self.matched.is_empty() {
+            return false;
         }
+
+        self.title = title.to_string();
+        if self.has_provider("tmux") {
+            self.spawn_query(tx);
+            return false;
+        }
+
+        true
+    }
+
+    /// Store the layout published by the Herdr reader thread. Returns true
+    /// when it changed anything.
+    pub fn update_herdr_layout(&mut self, layout: Option<HerdrLayout>) -> bool {
+        if self.herdr_layout == layout {
+            return false;
+        }
+
+        self.herdr_layout = layout;
+        true
     }
 
     /// Result of a finished query chain; ignored when stale.
@@ -120,7 +178,20 @@ impl IntegrationState {
     /// core::pane so it is unit-tested).
     pub fn resolve_inner_rect(&self, focus: Option<&Focus>) -> Option<Rect> {
         let focus = focus?;
-        let integration = self.matched.as_ref()?;
+
+        // First provider that recognizes this window wins; the rest fall
+        // through to the whole-window spotlight.
+        self.matched.iter().find_map(|integration| {
+            if integration.provider == "herdr" {
+                self.resolve_herdr_rect(focus, integration)
+            } else {
+                self.resolve_tmux_rect(focus, integration)
+            }
+        })
+    }
+
+    /// tmux side of `resolve_inner_rect`.
+    fn resolve_tmux_rect(&self, focus: &Focus, integration: &AppIntegration) -> Option<Rect> {
         let active_pane = self.active_pane.as_ref()?;
         let pane_data = self.pane_data_by_tty.get(&active_pane.tty)?;
 
@@ -133,6 +204,28 @@ impl IntegrationState {
         )
     }
 
+    /// Herdr side of `resolve_inner_rect`: the window title says which Herdr
+    /// workspace this window shows, and the reader thread says where the
+    /// focused pane sits in that workspace's cell grid. A window without the
+    /// marker (a plain shell, or Herdr not running) keeps the whole-window
+    /// spotlight.
+    fn resolve_herdr_rect(&self, focus: &Focus, integration: &AppIntegration) -> Option<Rect> {
+        let layout = self.herdr_layout.as_ref()?;
+        let key = core_title::parse_herdr_key(&self.title)?;
+
+        if !core_title::herdr_key_matches(key, &layout.workspace_id, &layout.workspace_label) {
+            return None;
+        }
+
+        pane::pane_rect_from_cells(
+            &focus.frame,
+            focus.client.as_ref(),
+            (integration.content_offset_x, integration.content_offset_y),
+            layout.grid,
+            &layout.pane,
+        )
+    }
+
     fn spawn_query(&mut self, tx: &Sender<Event>) {
         self.generation.set(self.generation.get() + 1);
         let generation = self.generation.get();
@@ -141,7 +234,8 @@ impl IntegrationState {
 
         let tty_source = self
             .matched
-            .as_ref()
+            .iter()
+            .find(|i| i.provider == "tmux")
             .map(|i| i.tty_source)
             .unwrap_or_default();
         let title = self.title.clone();

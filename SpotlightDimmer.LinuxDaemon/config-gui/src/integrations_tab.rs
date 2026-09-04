@@ -20,7 +20,7 @@ use spotlight_dimmer_core::config::TtySource;
 use crate::document::Document;
 use crate::widgets::{hint, labelled_row, section};
 
-const PROVIDERS: [&str; 1] = ["tmux"];
+const PROVIDERS: [&str; 2] = ["tmux", "herdr"];
 const TTY_SOURCES: [&str; 2] = ["WezTerm CLI (wezterm)", "Window title (title)"];
 
 const WM_CLASS_TOOLTIP: &str = "The window's WM_CLASS, matched case-sensitively.\n\
@@ -36,6 +36,9 @@ pub struct IntegrationsTab {
     wm_class: gtk::Entry,
     provider: gtk::DropDown,
     tty_source: gtk::DropDown,
+    tty_source_row: gtk::Box,
+    socket_path: gtk::Entry,
+    socket_path_row: gtk::Box,
     offset_x: gtk::SpinButton,
     offset_y: gtk::SpinButton,
     document: Document,
@@ -57,8 +60,9 @@ impl IntegrationsTab {
 
         root.append(&hint(
             "Terminal pane spotlight — match a terminal by its WM_CLASS so the spotlight \
-             follows the focused tmux pane instead of the whole window. Requires the tmux \
-             hooks from docs/TMUX_INTEGRATION.md.",
+             follows the focused pane instead of the whole window. The tmux provider needs \
+             the hooks from docs/TMUX_INTEGRATION.md; the herdr provider reads the layout \
+             from the Herdr session socket (docs/HERDR_INTEGRATION.md).",
         ));
 
         // --- list + buttons ---------------------------------------------------
@@ -106,20 +110,32 @@ impl IntegrationsTab {
         let tty_source = gtk::DropDown::from_strings(&TTY_SOURCES);
         tty_source.set_hexpand(true);
 
+        let socket_path = gtk::Entry::builder()
+            .hexpand(true)
+            .placeholder_text("~/.config/herdr/herdr.sock (default session)")
+            .build();
+
         let offset_x = gtk::SpinButton::with_range(0.0, 1000.0, 1.0);
         let offset_y = gtk::SpinButton::with_range(0.0, 1000.0, 1.0);
 
         let (detail_frame, detail) = section("Integration details");
+        let tty_source_row = labelled_row("Tty source:", &tty_source);
+        let socket_path_row = labelled_row("Herdr socket:", &socket_path);
         detail.append(&labelled_row("WM_CLASS:", &wm_class));
         detail.append(&labelled_row("Provider:", &provider));
-        detail.append(&labelled_row("Tty source:", &tty_source));
+        detail.append(&tty_source_row);
+        detail.append(&socket_path_row);
         detail.append(&labelled_row("Content offset X:", &offset_x));
         detail.append(&labelled_row("Content offset Y:", &offset_y));
         detail.append(&hint(
-            "Tty source: how the focused pane's tty is discovered. WezTerm CLI queries \
-             `wezterm cli`; Window title reads it from the title tmux publishes via \
+            "Tty source (tmux only): how the focused pane's tty is discovered. WezTerm CLI \
+             queries `wezterm cli`; Window title reads it from the title tmux publishes via \
              set-titles-string (use this for terminals without a pane-query CLI, such as \
              Ghostty).",
+        ));
+        detail.append(&hint(
+            "Herdr socket (herdr only): leave empty for the default session. A named \
+             session listens on ~/.config/herdr/sessions/<name>/herdr.sock.",
         ));
         detail.append(&hint(
             "Offsets: pixels from the window's client area edge to the terminal cell grid \
@@ -137,6 +153,9 @@ impl IntegrationsTab {
             wm_class,
             provider,
             tty_source,
+            tty_source_row,
+            socket_path,
+            socket_path_row,
             offset_x,
             offset_y,
             document: document.clone(),
@@ -214,6 +233,7 @@ impl IntegrationsTab {
                 return;
             };
             tab.set_field("Provider", json!(provider));
+            tab.show_provider_rows(*provider);
             // The provider is part of each row's label.
             tab.refresh_list(tab.selected.get());
         });
@@ -230,6 +250,22 @@ impl IntegrationsTab {
             };
             tab.set_field("TtySource", json!(value));
         });
+
+        let weak = Rc::downgrade(self);
+        self.socket_path.connect_activate(move |_| {
+            if let Some(tab) = weak.upgrade() {
+                tab.commit_socket_path();
+            }
+        });
+
+        let focus = gtk::EventControllerFocus::new();
+        let weak = Rc::downgrade(self);
+        focus.connect_leave(move |_| {
+            if let Some(tab) = weak.upgrade() {
+                tab.commit_socket_path();
+            }
+        });
+        self.socket_path.add_controller(focus);
 
         for (spin, key) in [
             (&self.offset_x, "ContentOffsetX"),
@@ -322,6 +358,8 @@ impl IntegrationsTab {
                     TtySource::WindowTitle => 1,
                     TtySource::WezTermCli => 0,
                 });
+                self.socket_path.set_text(&integration.socket_path);
+                self.show_provider_rows(&integration.provider);
                 // Hand-edited values outside the spin range are clamped here
                 // and written back on the next change to that entry.
                 self.offset_x
@@ -333,6 +371,8 @@ impl IntegrationsTab {
                 self.wm_class.set_text("");
                 self.provider.set_selected(0);
                 self.tty_source.set_selected(0);
+                self.socket_path.set_text("");
+                self.show_provider_rows(PROVIDERS[0]);
                 self.offset_x.set_value(0.0);
                 self.offset_y.set_value(0.0);
             }
@@ -358,6 +398,35 @@ impl IntegrationsTab {
         self.document
             .set_integration_field(index, "WmClass", json!(text));
         self.refresh_list(Some(index));
+    }
+
+    /// Only one provider's fields are meaningful at a time: the tty source
+    /// belongs to tmux, the socket path to herdr.
+    fn show_provider_rows(&self, provider: &str) {
+        let herdr = provider == "herdr";
+        self.tty_source_row.set_visible(!herdr);
+        self.socket_path_row.set_visible(herdr);
+    }
+
+    fn commit_socket_path(&self) {
+        if self.loading.get() {
+            return;
+        }
+        let Some(index) = self.selected.get() else {
+            return;
+        };
+
+        let text = self.socket_path.text().to_string();
+        let integrations = self.document.integrations();
+        if integrations
+            .get(index)
+            .is_some_and(|i| i.socket_path == text)
+        {
+            return;
+        }
+
+        self.document
+            .set_integration_field(index, "SocketPath", json!(text));
     }
 
     fn set_field(&self, key: &str, value: serde_json::Value) {

@@ -181,7 +181,7 @@ class Program
 
                 if (integrationSchema.Properties.TryGetValue("Provider", out var providerProp))
                 {
-                    providerProp.Description = "Integration provider: 'windows-terminal' (focused WT pane via accessibility, with optional tmux sub-resolution), 'wezterm' (focused WezTerm pane via the wezterm CLI, with optional tmux sub-resolution), or 'tmux' (generic terminal running tmux full-window). Default: 'tmux'";
+                    providerProp.Description = "Integration provider: 'windows-terminal' (focused WT pane via accessibility, with optional tmux sub-resolution), 'wezterm' (focused WezTerm pane via the wezterm CLI, with optional tmux sub-resolution), 'tmux' (generic terminal running tmux full-window), or 'herdr' (Linux only: generic terminal running a Herdr client full-window, layout read from the Herdr session socket). Default: 'tmux'";
                 }
 
                 if (integrationSchema.Properties.TryGetValue("ContentOffsetX", out var offsetXProp))
@@ -201,7 +201,12 @@ class Program
 
                 if (integrationSchema.Properties.TryGetValue("TtySource", out var ttySourceProp))
                 {
-                    ttySourceProp.Description = "Linux only. How the focused tmux pane's tty is discovered: 'title' reads it from the window title (published by tmux via set-titles-string), anything else - 'wezterm' by convention - queries the WezTerm CLI. Default: 'wezterm'. Ignored by the Windows client.";
+                    ttySourceProp.Description = "Linux only, 'tmux' provider. How the focused tmux pane's tty is discovered: 'title' reads it from the window title (published by tmux via set-titles-string), anything else - 'wezterm' by convention - queries the WezTerm CLI. Default: 'wezterm'. Ignored by the Windows client.";
+                }
+
+                if (integrationSchema.Properties.TryGetValue("SocketPath", out var socketPathProp))
+                {
+                    socketPathProp.Description = "Linux only, 'herdr' provider. Herdr session socket to read the layout from. Empty (the default) uses $HERDR_SOCKET_PATH when set, then ~/.config/herdr/herdr.sock; a named session listens on ~/.config/herdr/sessions/<name>/herdr.sock. Ignored by the Windows client.";
                 }
             }
         }

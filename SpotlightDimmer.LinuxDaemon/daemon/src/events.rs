@@ -4,6 +4,7 @@
 use spotlight_dimmer_core::primitives::Rect;
 use spotlight_dimmer_core::state::Monitor;
 
+use crate::integrations::herdr::HerdrLayout;
 use crate::integrations::tmux::ActivePane;
 
 #[derive(Debug)]
@@ -64,6 +65,9 @@ pub enum Event {
     PaneCleared {
         tty: String,
     },
+    /// The Herdr reader thread published a new focused layout (in cells), or
+    /// `None` when the session went away and the whole window applies again.
+    HerdrLayout(Option<HerdrLayout>),
     /// The async pane query chain resolved (or failed -> None).
     PaneResolved {
         generation: u64,
