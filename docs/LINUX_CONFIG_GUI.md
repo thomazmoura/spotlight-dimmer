@@ -119,7 +119,8 @@ sudo apt install libgtk-4-dev       # Ubuntu/Debian
 make install-config-gui
 ```
 
-`make install-linux-gnome` and `make install-linux-kde` include it already.
+`make install-linux-gnome` and `make install-linux-kde` include it already when
+the GTK4 headers are installed, and skip it with a warning when they are not.
 
 ## Notes
 

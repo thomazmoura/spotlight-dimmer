@@ -111,6 +111,8 @@ gnome-extensions enable spotlightdimmer@thomazmoura.github.io
 Dimming starts as soon as the extension is enabled — the daemon is D-Bus activated automatically; there is nothing to start manually. Toggle dimming on/off with **Super+Shift+D**.
 
 > If you also want the daemon-side layer-shell renderer built (not used by GNOME), run `sudo apt install libgtk-4-dev libgtk4-layer-shell-dev` and use plain `make install-linux-gnome`.
+>
+> The GTK4 settings window (`spotlight-dimmer-config`) is skipped with a warning when `libgtk-4-dev` is missing; install it and run `make install-config-gui` to add the window later.
 
 ##### Kubuntu (KDE Plasma 6)
 

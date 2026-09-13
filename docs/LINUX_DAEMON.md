@@ -105,11 +105,13 @@ make install-linux-gnome   # GNOME: daemon + extension + tmux tools
 make install-linux-kde     # KDE Plasma 6: daemon + KWin script + Meta+Shift+D + tmux tools
 ```
 
-GNOME-only machines that also skip the settings window can drop the GTK build
-deps entirely with
-`make install-daemon install-config install-gnome install-tools FEATURES=--no-default-features`
-(the layer-shell renderer is not used on GNOME). `libgtk-4-dev` alone is still
-needed for `spotlight-dimmer-config`, which is GTK4 on every desktop.
+GNOME machines can drop the GTK build deps entirely with
+`make install-linux-gnome FEATURES=--no-default-features` (the layer-shell
+renderer is not used on GNOME; `FEATURES` only affects the daemon).
+`spotlight-dimmer-config` is GTK4 on every desktop and needs `libgtk-4-dev`:
+when its headers are missing, `install-linux-gnome`/`install-linux-kde` skip the
+settings window with a warning instead of failing — install `libgtk-4-dev` and
+run `make install-config-gui` to add it later.
 
 The daemon is **D-Bus activated**: the GNOME extension watching its bus name
 (or the KWin script's first call) starts it automatically, and the systemd

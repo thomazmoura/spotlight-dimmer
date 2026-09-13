@@ -5,10 +5,11 @@
 #   KDE:    make install-linux-kde
 #
 # Build dependencies (Ubuntu/Debian): rustup + libgtk-4-dev libgtk4-layer-shell-dev
-# libgtk-4-dev is required on every desktop now, because the configuration GUI
-# is GTK4. FEATURES=--no-default-features only drops the daemon's layer-shell
-# renderer (which GNOME doesn't use anyway), not the GUI; skip the GUI as well
-# with `make install-daemon install-config install-gnome install-tools`.
+# FEATURES applies to the daemon only: FEATURES=--no-default-features drops its
+# layer-shell renderer (which GNOME doesn't use anyway) and with it the GTK
+# build deps. The settings window is GTK4 on every desktop and needs
+# libgtk-4-dev; install-linux-gnome/-kde skip it with a warning when the GTK4
+# headers are missing, while `make install-config-gui` always builds it.
 
 PREFIX ?= $(HOME)/.local
 BINDIR := $(PREFIX)/bin
@@ -20,18 +21,25 @@ EXT_DIR := $(HOME)/.local/share/gnome-shell/extensions/$(EXT_UUID)
 KWIN_SRC := ../SpotlightDimmer.KwinScript
 TOOLS_DIR := $(HOME)/.config/SpotlightDimmer/tools
 
-.PHONY: build test install-daemon install-config install-config-gui install-gnome \
-        install-kwin install-kde-shortcut install-tools test-tools install-linux-gnome \
-        install-linux-kde
+.PHONY: build build-daemon build-config-gui test install-daemon install-config \
+        install-config-gui install-config-gui-if-available install-gnome install-kwin \
+        install-kde-shortcut install-tools test-tools install-linux-gnome install-linux-kde
 
-build:
-	cargo build --release $(FEATURES)
+# Each crate is built on its own: a workspace-wide build would always compile
+# the GTK4 settings window, whatever FEATURES says about the daemon.
+build: build-daemon build-config-gui
+
+build-daemon:
+	cargo build --release -p spotlight-dimmer-daemon $(FEATURES)
+
+build-config-gui:
+	cargo build --release -p spotlight-dimmer-config
 
 test:
 	cargo test -p spotlight-dimmer-core
 	cargo test -p spotlight-dimmer-config
 
-install-daemon: build
+install-daemon: build-daemon
 	install -Dm755 target/release/spotlight-dimmer-daemon $(BINDIR)/spotlight-dimmer-daemon
 	install -Dm644 data/spotlight-dimmer-daemon.service $(HOME)/.config/systemd/user/spotlight-dimmer-daemon.service
 	mkdir -p $(HOME)/.local/share/dbus-1/services
@@ -53,12 +61,22 @@ install-config:
 
 # The GTK4 settings window. Independent of the desktop: the same binary and
 # the same config file serve GNOME and KDE.
-install-config-gui: build
+install-config-gui: build-config-gui
 	install -Dm755 target/release/spotlight-dimmer-config $(BINDIR)/spotlight-dimmer-config
 	install -Dm644 data/org.spotlightdimmer.Config.desktop $(PREFIX)/share/applications/org.spotlightdimmer.Config.desktop
 	install -Dm644 ../SpotlightDimmer.Assets/icon.svg $(PREFIX)/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg
 	-update-desktop-database $(PREFIX)/share/applications 2>/dev/null
 	@echo "Settings window installed; launch it with spotlight-dimmer-config or from the application menu."
+
+# The one-shot targets must not fail on a GNOME host built GTK-free, so the
+# settings window is only added when its GTK4 headers are present.
+install-config-gui-if-available:
+	@if pkg-config --exists 'gtk4 >= 4.12'; then \
+	  $(MAKE) install-config-gui; \
+	else \
+	  echo "WARNING: skipping the settings window (spotlight-dimmer-config): GTK4 >= 4.12 headers not found."; \
+	  echo "         Install libgtk-4-dev, then run: make install-config-gui"; \
+	fi
 
 install-gnome:
 	mkdir -p $(EXT_DIR)
@@ -103,6 +121,6 @@ test-tools:
 	bash tools/tests/test-tmux-report.sh
 	nvim --headless -u NONE -l ../SpotlightDimmer.NeovimPlugin/tests/rect_spec.lua
 
-install-linux-gnome: install-daemon install-config install-config-gui install-gnome install-tools
+install-linux-gnome: install-daemon install-config install-config-gui-if-available install-gnome install-tools
 
-install-linux-kde: install-daemon install-config install-config-gui install-kwin install-kde-shortcut install-tools
+install-linux-kde: install-daemon install-config install-config-gui-if-available install-kwin install-kde-shortcut install-tools
