@@ -19,6 +19,11 @@ tmux hook fires (pane switch, resize, split, window change, mode/zoom change, ..
         one `tmux display-message` call, converts pane cells -> pixels
         └─> D-Bus: org.spotlightdimmer.PaneTracker.UpdatePaneGeometry(tty, x, y, w, h)
 
+a popup opens (no hook exists for this -- see "Popups")
+  └─> spotlight-dimmer-tmux-popup.sh, wrapping the popup's own command
+        derives the popup's cell rect from its pty, and restores the pane on exit
+        └─> spotlight-dimmer-tmux-report.sh --rect <left> <top> <width> <height>
+
 daemon (integrations/)
   - owns the org.spotlightdimmer.PaneTracker D-Bus name
   - stores the latest pane rect per tmux client tty
@@ -58,11 +63,16 @@ terminal via TIOCGWINSZ), so no font metrics need to be configured.
 ```bash
 mkdir -p ~/.config/SpotlightDimmer/tools
 cp SpotlightDimmer.LinuxDaemon/tools/spotlight-dimmer-tmux-report.sh \
+   SpotlightDimmer.LinuxDaemon/tools/spotlight-dimmer-tmux-popup.sh \
    ~/.config/SpotlightDimmer/tools/
 cp SpotlightDimmer.LinuxDaemon/tools/spotlight-dimmer.tmux.conf \
    ~/.config/SpotlightDimmer/tools/
-chmod +x ~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh
+chmod +x ~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh \
+         ~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-popup.sh
 ```
+
+`spotlight-dimmer-tmux-popup.sh` is only needed if you use tmux popups; see
+[Popups](#popups) below.
 
 ### 2. Install the tmux hooks
 
@@ -123,6 +133,74 @@ A few pixels of error is not visually noticeable in a dimming overlay.
 
 On Wayland, log out and back in (or use a nested session during development).
 The config file itself hot-reloads without restarting.
+
+## Popups
+
+Everything above is driven by tmux hooks, and hooks cannot cover
+`display-popup`. Two things get in the way:
+
+- tmux fires **no hook** when a popup opens or closes. (`pane-mode-changed`
+  covers `choose-tree` and `copy-mode`, but a popup is not a pane mode.)
+- A popup is an overlay drawn over the panes, not a pane. `#{pane_left}` and
+  friends keep describing the pane *underneath* it, and there are no
+  `#{popup_*}` formats to ask instead.
+
+So a popup leaves the spotlight on whichever pane was focused before, and the
+popup itself sits in the dimmed region. The geometry is only knowable from
+inside the popup, which is what `spotlight-dimmer-tmux-popup.sh` is for: wrap
+the popup's own command in it.
+
+```tmux
+bind t display-popup -E -w 80% -h 60% -x C -y C \
+  '~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-popup.sh -- ~/bin/my-picker.sh'
+```
+
+```
+Usage: spotlight-dimmer-tmux-popup.sh [--no-border] -- <command> [args...]
+```
+
+It reports the popup's rectangle on the way in and the focused pane's rectangle
+on the way out, then runs the command and passes its exit status through
+untouched (so `-EE` still works). The restore is armed on signals as well as a
+normal exit, which also covers the case where the popup's command is cancelled
+without running any tmux command — an `fzf` picker aborted with `Esc`, say,
+which fires no hook of its own.
+
+The popup's size does not have to be repeated in the wrapper's arguments: tmux
+sizes the popup's pty to the popup interior, so `stty size` gives it exactly,
+with no percentage rounding to replicate. Two things do have to match, though:
+
+- **The popup must be centred.** `-x C -y C` is what tmux does anyway when `-x`
+  and `-y` are omitted — the two place a popup identically — but spell it out so
+  the binding and the wrapper's centring cannot drift apart. A popup pinned
+  elsewhere with an explicit position is not supported and would be spotlighted
+  in the wrong place.
+
+  Worth knowing if you ever touch that maths: tmux's centring is **not**
+  symmetric between the axes. Measured against tmux 3.4, it is
+
+  ```
+  px = max(0, (client_width  - 1) / 2 -  popup_width       / 2)
+  py = max(0, (client_height - 1) / 2 - (popup_height + 1) / 2)
+  ```
+
+  — integer division throughout, and note the `+ 1` on the height only. A popup
+  with an odd height therefore sits one row higher than the symmetric
+  `(size - popup) / 2` you would expect. The status bar plays no part: the
+  position is identical with the status line on top, on the bottom, at two rows,
+  or off.
+- **Pass `--no-border` for a popup opened with `-B`**, so the wrapper does not
+  add a border that is not there.
+
+If SpotlightDimmer is not installed the wrapper is simply absent, so guard the
+binding if you share your config across machines:
+
+```tmux
+bind t display-popup -E -w 80% -h 60% -x C -y C \
+  'w=$HOME/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-popup.sh; \
+   c=$HOME/bin/my-picker.sh; \
+   [ -x "$w" ] && exec "$w" -- "$c"; exec "$c"'
+```
 
 ## Ghostty
 

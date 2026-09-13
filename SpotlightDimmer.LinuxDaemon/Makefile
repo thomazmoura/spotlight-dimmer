@@ -90,6 +90,7 @@ install-kde-shortcut:
 
 install-tools:
 	install -Dm755 tools/spotlight-dimmer-tmux-report.sh $(TOOLS_DIR)/spotlight-dimmer-tmux-report.sh
+	install -Dm755 tools/spotlight-dimmer-tmux-popup.sh $(TOOLS_DIR)/spotlight-dimmer-tmux-popup.sh
 	install -Dm644 tools/spotlight-dimmer.tmux.conf $(TOOLS_DIR)/spotlight-dimmer.tmux.conf
 	install -Dm644 ../SpotlightDimmer.NeovimPlugin/lua/spotlight-dimmer/init.lua $(TOOLS_DIR)/nvim/lua/spotlight-dimmer/init.lua
 	@echo "tmux tools installed; add to ~/.tmux.conf:"

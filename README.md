@@ -168,7 +168,7 @@ Ghostty has no CLI to ask which pane is focused, so `"TtySource": "title"` reads
 source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf
 ```
 
-Without both, dimming falls back to highlighting the whole terminal window. See [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full setup guide, including the content offsets for terminal padding and tab bars.
+Without both, dimming falls back to highlighting the whole terminal window. tmux popups (`display-popup`) need a third, per-binding opt-in — hooks cannot see them — by wrapping the popup's command in `spotlight-dimmer-tmux-popup.sh`. See [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full setup guide, including popups and the content offsets for terminal padding and tab bars.
 
 Running neovim inside tmux? The optional plugin in `SpotlightDimmer.NeovimPlugin/` narrows the spotlight further, down to the focused neovim split. See [Neovim splits](docs/TMUX_INTEGRATION.md#neovim-splits).
 
