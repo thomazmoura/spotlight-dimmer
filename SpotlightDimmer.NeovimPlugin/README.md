@@ -2,7 +2,8 @@
 
 Narrows SpotlightDimmer's tmux pane spotlight down to the focused neovim
 split, so the other splits are dimmed the same way inactive panes and windows
-are (a replacement for inactive-window plugins like `tint.nvim`).
+are (a replacement for inactive-window plugins like `tint.nvim`). With a
+single split in the tab, the whole tmux pane stays highlighted.
 
 Requires the Linux tmux integration to be set up first. See
 [docs/TMUX_INTEGRATION.md](../docs/TMUX_INTEGRATION.md#neovim-splits).

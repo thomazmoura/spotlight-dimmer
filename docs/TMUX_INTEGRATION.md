@@ -380,8 +380,8 @@ your own title on the same events:
 vim.o.titlestring = my_title .. " " .. require("spotlight-dimmer").title_segment()
 ```
 
-`title_segment()` returns an empty string on a floating window, which falls
-back to the whole pane. neovim restores the terminal title when it exits or
+`title_segment()` returns an empty string on a floating window or when the tab
+has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
 is suspended, which takes the segment with it.
 
 The segment is visible in the terminal's window title.
@@ -395,6 +395,9 @@ statusline and the command line are not.
 
 ### Fallback to the whole tmux pane
 
+- The current tab has **a single split**: there is nothing to single out, so
+  the whole pane (command line included) stays lit. Narrowing starts with the
+  second split
 - The current window is **floating** (Telescope, pickers, …), since floats sit
   on top of the splits and would otherwise be dimmed
 - The pane is in a tmux mode (copy-mode, `choose-tree`)

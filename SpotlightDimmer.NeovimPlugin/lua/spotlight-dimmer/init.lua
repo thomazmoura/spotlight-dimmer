@@ -7,7 +7,8 @@
 -- sends. Because tmux evaluates that option against the ACTIVE pane, and the
 -- daemon only honours pane geometry for a focused terminal attached to a live
 -- tmux client, the neovim rect only matters when the whole chain is focused:
--- terminal window > tmux pane > neovim split.
+-- terminal window > tmux pane > neovim split. With a single split in the tab
+-- nothing is published, and the whole pane stays lit.
 --
 -- Payload (all integers, cells, 0-based):
 --   "<grid_cols>,<grid_rows>,<col>,<row>,<width>,<height>"
@@ -98,8 +99,24 @@ function M.compute_rect(win)
   return { col = col, row = row, width = width, height = height }
 end
 
+--- Number of splits (non-floating windows) in the current tabpage.
+local function count_splits()
+  local count = 0
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if not is_floating(win) then
+      count = count + 1
+    end
+  end
+  return count
+end
+
 --- The pane option payload for the current window, or "" to unset it.
+--- A tab with a single split has nothing to single out, so it unsets the
+--- option too and the whole pane (command line included) stays lit.
 function M.payload()
+  if count_splits() <= 1 then
+    return ""
+  end
   local rect = M.compute_rect()
   if not rect or rect.width <= 0 or rect.height <= 0 then
     return ""
@@ -111,7 +128,7 @@ function M.payload()
 end
 
 --- The terminal-title transport's segment ("sd-nvim=<payload>"), or "" when
---- there is nothing to spotlight (floating window). For code that owns
+--- there is nothing to narrow (single split, floating window). For code that owns
 --- 'titlestring' and composes it: append this on the same events.
 function M.title_segment()
   local value = M.payload()
@@ -179,6 +196,8 @@ end
 
 local LAYOUT_EVENTS = {
   "VimEnter", "WinEnter", "BufWinEnter", "WinResized", "VimResized", "TabEnter",
+  -- fires before the window is gone; the deferred report sees the new layout
+  "WinClosed",
 }
 local LAYOUT_OPTIONS = { "laststatus", "showtabline", "winbar", "cmdheight" }
 

@@ -47,7 +47,7 @@ end
 
 reset(2)
 check("single window, ls=2", sd.compute_rect(), rect(0, 0, 80, 23))
-check("payload, ls=2", sd.payload(), "80,24,0,0,80,23")
+check("single split payload unsets the option", sd.payload(), "")
 
 reset(2)
 vim.cmd("vsplit")
@@ -55,6 +55,23 @@ vim.cmd("vsplit")
 check("vsplit left takes its right separator", sd.compute_rect(), rect(0, 0, 41, 23))
 vim.cmd("wincmd l")
 check("vsplit right takes its left separator", sd.compute_rect(), rect(40, 0, 40, 23))
+
+-- Split count: only 2+ splits in the current tab narrow the pane ---------
+
+reset(2)
+vim.cmd("vsplit")
+check("payload with two splits", sd.payload(), "80,24,0,0,41,23")
+vim.cmd("only")
+check("payload back to one split", sd.payload(), "")
+vim.cmd("vsplit | tabnew")
+check("splits in another tab do not count", sd.payload(), "")
+vim.cmd("tabprevious")
+check("splits in the current tab do", sd.payload(), "80,24,0,0,41,23")
+vim.cmd("only")
+vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), false, {
+  relative = "editor", row = 5, col = 10, width = 40, height = 10,
+})
+check("floats are not splits", sd.payload(), "")
 
 reset(2)
 vim.cmd("split")
@@ -117,7 +134,9 @@ check("floating window payload unsets the option", sd.payload(), "")
 -- Title transport segment -------------------------------------------------
 
 reset(2)
-check("title segment", sd.title_segment(), "sd-nvim=80,24,0,0,80,23")
+check("title segment empty on a single split", sd.title_segment(), "")
+vim.cmd("vsplit")
+check("title segment", sd.title_segment(), "sd-nvim=80,24,0,0,41,23")
 vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), true, {
   relative = "editor", row = 5, col = 10, width = 40, height = 10,
 })
