@@ -178,6 +178,105 @@ pixel origin is unknowable without a Ghostty API, so the highlight would land in
 the wrong place. (With WezTerm this works, because `wezterm cli list` reports
 each pane's cell origin.)
 
+## Neovim splits
+
+When the focused tmux pane runs neovim, the spotlight can narrow one level
+further, to the **focused neovim split**. Every other split, the rest of the
+tmux window, the terminal and the display are dimmed. This replaces
+inactive-window plugins such as `tint.nvim`, and unlike them the dimming is
+the same overlay as everywhere else, so it matches your configured opacity.
+
+The spotlight only reaches neovim when the whole chain is focused:
+
+```
+terminal window focused (AppIntegrations match, live tmux client)
+  └─ tmux pane focused (active pane of the active window)
+       └─ neovim split focused
+```
+
+neovim never talks to SpotlightDimmer directly. It stores the focused split's
+cell rect in a tmux pane option, `@spotlight_dimmer_nvim`, and asks tmux to
+re-run the report script. The script reads that option **for the active pane
+only**, so a neovim in a background pane never affects the highlight.
+
+```
+neovim (WinEnter, WinResized, VimResized, ...)
+  └─ tmux set-option -p @spotlight_dimmer_nvim "<cols>,<rows>,<col>,<row>,<w>,<h>"
+     \; if-shell -F '#{&&:#{pane_active},#{window_active}}' 'run-shell -b <report script>'
+
+spotlight-dimmer-tmux-report.sh (tmux hook or the neovim trigger above)
+  └─ active pane has a valid @spotlight_dimmer_nvim?
+       yes -> narrow the pane rect to the split, then report as usual
+       no  -> report the whole pane
+```
+
+The daemon is unchanged: it still receives a single pane rect per tmux client.
+
+### Setup
+
+1. Complete the tmux setup above, and reinstall the tools
+   (`make install-tools`) so the report script understands the option.
+2. Install the plugin. It lives in `SpotlightDimmer.NeovimPlugin/`, a
+   runtime-path directory inside this repository. With vim-plug:
+
+   ```vim
+   Plug 'thomazmoura/spotlight-dimmer', { 'rtp': 'SpotlightDimmer.NeovimPlugin' }
+   ```
+
+   lazy.nvim has no subdirectory option, so add it to the runtime path yourself:
+
+   ```lua
+   {
+     "thomazmoura/spotlight-dimmer",
+     config = function(plugin)
+       vim.opt.rtp:append(plugin.dir .. "/SpotlightDimmer.NeovimPlugin")
+       require("spotlight-dimmer").setup()
+     end,
+   }
+   ```
+
+   Source installs also copy it to `~/.config/SpotlightDimmer/tools/nvim`, and the .deb
+   packages ship it at `/usr/share/spotlight-dimmer/nvim`. Either path can be
+   added directly: `vim.opt.rtp:append(vim.fn.expand("~/.config/SpotlightDimmer/tools/nvim"))`.
+3. Call `setup()` from your `init.lua`:
+
+   ```lua
+   require("spotlight-dimmer").setup()
+   ```
+
+   Options (all optional):
+
+   | Key | Default | Description |
+   |-----|---------|-------------|
+   | `enabled` | `true` | Set to `false` to load the plugin without reporting |
+   | `report_script` | `~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh` | Report script to run after each update (e.g. `/usr/share/spotlight-dimmer/tools/...` for .deb installs) |
+
+Outside tmux (`$TMUX` unset: a plain terminal, an SSH session without
+forwarding) `setup()` does nothing, so it is safe to call unconditionally.
+
+### What the highlight covers
+
+The rect frames the split the same way tmux panes are framed: the split's
+own statusline (or the `laststatus=3` separator below it), its winbar, and
+the vertical separators on both sides are included. The tabline, the global
+statusline and the command line are not.
+
+### Fallback to the whole tmux pane
+
+- The current window is **floating** (Telescope, pickers, …), since floats sit
+  on top of the splits and would otherwise be dimmed
+- The pane is in a tmux mode (copy-mode, `choose-tree`)
+- neovim was suspended (`Ctrl-Z`) or exited (the option is cleared)
+- The stored rect was computed for a different pane size (right after a tmux
+  resize or zoom, until neovim reports again, which takes milliseconds)
+- The option is malformed or does not fit inside the pane
+
+**Check what neovim published:**
+
+```bash
+tmux show-options -p -t <pane> @spotlight_dimmer_nvim
+```
+
 ## Coordinate System
 
 ```
@@ -190,8 +289,9 @@ where:
   adapter doesn't provide one (protocol v1)
 
 and (computed by the helper script, pixels relative to the content origin):
-  tmux_rel_x = pane_left * cell_width
-  tmux_rel_y = status_bar_rows_at_top * cell_height + pane_top * cell_height
+  tmux_rel_x = (pane_left + nvim_col) * cell_width
+  tmux_rel_y = status_bar_rows_at_top * cell_height + (pane_top + nvim_row) * cell_height
+  (nvim_col/nvim_row = 0 unless the neovim plugin published a split)
 
 and (computed by the daemon from `wezterm cli list`):
   wezterm_pane_origin_* = the wezterm-native pane's cell origin, for setups

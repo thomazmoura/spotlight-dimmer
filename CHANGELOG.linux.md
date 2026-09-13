@@ -7,10 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Neovim split spotlight**: When the focused tmux pane runs neovim, the spotlight can now narrow down to the focused neovim split. The other splits are dimmed with the same overlay as inactive panes and windows, so plugins like `tint.nvim` are no longer needed and the dimming matches your configured opacity
+  - The split only counts when the whole chain is focused: the terminal window, then the tmux pane, then the neovim split. A neovim in a background tmux pane never moves the highlight
+  - The highlight frames the split the way tmux panes are framed: its statusline, winbar and the separators around it light up with it
+  - Floating windows (Telescope, pickers), tmux copy-mode and `choose-tree`, and a suspended or exited neovim all fall back to highlighting the whole tmux pane
+  - Setup: reinstall the tools (`make install-tools`), then install the plugin from `SpotlightDimmer.NeovimPlugin/` (vim-plug: `Plug 'thomazmoura/spotlight-dimmer', { 'rtp': 'SpotlightDimmer.NeovimPlugin' }`) and call `require("spotlight-dimmer").setup()`. The .deb packages ship it at `/usr/share/spotlight-dimmer/nvim`. See "Neovim splits" in `docs/TMUX_INTEGRATION.md`
+  - No daemon or config changes are required. Without the plugin, the tmux pane spotlight behaves exactly as before
+
 ### Fixed
 - **tmux integration silently disabling other tools' hooks**: The shipped `spotlight-dimmer.tmux.conf` registered its hooks with `set-hook -g`, which *replaces* the whole hook list for an event instead of adding to it — so sourcing it wiped out hooks belonging to any other tmux tool that used the same events (session managers, status-bar plugins), and those tools could just as silently wipe out SpotlightDimmer's in return, leaving the pane spotlight dead with no error. Hooks are now appended with `set-hook -ag`, and each event is probed first so re-sourcing your config (which TPM does on its own while loading plugins) never stacks up duplicate reports. Nothing to change on your side beyond reinstalling the tools and reloading tmux; the manual "merge it into your existing hook" step in `docs/TMUX_INTEGRATION.md` is no longer needed
 
 ---
+
+### Adicionado
+- **Spotlight em splits do neovim**: Quando o painel do tmux em foco executa o neovim, o spotlight agora pode se restringir ao split do neovim em foco. Os demais splits são escurecidos com a mesma sobreposição usada para painéis e janelas inativos, então plugins como o `tint.nvim` deixam de ser necessários e o escurecimento segue a opacidade configurada
+  - O split só é considerado quando toda a cadeia está em foco: a janela do terminal, depois o painel do tmux, depois o split do neovim. Um neovim em um painel do tmux em segundo plano nunca move o destaque
+  - O destaque enquadra o split da mesma forma que os painéis do tmux: sua linha de status, winbar e os separadores ao redor são destacados junto com ele
+  - Janelas flutuantes (Telescope, seletores), o copy-mode e o `choose-tree` do tmux, e um neovim suspenso ou encerrado voltam a destacar o painel inteiro do tmux
+  - Configuração: reinstale as ferramentas (`make install-tools`), depois instale o plugin de `SpotlightDimmer.NeovimPlugin/` (vim-plug: `Plug 'thomazmoura/spotlight-dimmer', { 'rtp': 'SpotlightDimmer.NeovimPlugin' }`) e chame `require("spotlight-dimmer").setup()`. Os pacotes .deb o distribuem em `/usr/share/spotlight-dimmer/nvim`. Veja "Neovim splits" em `docs/TMUX_INTEGRATION.md`
+  - Nenhuma mudança no daemon ou na configuração é necessária. Sem o plugin, o spotlight de painel do tmux se comporta exatamente como antes
 
 ### Corrigido
 - **Integração com o tmux desativando silenciosamente hooks de outras ferramentas**: O `spotlight-dimmer.tmux.conf` distribuído registrava seus hooks com `set-hook -g`, que *substitui* toda a lista de hooks de um evento em vez de acrescentar — então carregá-lo apagava hooks pertencentes a qualquer outra ferramenta de tmux que usasse os mesmos eventos (gerenciadores de sessão, plugins de barra de status), e essas ferramentas podiam apagar os do SpotlightDimmer da mesma forma silenciosa, deixando o spotlight de painel inoperante sem nenhum erro. Agora os hooks são acrescentados com `set-hook -ag`, e cada evento é verificado antes, de modo que recarregar sua configuração (o que o TPM faz sozinho ao carregar plugins) nunca acumula relatórios duplicados. Nada a mudar do seu lado além de reinstalar as ferramentas e recarregar o tmux; o passo manual de "mesclar no seu hook existente" no `docs/TMUX_INTEGRATION.md` deixa de ser necessário

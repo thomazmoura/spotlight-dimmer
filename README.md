@@ -170,6 +170,8 @@ source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf
 
 Without both, dimming falls back to highlighting the whole terminal window. See [docs/TMUX_INTEGRATION.md](docs/TMUX_INTEGRATION.md) for the full setup guide, including the content offsets for terminal padding and tab bars.
 
+Running neovim inside tmux? The optional plugin in `SpotlightDimmer.NeovimPlugin/` narrows the spotlight further, down to the focused neovim split. See [Neovim splits](docs/TMUX_INTEGRATION.md#neovim-splits).
+
 #### Uninstalling (Linux, source installs)
 
 For .deb installs, use `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`) instead. The commands below undo a `make install-linux-*` source install:
@@ -273,6 +275,7 @@ cargo test -p spotlight-dimmer-core
 - **SpotlightDimmer.LinuxDaemon/daemon** - Daemon binary: D-Bus services, event loop, tmux/wezterm integration, layer-shell renderer
 - **SpotlightDimmer.GnomeShellExtension** - Thin GNOME adapter + St.Widget renderer
 - **SpotlightDimmer.KwinScript** - KWin (Plasma 6) adapter script
+- **SpotlightDimmer.NeovimPlugin** - Optional neovim plugin: spotlights the focused neovim split inside a tmux pane
 
 ## Performance Notes
 

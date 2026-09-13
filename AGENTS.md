@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The project keeps two independent changelogs, matching the two release tracks:
 
 - **`CHANGELOG.md`** — Windows/.NET changes (`SpotlightDimmer.WindowsClient`, `SpotlightDimmer.Config`, Windows installers/workflows). Released with `vX.Y.Z-windows` tags, versioned by `Directory.Build.props`.
-- **`CHANGELOG.linux.md`** — Linux changes (`SpotlightDimmer.LinuxDaemon/`, `SpotlightDimmer.GnomeShellExtension/`, `SpotlightDimmer.KwinScript/`, Linux docs/tools/workflows). Released with `vX.Y.Z-linux` tags, versioned by the Cargo workspace version in `SpotlightDimmer.LinuxDaemon/Cargo.toml`.
+- **`CHANGELOG.linux.md`** — Linux changes (`SpotlightDimmer.LinuxDaemon/`, `SpotlightDimmer.GnomeShellExtension/`, `SpotlightDimmer.KwinScript/`, `SpotlightDimmer.NeovimPlugin/`, Linux docs/tools/workflows). Released with `vX.Y.Z-linux` tags, versioned by the Cargo workspace version in `SpotlightDimmer.LinuxDaemon/Cargo.toml`.
 
 Changes affecting both platforms (e.g., shared docs, `CONFIGURATION.md`) get an entry in each file. All formatting rules below (Keep a Changelog + Portuguese translation) apply to both files.
 

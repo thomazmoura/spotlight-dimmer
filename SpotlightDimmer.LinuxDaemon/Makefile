@@ -21,7 +21,7 @@ KWIN_SRC := ../SpotlightDimmer.KwinScript
 TOOLS_DIR := $(HOME)/.config/SpotlightDimmer/tools
 
 .PHONY: build test install-daemon install-config install-config-gui install-gnome \
-        install-kwin install-kde-shortcut install-tools install-linux-gnome \
+        install-kwin install-kde-shortcut install-tools test-tools install-linux-gnome \
         install-linux-kde
 
 build:
@@ -91,8 +91,16 @@ install-kde-shortcut:
 install-tools:
 	install -Dm755 tools/spotlight-dimmer-tmux-report.sh $(TOOLS_DIR)/spotlight-dimmer-tmux-report.sh
 	install -Dm644 tools/spotlight-dimmer.tmux.conf $(TOOLS_DIR)/spotlight-dimmer.tmux.conf
+	install -Dm644 ../SpotlightDimmer.NeovimPlugin/lua/spotlight-dimmer/init.lua $(TOOLS_DIR)/nvim/lua/spotlight-dimmer/init.lua
 	@echo "tmux tools installed; add to ~/.tmux.conf:"
 	@echo "  source-file ~/.config/SpotlightDimmer/tools/spotlight-dimmer.tmux.conf"
+	@echo "Optional neovim split spotlight: see docs/TMUX_INTEGRATION.md (Neovim splits)"
+
+# Shell/Lua tests for the tmux report script and the neovim plugin (need
+# bash and nvim, not a tmux server or D-Bus session).
+test-tools:
+	bash tools/tests/test-tmux-report.sh
+	nvim --headless -u NONE -l ../SpotlightDimmer.NeovimPlugin/tests/rect_spec.lua
 
 install-linux-gnome: install-daemon install-config install-config-gui install-gnome install-tools
 
