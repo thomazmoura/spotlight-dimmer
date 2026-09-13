@@ -9,20 +9,34 @@
 -- tmux client, the neovim rect only matters when the whole chain is focused:
 -- terminal window > tmux pane > neovim split.
 --
--- Payload stored in the pane option (all integers, cells, 0-based):
+-- Payload (all integers, cells, 0-based):
 --   "<grid_cols>,<grid_rows>,<col>,<row>,<width>,<height>"
 -- The grid size is neovim's own &columns/&lines, which the report script
 -- compares against the pane size to drop a rect made stale by a resize.
+--
+-- Two transports carry it, chosen by where neovim runs:
+--   inside tmux ($TMUX set)  the @spotlight_dimmer_nvim pane option, set with
+--                            the tmux CLI, which then re-runs the report
+--   over ssh (no $TMUX)      the terminal title, as "sd-nvim=<payload>": the
+--                            local tmux keeps it as the pane title and copies
+--                            it into the window title (#T in set-titles-string),
+--                            and the daemon refreshes the pane geometry when it
+--                            changes. The report script reads it back out of
+--                            #{pane_title}.
 --
 -- See docs/TMUX_INTEGRATION.md ("Neovim splits").
 
 local M = {}
 
 M.OPTION = "@spotlight_dimmer_nvim"
+M.TITLE_MARKER = "sd-nvim="
 
 local defaults = {
   enabled = true,
   report_script = "~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh",
+  -- Over ssh: set 'titlestring' to the title segment. Set to false when
+  -- other code owns the title, and append M.title_segment() there instead.
+  manage_title = true,
 }
 
 local config = vim.deepcopy(defaults)
@@ -96,6 +110,17 @@ function M.payload()
   )
 end
 
+--- The terminal-title transport's segment ("sd-nvim=<payload>"), or "" when
+--- there is nothing to spotlight (floating window). For code that owns
+--- 'titlestring' and composes it: append this on the same events.
+function M.title_segment()
+  local value = M.payload()
+  if value == "" then
+    return ""
+  end
+  return M.TITLE_MARKER .. value
+end
+
 --- Store `value` in this pane's option and re-run the report script.
 --- The report only runs while this pane is the active pane of its session's
 --- active window: from anywhere else the script would report whichever pane
@@ -152,25 +177,49 @@ local function clear(sync)
   send("", sync)
 end
 
+local LAYOUT_EVENTS = {
+  "VimEnter", "WinEnter", "BufWinEnter", "WinResized", "VimResized", "TabEnter",
+}
+local LAYOUT_OPTIONS = { "laststatus", "showtabline", "winbar", "cmdheight" }
+
+--- Over ssh: keep the title segment current. neovim restores the terminal
+--- title when it exits or is suspended, which takes the segment with it.
+local function setup_title(group)
+  vim.o.title = true
+  local update = function()
+    vim.schedule(function()
+      vim.o.titlestring = M.title_segment()
+    end)
+  end
+  vim.api.nvim_create_autocmd(LAYOUT_EVENTS, { group = group, callback = update })
+  vim.api.nvim_create_autocmd("OptionSet", {
+    group = group, pattern = LAYOUT_OPTIONS, callback = update,
+  })
+  if vim.v.vim_did_enter == 1 then
+    update()
+  end
+end
+
 function M.setup(opts)
   config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
-
-  -- Outside tmux there is no pane to narrow: nothing to do.
-  if not config.enabled or not vim.env.TMUX or not vim.env.TMUX_PANE then
+  if not config.enabled then
     return
   end
 
   local group = vim.api.nvim_create_augroup("SpotlightDimmer", { clear = true })
 
-  vim.api.nvim_create_autocmd({
-    "VimEnter", "WinEnter", "BufWinEnter", "WinResized",
-    "VimResized", "TabEnter",
-  }, { group = group, callback = schedule_report })
+  -- Not inside tmux: over ssh, the local tmux can still be reached through
+  -- the terminal title. Anywhere else there is no pane to narrow.
+  if not vim.env.TMUX or not vim.env.TMUX_PANE then
+    if vim.env.SSH_TTY and config.manage_title then
+      setup_title(group)
+    end
+    return
+  end
 
+  vim.api.nvim_create_autocmd(LAYOUT_EVENTS, { group = group, callback = schedule_report })
   vim.api.nvim_create_autocmd("OptionSet", {
-    group = group,
-    pattern = { "laststatus", "showtabline", "winbar", "cmdheight" },
-    callback = schedule_report,
+    group = group, pattern = LAYOUT_OPTIONS, callback = schedule_report,
   })
 
   -- Suspended (Ctrl-Z) or gone: the shell underneath owns the pane again.

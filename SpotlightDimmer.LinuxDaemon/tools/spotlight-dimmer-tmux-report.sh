@@ -20,6 +20,13 @@
 #       included). Used by spotlight-dimmer-tmux-popup.sh to spotlight a
 #       display-popup, which is an overlay rather than a pane and so has no
 #       #{pane_*} geometry of its own.
+#
+# Options, combinable with either mode:
+#
+#   --client <tty>   Query that tmux client instead of the current one. Used
+#                    by the daemon, which runs outside any tmux context.
+#   --print          Print "<tty> <x> <y> <width> <height>" instead of sending
+#                    it over D-Bus (the daemon applies the answer itself).
 
 set -u
 
@@ -36,12 +43,34 @@ is_uint() {
 # push it to the daemon, and (like every other failure here) must not fail the
 # hook or binding it came from either.
 rect_mode=0
-if [ "${1:-}" = "--rect" ]; then
-    rect_mode=1
-    rect_left=${2:-}
-    rect_top=${3:-}
-    rect_width=${4:-}
-    rect_height=${5:-}
+client=""
+print=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --rect)
+            [ $# -ge 5 ] || exit 0
+            rect_mode=1
+            rect_left=$2
+            rect_top=$3
+            rect_width=$4
+            rect_height=$5
+            shift 5
+            ;;
+        --client)
+            [ $# -ge 2 ] || exit 0
+            client=$2
+            shift 2
+            ;;
+        --print)
+            print=1
+            shift
+            ;;
+        *)
+            exit 0
+            ;;
+    esac
+done
+if [ "$rect_mode" = 1 ]; then
     for value in "$rect_left" "$rect_top" "$rect_width" "$rect_height"; do
         is_uint "$value" || exit 0
     done
@@ -54,11 +83,24 @@ fi
 # client grid size (to detect pane borders at the window-area edges), and the
 # focused neovim split published by the SpotlightDimmer neovim plugin
 # (SpotlightDimmer.NeovimPlugin), if any, plus whether a tmux mode covers it.
+# The plugin publishes the split in the @spotlight_dimmer_nvim pane option
+# when it runs inside this tmux, and in its pane title (sd-nvim=...) when it
+# runs over ssh, where it cannot reach this tmux. The pane title comes last
+# because it is free text: `read` hands the last variable the rest of the
+# line, '|' characters included.
 # --rect uses only the cell size and the tty; the query is left whole so both
 # modes stay a single round trip to the tmux server.
-info="$(tmux display-message -p '#{pane_left}|#{pane_top}|#{pane_width}|#{pane_height}|#{client_cell_width}|#{client_cell_height}|#{client_tty}|#{status}|#{status-position}|#{client_width}|#{client_height}|#{pane_in_mode}|#{@spotlight_dimmer_nvim}' 2>/dev/null)" || exit 0
+target=()
+[ -n "$client" ] && target=(-c "$client")
+info="$(tmux display-message "${target[@]}" -p '#{pane_left}|#{pane_top}|#{pane_width}|#{pane_height}|#{client_cell_width}|#{client_cell_height}|#{client_tty}|#{status}|#{status-position}|#{client_width}|#{client_height}|#{pane_in_mode}|#{@spotlight_dimmer_nvim}|#{pane_title}' 2>/dev/null)" || exit 0
 
-IFS='|' read -r pane_left pane_top pane_width pane_height cell_w cell_h tty status status_position client_width client_height pane_in_mode nvim_rect <<< "$info"
+IFS='|' read -r pane_left pane_top pane_width pane_height cell_w cell_h tty status status_position client_width client_height pane_in_mode nvim_rect pane_title <<< "$info"
+
+# The title is untrusted (any program in the pane can set it): the regex only
+# extracts digits and commas, and the value is validated like the option.
+if [ -z "${nvim_rect:-}" ] && [[ "${pane_title:-}" =~ sd-nvim=([0-9,]+) ]]; then
+    nvim_rect=${BASH_REMATCH[1]}
+fi
 
 # Without a client (detached context) or cell pixel info (terminal does not
 # report pixel sizes) there is nothing useful to report.
@@ -148,6 +190,11 @@ x=$((pane_left * cell_w))
 y=$((y_offset + pane_top * cell_h))
 width=$((pane_width * cell_w))
 height=$((pane_height * cell_h))
+
+if [ "$print" = 1 ]; then
+    printf '%s %s %s %s %s\n' "$tty" "$x" "$y" "$width" "$height"
+    exit 0
+fi
 
 # Silent no-op when the extension (and its D-Bus service) is not running.
 gdbus call --session \

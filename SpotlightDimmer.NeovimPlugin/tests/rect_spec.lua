@@ -28,6 +28,12 @@ assert(vim.o.columns == 80 and vim.o.lines == 24,
   "expected the headless default 80x24 grid, got " .. vim.o.columns .. "x" .. vim.o.lines)
 
 local function reset(laststatus)
+  -- :only cannot run from a floating window; close those first
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_config(win).relative ~= "" then
+      vim.api.nvim_win_close(win, true)
+    end
+  end
   vim.cmd("silent! only | silent! tabonly")
   vim.o.cmdheight = 1
   vim.o.showtabline = 0
@@ -107,6 +113,15 @@ vim.api.nvim_open_win(buf, true, {
 })
 check("floating window returns nil", sd.compute_rect(), nil)
 check("floating window payload unsets the option", sd.payload(), "")
+
+-- Title transport segment -------------------------------------------------
+
+reset(2)
+check("title segment", sd.title_segment(), "sd-nvim=80,24,0,0,80,23")
+vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), true, {
+  relative = "editor", row = 5, col = 10, width = 40, height = 10,
+})
+check("title segment empty on a float", sd.title_segment(), "")
 
 if failures > 0 then
   print(string.format("%d failure(s)", failures))

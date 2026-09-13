@@ -25,6 +25,7 @@ use spotlight_dimmer_core::config::{AppConfig, AppIntegration, TtySource};
 use spotlight_dimmer_core::pane;
 use spotlight_dimmer_core::primitives::Rect;
 use spotlight_dimmer_core::state::Focus;
+use spotlight_dimmer_core::title as core_title;
 
 use crate::events::Event;
 use tmux::ActivePane;
@@ -44,6 +45,10 @@ pub struct IntegrationState {
     /// Invalidates in-flight async queries when focus moves on. Shared with
     /// spawned query futures (single-threaded, hence Rc<Cell>).
     generation: Rc<Cell<u64>>,
+    /// The neovim split marker (`sd-nvim=...`) in the focused window title
+    /// that pane geometry was last refreshed for. Outer `None` = nothing
+    /// refreshed yet for this focus.
+    refreshed_nvim_rect: Option<Option<String>>,
 }
 
 impl IntegrationState {
@@ -54,6 +59,7 @@ impl IntegrationState {
             title: String::new(),
             active_pane: None,
             generation: Rc::new(Cell::new(0)),
+            refreshed_nvim_rect: None,
         }
     }
 
@@ -81,6 +87,7 @@ impl IntegrationState {
             .cloned();
         self.title = title.to_string();
         self.active_pane = None;
+        self.refreshed_nvim_rect = None;
 
         if self.matched.is_some() {
             self.spawn_query(tx);
@@ -104,6 +111,42 @@ impl IntegrationState {
         }
         self.active_pane = pane;
         true
+    }
+
+    /// Ask tmux for fresh pane geometry when the neovim split marker in the
+    /// focused window title changed since the last refresh (or appeared or
+    /// vanished). A neovim over ssh cannot run any tmux command locally, and
+    /// no tmux hook fires for a pane title change, so this title change is
+    /// the only event that says its split moved.
+    ///
+    /// Needs the resolved tty: until the pane query resolves, nothing is
+    /// recorded, so the call after `on_pane_resolved` performs the refresh.
+    pub fn refresh_nvim_split(&mut self, window_title: &str, tx: &Sender<Event>) {
+        if self.matched.is_none() {
+            return;
+        }
+        let Some(tty) = self.active_pane.as_ref().map(|p| p.tty.clone()) else {
+            return;
+        };
+
+        let marker = core_title::parse_nvim_rect(window_title).map(str::to_string);
+        let unchanged = match &self.refreshed_nvim_rect {
+            Some(last) => *last == marker,
+            // First look at this focus: nothing to do without a marker, the
+            // tmux hooks already reported the plain pane.
+            None => marker.is_none(),
+        };
+        self.refreshed_nvim_rect = Some(marker);
+        if unchanged {
+            return;
+        }
+
+        let tx = tx.clone();
+        glib::spawn_future_local(async move {
+            if let Some(rect) = tmux::report_pane(&tty).await {
+                let _ = tx.send(Event::PaneUpdated { tty, rect }).await;
+            }
+        });
     }
 
     pub fn update_pane_data(&mut self, tty: String, rect: Rect) {

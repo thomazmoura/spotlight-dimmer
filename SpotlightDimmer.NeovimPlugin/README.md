@@ -16,6 +16,9 @@ Plug 'thomazmoura/spotlight-dimmer', { 'rtp': 'SpotlightDimmer.NeovimPlugin' }
 require("spotlight-dimmer").setup()
 ```
 
-Outside tmux, `setup()` does nothing.
+Inside tmux it publishes the split through a tmux pane option. Over ssh (a
+local tmux pane running `ssh host`, neovim on the host) it uses the terminal
+title instead, which the desktop's daemon watches. Elsewhere `setup()` does
+nothing.
 
 Tests (no tmux needed): `nvim --headless -u NONE -l SpotlightDimmer.NeovimPlugin/tests/rect_spec.lua`

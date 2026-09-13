@@ -154,6 +154,11 @@ impl Daemon {
 
             Event::TitleChanged { sender, title } => {
                 self.ensure_registered(&sender);
+                // A neovim over ssh announces split switches only through its
+                // title; refresh at once rather than after the debounce, since
+                // the refresh only runs when that announcement changed.
+                self.integration.refresh_nvim_split(&title, &self.tx);
+
                 // Keep Focus authoritative even when no integration matches
                 if let Some(focus) = self.state.focus.as_mut() {
                     focus.title = title;
@@ -197,6 +202,17 @@ impl Daemon {
 
             Event::PaneResolved { generation, pane } => {
                 if self.integration.on_pane_resolved(generation, pane) {
+                    // Focus arrived on a terminal whose title already carries
+                    // a neovim split: its geometry may have moved while the
+                    // window was unfocused (titles are only tracked for the
+                    // focused window).
+                    let title = self
+                        .state
+                        .focus
+                        .as_ref()
+                        .map(|f| f.title.clone())
+                        .unwrap_or_default();
+                    self.integration.refresh_nvim_split(&title, &self.tx);
                     self.apply().await;
                 }
             }

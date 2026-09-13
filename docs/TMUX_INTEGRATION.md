@@ -272,10 +272,14 @@ terminal window focused (AppIntegrations match, live tmux client)
        └─ neovim split focused
 ```
 
-neovim never talks to SpotlightDimmer directly. It stores the focused split's
-cell rect in a tmux pane option, `@spotlight_dimmer_nvim`, and asks tmux to
-re-run the report script. The script reads that option **for the active pane
-only**, so a neovim in a background pane never affects the highlight.
+neovim never talks to SpotlightDimmer directly. How the split reaches the
+desktop depends on where neovim runs: inside this tmux (below), or on another
+machine over ssh ([Over ssh](#over-ssh)). Either way the report script picks
+it up **for the active pane only**, so a neovim in a background pane never
+affects the highlight.
+
+Inside tmux, neovim stores the focused split's cell rect in a tmux pane
+option, `@spotlight_dimmer_nvim`, and asks tmux to re-run the report script:
 
 ```
 neovim (WinEnter, WinResized, VimResized, ...)
@@ -288,7 +292,7 @@ spotlight-dimmer-tmux-report.sh (tmux hook or the neovim trigger above)
        no  -> report the whole pane
 ```
 
-The daemon is unchanged: it still receives a single pane rect per tmux client.
+The daemon still receives a single pane rect per tmux client.
 
 ### Setup
 
@@ -329,8 +333,58 @@ The daemon is unchanged: it still receives a single pane rect per tmux client.
    | `enabled` | `true` | Set to `false` to load the plugin without reporting |
    | `report_script` | `~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh` | Report script to run after each update (e.g. `/usr/share/spotlight-dimmer/tools/...` for .deb installs) |
 
-Outside tmux (`$TMUX` unset: a plain terminal, an SSH session without
-forwarding) `setup()` does nothing, so it is safe to call unconditionally.
+   | `manage_title` | `true` | Over ssh: let the plugin set `titlestring`. Set to `false` when other code owns the title, and append `require("spotlight-dimmer").title_segment()` to it there (see [Over ssh](#over-ssh)) |
+
+Outside tmux and outside ssh (a plain local terminal) `setup()` does nothing,
+so it is safe to call unconditionally.
+
+### Over ssh
+
+A tmux pane running `ssh host` and neovim on the host is the common remote
+setup, and there neovim cannot reach the local tmux at all: `$TMUX` is unset
+and the local tmux CLI is on another machine. What does cross the ssh is the
+terminal title. So over ssh (`$SSH_TTY` set, `$TMUX` unset) the plugin puts
+the split in its title instead, as `sd-nvim=<cols>,<rows>,<col>,<row>,<w>,<h>`:
+
+```
+remote neovim sets its title        "sd-nvim=160,41,80,0,80,40"
+  └─ ssh relays the escape sequence to the local tmux pane
+       local tmux: #{pane_title}, and the window title via set-titles (#T)
+         └─ compositor adapter: TitleChanged(focused terminal)
+              └─ daemon: the sd-nvim= part changed?
+                   └─ spotlight-dimmer-tmux-report.sh --client <tty> --print
+                        reads #{pane_title} of the client's active pane,
+                        narrows the pane like the option does
+```
+
+No tmux hook fires when a pane title changes, which is why the daemon does the
+asking. It only re-runs the report when the `sd-nvim=` part of the title
+actually changes, so terminals that animate their title (Claude Code, for
+one) cost nothing and never override a [popup](#popups) spotlight.
+
+The title is untrusted input, since any program in the pane can set it. The
+report script only ever extracts digits and commas from it, and validates the
+result exactly like the pane option. It is never passed to a shell.
+
+Requirements, **on the desktop** (where tmux and the terminal run):
+
+- `set-titles on`, with `#T` (the pane title) in `set-titles-string`. tmux's
+  own default string has it, and so does the [Ghostty](#ghostty) one.
+- The report script and daemon from this version.
+
+On the host, only the plugin is needed. If something else already sets
+`titlestring` there, pass `manage_title = false` and compose the segment into
+your own title on the same events:
+
+```lua
+vim.o.titlestring = my_title .. " " .. require("spotlight-dimmer").title_segment()
+```
+
+`title_segment()` returns an empty string on a floating window, which falls
+back to the whole pane. neovim restores the terminal title when it exits or
+is suspended, which takes the segment with it.
+
+The segment is visible in the terminal's window title.
 
 ### What the highlight covers
 
@@ -352,7 +406,15 @@ statusline and the command line are not.
 **Check what neovim published:**
 
 ```bash
-tmux show-options -p -t <pane> @spotlight_dimmer_nvim
+tmux show-options -p -t <pane> @spotlight_dimmer_nvim   # neovim inside tmux
+tmux display -p -t <pane> '#{pane_title}'               # neovim over ssh
+```
+
+**Ask the report script what the daemon would get** (from the desktop):
+
+```bash
+~/.config/SpotlightDimmer/tools/spotlight-dimmer-tmux-report.sh \
+  --client "$(tmux display -p '#{client_tty}')" --print
 ```
 
 ## Coordinate System
