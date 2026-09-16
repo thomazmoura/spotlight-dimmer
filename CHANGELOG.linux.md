@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-16
+
 ### Added
 - **One-command install and update from GitHub releases (`install-release.sh`)**: Installing the .deb packages meant finding the newest `-linux` release, picking the right desktop and architecture files by hand, and then doing the post-install steps yourself. Now `curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash` does all of it
   - It tells Kubuntu (KDE Plasma 6) from Ubuntu (GNOME) and amd64 from arm64, then downloads `spotlight-dimmer-kde` or `spotlight-dimmer-gnome` and the `spotlight-dimmer-config` settings window from the latest Linux release and installs them with apt
