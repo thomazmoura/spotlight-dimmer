@@ -131,6 +131,27 @@ vim.api.nvim_open_win(buf, true, {
 check("floating window returns nil", sd.compute_rect(), nil)
 check("floating window payload unsets the option", sd.payload(), "")
 
+-- Command-line mode lights the whole pane ---------------------------------
+-- A prompt (nvim-tree's "create file", via vim.ui.input) keeps the focused
+-- window but draws on the command line, or in noice's floating popup.
+
+local function payload_in_cmdline()
+  local got
+  -- <C-r>= evaluates while still in command-line mode
+  _G.sd_capture = function()
+    got = sd.payload()
+    return ""
+  end
+  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(
+    [[:<C-r>=v:lua.sd_capture()<CR><Esc>]], true, false, true), "x", false)
+  return got
+end
+
+reset(2)
+vim.cmd("vsplit")
+check("command line payload unsets the option", payload_in_cmdline(), "")
+check("payload back after the command line", sd.payload(), "80,24,0,0,41,23")
+
 -- Title transport segment -------------------------------------------------
 
 reset(2)

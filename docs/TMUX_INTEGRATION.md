@@ -374,14 +374,15 @@ Requirements, **on the desktop** (where tmux and the terminal run):
 
 On the host, only the plugin is needed. If something else already sets
 `titlestring` there, pass `manage_title = false` and compose the segment into
-your own title on the same events:
+your own title on the same events (`require("spotlight-dimmer").EVENTS`; note
+`CmdlineEnter` and `CmdlineLeave` among them):
 
 ```lua
 vim.o.titlestring = my_title .. " " .. require("spotlight-dimmer").title_segment()
 ```
 
-`title_segment()` returns an empty string on a floating window or when the tab
-has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
+`title_segment()` returns an empty string on a floating window, on the command
+line, or when the tab has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
 is suspended, which takes the segment with it.
 
 The segment is visible in the terminal's window title.
@@ -400,6 +401,10 @@ statusline and the command line are not.
   second split
 - The current window is **floating** (Telescope, pickers, …), since floats sit
   on top of the splits and would otherwise be dimmed
+- neovim is in **command-line mode**: `:`, `/`, or a prompt such as
+  nvim-tree's "create file" (`vim.ui.input()`). The focused window does not
+  change, but the text being typed sits on the bottom row, or in a floating
+  popup over any split with noice's `cmdline_popup`
 - The pane is in a tmux mode (copy-mode, `choose-tree`)
 - neovim was suspended (`Ctrl-Z`) or exited (the option is cleared)
 - The stored rect was computed for a different pane size (right after a tmux

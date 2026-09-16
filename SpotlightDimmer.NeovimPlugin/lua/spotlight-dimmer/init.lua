@@ -8,7 +8,8 @@
 -- daemon only honours pane geometry for a focused terminal attached to a live
 -- tmux client, the neovim rect only matters when the whole chain is focused:
 -- terminal window > tmux pane > neovim split. With a single split in the tab
--- nothing is published, and the whole pane stays lit.
+-- nothing is published, and the whole pane stays lit. So does typing on the
+-- command line, which is where prompts like nvim-tree's "create file" land.
 --
 -- Payload (all integers, cells, 0-based):
 --   "<grid_cols>,<grid_rows>,<col>,<row>,<width>,<height>"
@@ -110,11 +111,20 @@ local function count_splits()
   return count
 end
 
+--- Typing on the command line: ":", "/", or a prompt from input() (which is
+--- what vim.ui.input() uses unless a plugin replaces it).
+local function in_cmdline()
+  return vim.api.nvim_get_mode().mode:sub(1, 1) == "c"
+end
+
 --- The pane option payload for the current window, or "" to unset it.
 --- A tab with a single split has nothing to single out, so it unsets the
 --- option too and the whole pane (command line included) stays lit.
+--- So does command-line mode: the focused window does not change, but what
+--- is being typed is on the bottom row, outside the split, or in a floating
+--- popup anywhere over the editor (noice's cmdline_popup).
 function M.payload()
-  if count_splits() <= 1 then
+  if count_splits() <= 1 or in_cmdline() then
     return ""
   end
   local rect = M.compute_rect()
@@ -128,8 +138,9 @@ function M.payload()
 end
 
 --- The terminal-title transport's segment ("sd-nvim=<payload>"), or "" when
---- there is nothing to narrow (single split, floating window). For code that owns
---- 'titlestring' and composes it: append this on the same events.
+--- there is nothing to narrow (single split, floating window, command line).
+--- For code that owns 'titlestring' and composes it: append this on the
+--- events in M.EVENTS.
 function M.title_segment()
   local value = M.payload()
   if value == "" then
@@ -198,7 +209,10 @@ local LAYOUT_EVENTS = {
   "VimEnter", "WinEnter", "BufWinEnter", "WinResized", "VimResized", "TabEnter",
   -- fires before the window is gone; the deferred report sees the new layout
   "WinClosed",
+  -- the command line lights the whole pane while it is open (see payload())
+  "CmdlineEnter", "CmdlineLeave",
 }
+M.EVENTS = LAYOUT_EVENTS
 local LAYOUT_OPTIONS = { "laststatus", "showtabline", "winbar", "cmdheight" }
 
 --- Over ssh: keep the title segment current. neovim restores the terminal
