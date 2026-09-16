@@ -19,7 +19,7 @@ use std::time::Duration;
 use gio::prelude::*;
 use serde_json::{json, Map, Value};
 
-use spotlight_dimmer_core::config::{AppConfig, TtySource};
+use spotlight_dimmer_core::config::{write_atomically, AppConfig, TtySource};
 
 const CONFIG_DIR: &str = "SpotlightDimmer";
 const CONFIG_FILE: &str = "config.json";
@@ -165,28 +165,51 @@ impl Document {
             .map(str::to_string)
     }
 
+    /// `Overlay.Enabled` with the daemon's own default (`true`).
+    pub fn enabled(&self) -> bool {
+        self.config().overlay.enabled
+    }
+
+    pub fn set_enabled(&self, enabled: bool) {
+        self.set_overlay("Enabled", json!(enabled));
+        self.schedule_save();
+    }
+
+    /// Mirror a value the daemon already persisted into the in-memory
+    /// document without writing. Closes the race where an unrelated edit
+    /// saved before the file watcher caught up would write the stale flag
+    /// back and undo a shortcut press.
+    pub fn note_enabled(&self, enabled: bool) {
+        self.set_overlay("Enabled", json!(enabled));
+    }
+
     pub fn set_mode(&self, mode: &str) {
         self.set_overlay("Mode", json!(mode));
+        self.schedule_save();
     }
 
     pub fn set_inactive_color(&self, hex: &str) {
         self.set_overlay("InactiveColor", json!(hex));
+        self.schedule_save();
     }
 
     pub fn set_inactive_opacity(&self, opacity: u8) {
         self.set_overlay("InactiveOpacity", json!(opacity));
+        self.schedule_save();
     }
 
     pub fn set_active_color(&self, hex: &str) {
         self.set_overlay("ActiveColor", json!(hex));
+        self.schedule_save();
     }
 
     pub fn set_active_opacity(&self, opacity: u8) {
         self.set_overlay("ActiveOpacity", json!(opacity));
+        self.schedule_save();
     }
 
     /// Mutates a single leaf under `Overlay`, creating that object only if it
-    /// is absent and never touching a sibling key.
+    /// is absent and never touching a sibling key. Does not save.
     fn set_overlay(&self, key: &str, value: Value) {
         {
             let mut root = self.0.root.borrow_mut();
@@ -202,7 +225,6 @@ impl Document {
                 .expect("Overlay is an object")
                 .insert(key.to_string(), value);
         }
-        self.schedule_save();
     }
 
     // ----------------------------------------------------------- integrations
@@ -480,26 +502,6 @@ fn offset_field(entry: &Value, key: &str) -> i32 {
         .and_then(Value::as_f64)
         .map(|v| v.round() as i32)
         .unwrap_or(0)
-}
-
-fn write_atomically(path: &Path, contents: &str) -> std::io::Result<()> {
-    use std::io::Write;
-
-    let dir = path.parent().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, "config path has no parent")
-    })?;
-    std::fs::create_dir_all(dir)?;
-
-    let temp = dir.join(format!("{CONFIG_FILE}.tmp-{}", std::process::id()));
-    {
-        let mut file = std::fs::File::create(&temp)?;
-        file.write_all(contents.as_bytes())?;
-        file.sync_all()?;
-    }
-
-    std::fs::rename(&temp, path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&temp);
-    })
 }
 
 #[cfg(test)]

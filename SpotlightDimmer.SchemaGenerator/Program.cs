@@ -116,6 +116,11 @@ class Program
             {
                 excludeCaptureProp.Description = "EXPERIMENTAL: Exclude overlay windows from screen captures/screenshots. May not work on all systems due to Windows API limitations with layered windows.";
             }
+
+            if (overlaySchema.Properties.TryGetValue("Enabled", out var enabledProp))
+            {
+                enabledProp.Description = "Linux only: whether dimming is on. Saved by the daemon whenever dimming is toggled, so a pause survives restarts. Ignored on Windows (use the tray icon).";
+            }
         }
 
         // Customize System properties

@@ -11,6 +11,7 @@
  * Without the daemon installed and activatable, no dimming occurs.
  */
 
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -105,7 +106,34 @@ export default class SpotlightDimmerExtension extends Extension {
             () => this._daemonBridge.toggle()
         );
 
+        // Super+Alt+Shift+D opens the settings window, or closes it when
+        // focused. Launched through its .desktop file so the Shell hands the
+        // new process an activation token and the window may take focus.
+        Main.wm.addKeybinding(
+            'toggle-config-window',
+            this._settings,
+            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            () => this._toggleConfigWindow()
+        );
+
         console.log('SpotlightDimmer: Extension enabled');
+    }
+
+    /**
+     * Run `spotlight-dimmer-config --toggle` via its launcher entry.
+     */
+    _toggleConfigWindow() {
+        const appInfo = Gio.DesktopAppInfo.new('org.spotlightdimmer.ConfigToggle.desktop');
+        if (!appInfo) {
+            console.warn('SpotlightDimmer: settings window not installed (spotlight-dimmer-config)');
+            return;
+        }
+        try {
+            appInfo.launch([], global.create_app_launch_context(0, -1));
+        } catch (e) {
+            console.warn(`SpotlightDimmer: could not open settings window: ${e.message}`);
+        }
     }
 
     /**
@@ -115,6 +143,7 @@ export default class SpotlightDimmerExtension extends Extension {
         console.log('SpotlightDimmer: Disabling extension');
 
         Main.wm.removeKeybinding('toggle-dimming');
+        Main.wm.removeKeybinding('toggle-config-window');
         this._settings = null;
 
         // Re-enable compositor unredirect to restore default behavior

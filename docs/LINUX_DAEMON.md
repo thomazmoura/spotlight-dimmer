@@ -71,7 +71,7 @@ Package contents:
 Post-install steps the packages cannot do for you:
 
 - **GNOME**: log out/in, then `gnome-extensions enable spotlightdimmer@thomazmoura.github.io`.
-- **KDE**: bind the "SpotlightDimmer Toggle" launcher to Meta+Shift+D in System Settings → Shortcuts.
+- **KDE**: bind the "SpotlightDimmer Toggle" launcher to Meta+Shift+D in System Settings → Shortcuts (and, with `spotlight-dimmer-config` installed, "SpotlightDimmer Settings Toggle" to Meta+Alt+Shift+D).
 - **Both**: seed your config once — `mkdir -p ~/.config/SpotlightDimmer && cp /usr/share/doc/<package>/examples/config.example.json ~/.config/SpotlightDimmer/config.json`. (Or install `spotlight-dimmer-config` and let the settings window write it.)
 
 > **Note**: a per-user unit left behind by a previous `make install-daemon`
@@ -140,6 +140,23 @@ exactly as before; the window picks up external edits while it is open.
   `make install-kde-shortcut` (rebind in System Settings → Shortcuts).
 - Anywhere: `busctl --user call org.spotlightdimmer.Daemon
   /org/spotlightdimmer/Daemon org.spotlightdimmer.Daemon1 Toggle`
+
+The state is persisted as `Overlay.Enabled` in `config.json`: every change
+(Toggle, the `Enabled` property, the settings window) is written there and
+announced with `PropertiesChanged`, the daemon starts in the saved state, and
+a hand-edit of the key is applied on reload.
+
+### Settings window shortcut
+
+Super+Alt+Shift+D (Meta+Alt+Shift+D on KDE) runs
+`spotlight-dimmer-config --toggle`: it opens the settings window, raises it if
+it is buried, and closes it when it is already focused.
+
+- GNOME: the extension's `toggle-config-window` GSettings keybinding launches
+  `org.spotlightdimmer.ConfigToggle.desktop` (so the window receives an
+  activation token and may take focus on Wayland).
+- KDE: `make install-kde-shortcut` binds the same launcher; package users bind
+  "SpotlightDimmer Settings Toggle" in System Settings → Shortcuts.
 
 ## D-Bus contract (protocol version 1)
 

@@ -185,6 +185,14 @@ Whether to exclude overlay windows from screen captures and recordings.
 - **Default**: `false`
 - When `true`, overlays won't appear in screenshots, screen recordings, or streaming software
 
+#### `Enabled` (boolean, Linux only)
+Whether dimming is turned on.
+
+- **Default**: `true` (a missing key means on)
+- The Linux daemon writes this key itself whenever dimming is toggled (Super+Shift+D / Meta+Shift+D, the settings window switch, or `busctl`), so a pause survives restarts and logins
+- Editing it by hand applies immediately, like any other setting
+- Ignored on Windows, which pauses from the tray icon instead
+
 ### System Configuration
 
 #### `RendererBackend` (string)

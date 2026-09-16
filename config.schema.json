@@ -75,6 +75,10 @@
         "ExcludeFromScreenCapture": {
           "type": "boolean",
           "description": "EXPERIMENTAL: Exclude overlay windows from screen captures/screenshots. May not work on all systems due to Windows API limitations with layered windows."
+        },
+        "Enabled": {
+          "type": "boolean",
+          "description": "Linux only: whether dimming is on. Saved by the daemon whenever dimming is toggled, so a pause survives restarts. Ignored on Windows (use the tray icon)."
         }
       }
     },

@@ -7,5 +7,10 @@
       <summary>Toggle dimming overlays</summary>
       <description>Keyboard shortcut to toggle SpotlightDimmer overlays on and off</description>
     </key>
+    <key name="toggle-config-window" type="as">
+      <default>['&lt;Super&gt;&lt;Alt&gt;&lt;Shift&gt;d']</default>
+      <summary>Open or close the settings window</summary>
+      <description>Keyboard shortcut that opens the SpotlightDimmer settings window, or closes it when it is focused</description>
+    </key>
   </schema>
 </schemalist>

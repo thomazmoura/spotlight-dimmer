@@ -108,7 +108,7 @@ Then log out and back in (Wayland cannot reload GNOME Shell in place) and enable
 gnome-extensions enable spotlightdimmer@thomazmoura.github.io
 ```
 
-Dimming starts as soon as the extension is enabled — the daemon is D-Bus activated automatically; there is nothing to start manually. Toggle dimming on/off with **Super+Shift+D**.
+Dimming starts as soon as the extension is enabled — the daemon is D-Bus activated automatically; there is nothing to start manually. Toggle dimming on/off with **Super+Shift+D** (the choice is remembered across restarts); **Super+Alt+Shift+D** opens or closes the settings window.
 
 > If you also want the daemon-side layer-shell renderer built (not used by GNOME), run `sudo apt install libgtk-4-dev libgtk4-layer-shell-dev` and use plain `make install-linux-gnome`.
 >
@@ -123,7 +123,7 @@ sudo apt install libgtk-4-dev libgtk4-layer-shell-dev
 make install-linux-kde
 ```
 
-This builds and installs the daemon, installs and enables the KWin script (which feeds focus and monitor events to the daemon), and binds **Meta+Shift+D** to the dimming toggle. Everything takes effect immediately — no logout needed. If the shortcut doesn't fire right away, log out/in once or rebind it in System Settings → Shortcuts.
+This builds and installs the daemon, installs and enables the KWin script (which feeds focus and monitor events to the daemon), and binds **Meta+Shift+D** to the dimming toggle and **Meta+Alt+Shift+D** to open or close the settings window. Everything takes effect immediately — no logout needed. If the shortcut doesn't fire right away, log out/in once or rebind it in System Settings → Shortcuts.
 
 #### First run and troubleshooting (Linux)
 

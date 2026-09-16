@@ -118,6 +118,15 @@ public class OverlayConfig
     /// When enabled but not supported, overlays will still function normally but may appear in screenshots.
     /// </summary>
     public bool ExcludeFromScreenCapture { get; set; } = false;
+
+    /// <summary>
+    /// Whether dimming is turned on. Linux only: the daemon saves the on/off state
+    /// here whenever it is toggled (Super+Shift+D or the settings window switch),
+    /// so a pause survives restarts. The Windows client pauses from the tray icon
+    /// instead and ignores this value.
+    /// Default: true
+    /// </summary>
+    public bool Enabled { get; set; } = true;
 }
 
 /// <summary>

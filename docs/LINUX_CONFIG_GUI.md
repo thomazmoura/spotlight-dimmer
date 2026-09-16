@@ -79,14 +79,23 @@ needs the tmux hooks as well — see [TMUX_INTEGRATION.md](TMUX_INTEGRATION.md).
 When the daemon is already running, the header bar switch mirrors its
 `Enabled` property (the same state as the Meta+Shift+D / Super+Shift+D
 toggle), and the footer reads `daemon running · protocol vN`. Flipping the
-switch elsewhere updates the window, and vice versa.
+switch elsewhere updates the window, and vice versa. The daemon saves the
+state as `Overlay.Enabled` in `config.json`, so it survives restarts.
 
-When the daemon is not running the switch is disabled and the footer reads
-`daemon not running` — **the window never starts the daemon**. The daemon is
+When the daemon is not running the footer says so (`daemon not running`), and the
+switch edits `Overlay.Enabled` directly, choosing the state the daemon will
+start in. **The window never starts the daemon.** The daemon is
 D-Bus-activatable, so it checks whether the bus name already has an owner
 before talking to it; merely opening the settings window will not launch a
 daemon you deliberately stopped. Everything else in the window keeps working:
 it is a config file editor first, and a daemon front-end second.
+
+## Opening and closing from a shortcut
+
+`spotlight-dimmer-config --toggle` opens the window, raises it when it is
+open behind other windows, and closes it when it already has focus. It is
+bound to Super+Alt+Shift+D on GNOME and Meta+Alt+Shift+D on KDE (see
+[LINUX_DAEMON.md](LINUX_DAEMON.md#settings-window-shortcut)).
 
 ## Safety behaviours
 

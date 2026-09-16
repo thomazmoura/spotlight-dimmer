@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SpotlightDimmer Settings Toggle
+Comment=Open the SpotlightDimmer settings window, or close it if it is focused
+Exec=spotlight-dimmer-config --toggle
+Icon=org.spotlightdimmer.Config
+Terminal=false
+NoDisplay=true
+StartupNotify=true
+StartupWMClass=org.spotlightdimmer.Config

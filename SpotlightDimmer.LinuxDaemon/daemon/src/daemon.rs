@@ -14,7 +14,7 @@ use zbus::Connection;
 use spotlight_dimmer_core::state::{AppState, Focus, Monitor};
 
 use crate::config_watch;
-use crate::dbus::daemon_iface::RendererIface;
+use crate::dbus::daemon_iface::{DaemonIface, RendererIface};
 use crate::dbus::DAEMON_PATH;
 use crate::events::Event;
 use crate::integrations::IntegrationState;
@@ -28,6 +28,7 @@ pub struct Daemon {
     integration: IntegrationState,
     shared: Arc<Shared>,
     tx: Sender<Event>,
+    conn: Connection,
     emitter: SignalEmitter<'static>,
     /// Epoch-based debounce for TitleChanged -> RequeryPane.
     title_epoch: u64,
@@ -40,6 +41,9 @@ impl Daemon {
         let emitter = SignalEmitter::new(conn, DAEMON_PATH)?.into_owned();
 
         let config = config_watch::load(&config_watch::config_path()).unwrap_or_default();
+        // Overlay.Enabled is the persisted pause state; seed the D-Bus
+        // property from it so a restart keeps dimming off if it was off.
+        shared.set_enabled(config.overlay.enabled);
         let mut state = AppState::new(config);
         state.set_enabled(shared.enabled());
         state.monitors = load_monitor_cache();
@@ -49,6 +53,7 @@ impl Daemon {
             integration: IntegrationState::new(),
             shared,
             tx,
+            conn: conn.clone(),
             emitter,
             title_epoch: 0,
             #[cfg(feature = "render")]
@@ -220,7 +225,20 @@ impl Daemon {
             Event::ConfigFileChanged => {
                 if let Some(config) = config_watch::load(&config_watch::config_path()) {
                     println!("SpotlightDimmer: config reloaded");
+                    let enabled = config.overlay.enabled;
                     self.state.config = config;
+
+                    // A hand-edited Overlay.Enabled (or another writer) wins;
+                    // our own write-back matches and changes nothing.
+                    if enabled != self.shared.enabled() {
+                        println!(
+                            "SpotlightDimmer: dimming {} by config",
+                            if enabled { "enabled" } else { "paused" }
+                        );
+                        self.shared.set_enabled(enabled);
+                        self.state.set_enabled(enabled);
+                        self.emit_enabled_changed().await;
+                    }
 
                     // Re-match the focused window against the new
                     // AppIntegrations and refresh the pane query
@@ -245,7 +263,48 @@ impl Daemon {
                 );
                 self.state.set_enabled(enabled);
                 self.apply().await;
+                // Toggle() is a method, so zbus sends no PropertiesChanged
+                // for it; announce here so the settings window follows the
+                // shortcut.
+                self.emit_enabled_changed().await;
+                self.persist_enabled(enabled);
             }
+        }
+    }
+
+    async fn emit_enabled_changed(&self) {
+        let iface = match self
+            .conn
+            .object_server()
+            .interface::<_, DaemonIface>(DAEMON_PATH)
+            .await
+        {
+            Ok(iface) => iface,
+            Err(e) => {
+                eprintln!("SpotlightDimmer: Daemon1 interface unavailable: {e}");
+                return;
+            }
+        };
+        let result = iface.get().await.enabled_changed(&self.emitter).await;
+        if let Err(e) = result {
+            eprintln!("SpotlightDimmer: failed to emit Enabled change: {e}");
+        }
+    }
+
+    /// Save the on/off state into Overlay.Enabled so it survives restarts.
+    /// The cached config is updated too, so the watcher's echo of this write
+    /// is recognized as a no-op.
+    fn persist_enabled(&mut self, enabled: bool) {
+        if self.state.config.overlay.enabled == enabled {
+            return;
+        }
+        let path = config_watch::config_path();
+        match spotlight_dimmer_core::config::write_overlay_enabled(&path, enabled) {
+            Ok(()) => self.state.config.overlay.enabled = enabled,
+            Err(e) => eprintln!(
+                "SpotlightDimmer: could not save Enabled to {}: {e}",
+                path.display()
+            ),
         }
     }
 

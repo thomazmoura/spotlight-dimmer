@@ -79,8 +79,7 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     // --- header bar ----------------------------------------------------------
     let dimming_switch = gtk::Switch::builder()
         .valign(gtk::Align::Center)
-        .tooltip_text("Turn dimming on or off in the running daemon")
-        .sensitive(false)
+        .tooltip_text("Turn dimming on or off (remembered across restarts)")
         .build();
 
     let header = gtk::HeaderBar::new();
@@ -125,7 +124,7 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
 
     document.start_watching();
 
-    connect_daemon(&window, &dimming_switch, &daemon_status);
+    connect_daemon(&window, &document, &dimming_switch, &daemon_status);
 
     window
 }
@@ -176,6 +175,7 @@ fn update_banner(document: &Document, banner: &gtk::Box, message: &gtk::Label) {
 
 fn connect_daemon(
     window: &gtk::ApplicationWindow,
+    document: &Document,
     dimming_switch: &gtk::Switch,
     status_label: &gtk::Label,
 ) {
@@ -183,21 +183,51 @@ fn connect_daemon(
     // The switch is also driven by the daemon's own state, so guard against
     // a programmatic update being echoed back as a user command.
     let updating = Rc::new(Cell::new(false));
+    // While the daemon runs it owns Overlay.Enabled (it applies the change
+    // instantly and persists it); otherwise the switch edits the file so the
+    // daemon starts in that state.
+    let daemon_running = Rc::new(Cell::new(false));
+
+    dimming_switch.set_active(document.enabled());
 
     {
         let link = link.clone();
         let updating = updating.clone();
+        let daemon_running = daemon_running.clone();
+        let document = document.clone();
         dimming_switch.connect_active_notify(move |switch| {
             if updating.get() {
                 return;
             }
-            link.send(Command::SetEnabled(switch.is_active()));
+            if daemon_running.get() {
+                link.send(Command::SetEnabled(switch.is_active()));
+            } else {
+                document.set_enabled(switch.is_active());
+            }
+        });
+    }
+
+    // A hand-edit of Overlay.Enabled while the daemon is down should show up
+    // too; while it runs, PropertiesChanged below covers the same change.
+    {
+        let document_for_reload = document.clone();
+        let dimming_switch = dimming_switch.clone();
+        let updating = updating.clone();
+        let daemon_running = daemon_running.clone();
+        document.on_reload(move || {
+            if daemon_running.get() {
+                return;
+            }
+            updating.set(true);
+            dimming_switch.set_active(document_for_reload.enabled());
+            updating.set(false);
         });
     }
 
     let status_rx = link.status.clone();
     let dimming_switch = dimming_switch.clone();
     let status_label = status_label.clone();
+    let document = document.clone();
     // Keeps the link (and its worker thread's channel) alive for the
     // lifetime of the window.
     let keep_alive = link.clone();
@@ -207,14 +237,15 @@ fn connect_daemon(
             updating.set(true);
             match status {
                 DaemonStatus::Running { enabled, protocol } => {
-                    dimming_switch.set_sensitive(true);
+                    daemon_running.set(true);
+                    document.note_enabled(enabled);
                     dimming_switch.set_active(enabled);
                     status_label.set_text(&format!("daemon running · protocol v{protocol}"));
                 }
                 DaemonStatus::NotRunning => {
-                    dimming_switch.set_sensitive(false);
-                    dimming_switch.set_active(false);
-                    status_label.set_text("daemon not running");
+                    daemon_running.set(false);
+                    dimming_switch.set_active(document.enabled());
+                    status_label.set_text("daemon not running · switch sets the startup state");
                 }
             }
             updating.set(false);

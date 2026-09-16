@@ -7,7 +7,10 @@
 //! behavior change from configBridge.js). Keys the Linux daemon does not
 //! consume (System, Profiles, ...) are ignored.
 
-use serde_json::Value;
+use std::io;
+use std::path::Path;
+
+use serde_json::{Map, Value};
 
 use crate::primitives::Color;
 
@@ -44,6 +47,9 @@ pub struct OverlayConfig {
     pub active_color: Color,
     /// 0-255; 102 is ~40%
     pub active_opacity: u8,
+    /// Persisted on/off state of the dimming (`Overlay.Enabled`). Flipped by
+    /// the toggle shortcut and the settings window; `true` when absent.
+    pub enabled: bool,
 }
 
 impl Default for OverlayConfig {
@@ -54,6 +60,7 @@ impl Default for OverlayConfig {
             inactive_opacity: 153,
             active_color: Color::BLACK,
             active_opacity: 102,
+            enabled: true,
         }
     }
 }
@@ -167,6 +174,71 @@ fn parse_overlay(overlay: &Value, out: &mut OverlayConfig) {
     if let Some(opacity) = overlay.get("ActiveOpacity").and_then(Value::as_f64) {
         out.active_opacity = clamp_opacity(opacity);
     }
+
+    if let Some(enabled) = overlay.get("Enabled").and_then(Value::as_bool) {
+        out.enabled = enabled;
+    }
+}
+
+/// Persist `Overlay.Enabled` into the config file at `path`, touching no
+/// other key. A missing file is created; an unparseable one is left alone
+/// (returns `InvalidData`) so a hand-edit in progress is never clobbered.
+pub fn write_overlay_enabled(path: &Path, enabled: bool) -> io::Result<()> {
+    let mut root = match std::fs::read_to_string(path) {
+        Ok(contents) => serde_json::from_str::<Value>(&contents)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Value::Object(Map::new()),
+        Err(e) => return Err(e),
+    };
+
+    let Some(object) = root.as_object_mut() else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "config root is not an object",
+        ));
+    };
+    let overlay = object
+        .entry("Overlay")
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !overlay.is_object() {
+        *overlay = Value::Object(Map::new());
+    }
+    overlay
+        .as_object_mut()
+        .expect("Overlay is an object")
+        .insert("Enabled".to_string(), Value::Bool(enabled));
+
+    let mut contents = serde_json::to_string_pretty(&root)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    contents.push('\n');
+    write_atomically(path, &contents)
+}
+
+/// Write `contents` to `path` atomically: temp file in the same directory,
+/// fsync, rename. A file watcher on the directory sees a single `Created`
+/// rather than a truncated intermediate state.
+pub fn write_atomically(path: &Path, contents: &str) -> io::Result<()> {
+    use std::io::Write;
+
+    let dir = path
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "config path has no parent"))?;
+    std::fs::create_dir_all(dir)?;
+
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "config.json".to_string());
+    let temp = dir.join(format!("{name}.tmp-{}", std::process::id()));
+    {
+        let mut file = std::fs::File::create(&temp)?;
+        file.write_all(contents.as_bytes())?;
+        file.sync_all()?;
+    }
+
+    std::fs::rename(&temp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&temp);
+    })
 }
 
 /// Entries without a non-empty string WmClass are dropped; Provider defaults
@@ -250,6 +322,7 @@ mod tests {
         assert_eq!(config.overlay.inactive_opacity, 153);
         assert_eq!(config.overlay.active_color, Color::BLACK);
         assert_eq!(config.overlay.active_opacity, 102);
+        assert!(config.overlay.enabled);
         assert!(config.app_integrations.is_empty());
     }
 
@@ -318,6 +391,56 @@ mod tests {
         let ghostty = &config.app_integrations[1];
         assert_eq!(ghostty.wm_class, "com.mitchellh.ghostty");
         assert_eq!(ghostty.tty_source, TtySource::WindowTitle);
+    }
+
+    #[test]
+    fn enabled_parses_booleans_and_ignores_other_types() {
+        let config = AppConfig::from_json(r#"{"Overlay": {"Enabled": false}}"#).unwrap();
+        assert!(!config.overlay.enabled);
+
+        let config = AppConfig::from_json(r#"{"Overlay": {"Enabled": "no"}}"#).unwrap();
+        assert!(config.overlay.enabled);
+    }
+
+    fn temp_config(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "spotlight-dimmer-core-{test}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir.join("config.json")
+    }
+
+    #[test]
+    fn write_overlay_enabled_preserves_other_keys() {
+        let path = temp_config("preserve");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"ConfigVersion":"0.8.5","Overlay":{"Mode":"Partial"},"Profiles":[1]}"#,
+        )
+        .unwrap();
+
+        write_overlay_enabled(&path, false).unwrap();
+
+        let value: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["ConfigVersion"], "0.8.5");
+        assert_eq!(value["Profiles"][0], 1);
+        assert_eq!(value["Overlay"]["Mode"], "Partial");
+        assert_eq!(value["Overlay"]["Enabled"], false);
+        assert!(!AppConfig::from_value(&value).overlay.enabled);
+    }
+
+    #[test]
+    fn write_overlay_enabled_creates_missing_file_and_refuses_bad_json() {
+        let path = temp_config("create");
+        write_overlay_enabled(&path, true).unwrap();
+        let value: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["Overlay"]["Enabled"], true);
+
+        std::fs::write(&path, "{ half-typed").unwrap();
+        assert!(write_overlay_enabled(&path, false).is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ half-typed");
     }
 
     #[test]

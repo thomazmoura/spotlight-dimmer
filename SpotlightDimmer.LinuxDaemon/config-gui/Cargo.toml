@@ -50,6 +50,7 @@ Install alongside spotlight-dimmer-gnome or spotlight-dimmer-kde."""
 assets = [
     ["target/release/spotlight-dimmer-config", "usr/bin/", "755"],
     ["../data/org.spotlightdimmer.Config.desktop", "usr/share/applications/", "644"],
+    ["../data/org.spotlightdimmer.ConfigToggle.desktop", "usr/share/applications/", "644"],
     ["../../SpotlightDimmer.Assets/icon.svg", "usr/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg", "644"],
     ["../../CONFIGURATION.md", "usr/share/doc/spotlight-dimmer-config/", "644"],
     ["../../docs/LINUX_CONFIG_GUI.md", "usr/share/doc/spotlight-dimmer-config/", "644"],

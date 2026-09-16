@@ -64,6 +64,7 @@ install-config:
 install-config-gui: build-config-gui
 	install -Dm755 target/release/spotlight-dimmer-config $(BINDIR)/spotlight-dimmer-config
 	install -Dm644 data/org.spotlightdimmer.Config.desktop $(PREFIX)/share/applications/org.spotlightdimmer.Config.desktop
+	install -Dm644 data/org.spotlightdimmer.ConfigToggle.desktop $(PREFIX)/share/applications/org.spotlightdimmer.ConfigToggle.desktop
 	install -Dm644 ../SpotlightDimmer.Assets/icon.svg $(PREFIX)/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg
 	-update-desktop-database $(PREFIX)/share/applications 2>/dev/null
 	@echo "Settings window installed; launch it with spotlight-dimmer-config or from the application menu."
@@ -104,7 +105,8 @@ install-kwin:
 install-kde-shortcut:
 	install -Dm644 data/org.spotlightdimmer.toggle.desktop $(HOME)/.local/share/applications/org.spotlightdimmer.toggle.desktop
 	kwriteconfig6 --file kglobalshortcutsrc --group services --group org.spotlightdimmer.toggle.desktop --key _launch "Meta+Shift+D"
-	@echo "Meta+Shift+D bound to SpotlightDimmer toggle (log out/in if it doesn't fire; rebind in System Settings > Shortcuts)."
+	kwriteconfig6 --file kglobalshortcutsrc --group services --group org.spotlightdimmer.ConfigToggle.desktop --key _launch "Meta+Alt+Shift+D"
+	@echo "Meta+Shift+D bound to SpotlightDimmer toggle and Meta+Alt+Shift+D to the settings window (log out/in if they don't fire; rebind in System Settings > Shortcuts)."
 
 install-tools:
 	install -Dm755 tools/spotlight-dimmer-tmux-report.sh $(TOOLS_DIR)/spotlight-dimmer-tmux-report.sh
