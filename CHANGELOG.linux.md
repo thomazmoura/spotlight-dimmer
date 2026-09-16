@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **One-command install and update from GitHub releases (`install-release.sh`)**: Installing the .deb packages meant finding the newest `-linux` release, picking the right desktop and architecture files by hand, and then doing the post-install steps yourself. Now `curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash` does all of it
+  - It tells Kubuntu (KDE Plasma 6) from Ubuntu (GNOME) and amd64 from arm64, then downloads `spotlight-dimmer-kde` or `spotlight-dimmer-gnome` and the `spotlight-dimmer-config` settings window from the latest Linux release and installs them with apt
+  - Run it again to update. Packages already at the latest version are skipped, and `--force` reinstalls them anyway
+  - After installing, it copies the example `config.json` if you have none and restarts a running daemon so the new binary takes over. On KDE it reloads the KWin script and binds Meta+Shift+D and Meta+Alt+Shift+D, but only when those shortcuts are unset. On GNOME it enables the extension; log out and back in to load it
+  - Options: `--gnome`/`--kde` to skip detection, `--version X.Y.Z` to install a specific release, `--no-config-gui`, `--prerelease`, `-y`. It warns when a leftover source install would shadow the packaged daemon
 - **Neovim split spotlight**: When the focused tmux pane runs neovim, the spotlight can now narrow down to the focused neovim split. The other splits are dimmed with the same overlay as inactive panes and windows, so plugins like `tint.nvim` are no longer needed and the dimming matches your configured opacity
   - The split only counts when the whole chain is focused: the terminal window, then the tmux pane, then the neovim split. A neovim in a background tmux pane never moves the highlight
   - The highlight frames the split the way tmux panes are framed: its statusline, winbar and the separators around it light up with it
@@ -33,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Instalação e atualização com um único comando a partir das releases do GitHub (`install-release.sh`)**: Instalar os pacotes .deb exigia achar a release `-linux` mais recente, escolher à mão os arquivos certos para o desktop e a arquitetura e depois fazer os passos pós-instalação por conta própria. Agora `curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash` faz tudo isso
+  - Ele distingue o Kubuntu (KDE Plasma 6) do Ubuntu (GNOME) e amd64 de arm64, baixa o `spotlight-dimmer-kde` ou o `spotlight-dimmer-gnome` e a janela de configurações `spotlight-dimmer-config` da release Linux mais recente e os instala com o apt
+  - Execute de novo para atualizar. Pacotes que já estão na versão mais recente são ignorados, e `--force` os reinstala mesmo assim
+  - Depois de instalar, ele copia o `config.json` de exemplo se você não tiver um e reinicia o daemon em execução para que o novo binário assuma. No KDE, recarrega o script do KWin e associa Meta+Shift+D e Meta+Alt+Shift+D, mas só quando esses atalhos não estão definidos. No GNOME, ativa a extensão; saia e entre de novo na sessão para carregá-la
+  - Opções: `--gnome`/`--kde` para pular a detecção, `--version X.Y.Z` para instalar uma release específica, `--no-config-gui`, `--prerelease`, `-y`. Ele avisa quando uma instalação por código-fonte que sobrou encobriria o daemon empacotado
 - **Spotlight em splits do neovim**: Quando o painel do tmux em foco executa o neovim, o spotlight agora pode se restringir ao split do neovim em foco. Os demais splits são escurecidos com a mesma sobreposição usada para painéis e janelas inativos, então plugins como o `tint.nvim` deixam de ser necessários e o escurecimento segue a opacidade configurada
   - O split só é considerado quando toda a cadeia está em foco: a janela do terminal, depois o painel do tmux, depois o split do neovim. Um neovim em um painel do tmux em segundo plano nunca move o destaque
   - O destaque enquadra o split da mesma forma que os painéis do tmux: sua linha de status, winbar e os separadores ao redor são destacados junto com ele

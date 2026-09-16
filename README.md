@@ -42,7 +42,15 @@ The Linux version consists of a shared daemon (`spotlight-dimmer-daemon`) plus a
 
 **Requirements:** a Wayland session (the default on recent Ubuntu and Kubuntu) with GNOME Shell 45–48 (Ubuntu 24.04 or newer) **or** KDE Plasma 6 (Kubuntu 24.10 or newer).
 
-#### .deb packages (recommended)
+#### One-line install or update (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash
+```
+
+The script checks whether you're on Ubuntu (GNOME) or Kubuntu (KDE Plasma 6) and on amd64 or arm64. It downloads that desktop's package and the settings window from the latest `-linux` release, then installs them with apt. Run it again later to update: packages that are already current are skipped. It also seeds `config.json` when there is none, restarts the daemon and reloads the KWin script. On KDE it binds the default shortcuts if they're unset. On GNOME it enables the extension (log out and back in afterwards). Options: `--gnome`/`--kde` to skip detection, `--version X.Y.Z`, `--no-config-gui`, `--force`, `-y`. Run it with `--help` for the full list.
+
+#### .deb packages (manual)
 
 Download the package for your desktop and architecture from the newest Linux release on the [releases page](https://github.com/thomazmoura/spotlight-dimmer/releases) (Linux release tags end in `-linux`), then install it with apt so runtime dependencies are resolved automatically:
 
@@ -179,21 +187,34 @@ Running neovim inside tmux? The optional plugin in `SpotlightDimmer.NeovimPlugin
 For .deb installs, use `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`) instead. The commands below undo a `make install-linux-*` source install:
 
 ```bash
-# Daemon and tools
-rm ~/.local/bin/spotlight-dimmer-daemon
+# Daemon
 systemctl --user disable --now spotlight-dimmer-daemon.service 2>/dev/null
+rm ~/.local/bin/spotlight-dimmer-daemon
 rm ~/.config/systemd/user/spotlight-dimmer-daemon.service
 rm ~/.local/share/dbus-1/services/org.spotlightdimmer.Daemon.service
+systemctl --user daemon-reload
+
+# Settings window (if installed)
+rm ~/.local/bin/spotlight-dimmer-config
+rm ~/.local/share/applications/org.spotlightdimmer.Config.desktop
+rm ~/.local/share/applications/org.spotlightdimmer.ConfigToggle.desktop
+rm ~/.local/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg
+
+# tmux tools and neovim plugin copy. Remove or repoint the source-file line
+# in ~/.tmux.conf first, or tmux reports an error at startup
 rm -r ~/.config/SpotlightDimmer/tools
 
 # GNOME extension
 gnome-extensions disable spotlightdimmer@thomazmoura.github.io
 rm -r ~/.local/share/gnome-shell/extensions/spotlightdimmer@thomazmoura.github.io
 
-# KDE script and shortcut
+# KDE script and shortcut launcher
 kpackagetool6 --type KWin/Script --remove spotlightdimmer
 rm ~/.local/share/applications/org.spotlightdimmer.toggle.desktop
+update-desktop-database ~/.local/share/applications 2>/dev/null
 ```
+
+`~/.config/SpotlightDimmer/config.json` is left in place; the .deb packages read the same file. If you are switching to the packages, your KDE shortcut bindings carry over too, because the packaged launchers have the same names. To move the tmux integration over, point `~/.tmux.conf` at `/usr/share/spotlight-dimmer/tools/spotlight-dimmer.tmux.conf`.
 
 ## How It Works
 

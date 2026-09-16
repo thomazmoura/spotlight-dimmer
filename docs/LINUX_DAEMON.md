@@ -53,6 +53,13 @@ resolved automatically. The two desktop packages conflict with each other on
 purpose (both ship `/usr/bin/spotlight-dimmer-daemon`); the configuration GUI
 is independent and installs alongside either.
 
+`SpotlightDimmer.LinuxDaemon/tools/install-release.sh` automates this. It picks
+the desktop package (the `kubuntu-desktop`/`ubuntu-desktop` metapackages or
+`XDG_CURRENT_DESKTOP`) and the architecture, downloads the matching assets from
+the latest `-linux` release (or the one given with `--version`), and skips
+packages that are already at that version. It also does the per-user steps
+listed below that can be scripted.
+
 Package contents:
 
 | Path | Contents |
