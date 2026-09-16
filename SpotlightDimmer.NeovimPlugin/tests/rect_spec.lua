@@ -152,7 +152,7 @@ reset(2)
 vim.cmd("vsplit")
 check("command line takes the spotlight", payload_in_cmdline(), "80,24,0,23,80,1")
 check("payload back after the command line", sd.payload(), "80,24,0,0,41,23")
-check("search keeps the whole pane lit", payload_in_cmdline("/"), "")
+check("search takes the spotlight too", payload_in_cmdline("/"), "80,24,0,23,80,1")
 vim.cmd("only")
 check("command line narrows a single split too", payload_in_cmdline(), "80,24,0,23,80,1")
 vim.o.cmdheight = 2
@@ -190,6 +190,48 @@ check("native border counted, clamped to the grid", payload_in_cmdline(), "80,24
 vim.api.nvim_win_close(noice_win, true)
 package.loaded["noice.config"] = nil
 package.loaded["noice.ui.cmdline"] = nil
+
+-- Telescope: the box around its windows ----------------------------------
+-- A picker is up to six floats (prompt, results, preview, and a border
+-- window around each), registered in telescope.state by the prompt buffer.
+
+reset(2)
+vim.cmd("vsplit")
+local function float(row, col, width, height, enter)
+  local b = vim.api.nvim_create_buf(false, true)
+  return vim.api.nvim_open_win(b, enter or false, {
+    relative = "editor", row = row, col = col, width = width, height = height,
+  }), b
+end
+local status = {}
+package.loaded["telescope.state"] = {
+  get_status = function(bufnr) return status[bufnr] or {} end,
+}
+-- horizontal layout: results over prompt on the left, preview on the right
+local results_border = float(2, 5, 34, 14)
+local results = float(3, 6, 32, 12)
+local preview_border = float(2, 40, 36, 18)
+local preview = float(3, 41, 34, 16)
+local prompt_border = float(17, 5, 34, 3)
+local prompt, prompt_buf = float(18, 6, 32, 1, true)
+
+check("unregistered picker lights the whole pane", sd.payload(), "")
+status[prompt_buf] = {
+  layout = {
+    prompt = { winid = prompt, border = { winid = prompt_border } },
+    results = { winid = results, border = { winid = results_border } },
+    preview = { winid = preview, border = { winid = preview_border } },
+  },
+}
+check("telescope picker box", sd.payload(), "80,24,5,2,71,18")
+vim.api.nvim_win_close(preview, true)
+vim.api.nvim_win_close(preview_border, true)
+check("telescope box without the preview", sd.payload(), "80,24,5,2,34,18")
+vim.api.nvim_open_win(vim.api.nvim_create_buf(false, true), true, {
+  relative = "editor", row = 5, col = 10, width = 40, height = 10,
+})
+check("other floats still light the whole pane", sd.payload(), "")
+package.loaded["telescope.state"] = nil
 
 -- Title transport segment -------------------------------------------------
 

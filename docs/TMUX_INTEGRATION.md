@@ -382,8 +382,8 @@ without one of them (noice drawing its command-line popup, for instance):
 vim.o.titlestring = my_title .. " " .. require("spotlight-dimmer").title_segment()
 ```
 
-`title_segment()` returns an empty string on a floating window, during a
-search, or when the tab has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
+`title_segment()` returns an empty string on a floating window other than a
+Telescope prompt, or when the tab has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
 is suspended, which takes the segment with it.
 
 The segment is visible in the terminal's window title.
@@ -397,7 +397,7 @@ statusline and the command line are not.
 
 ### The command line
 
-While a command (`:`) or a prompt is being typed (such as nvim-tree's
+While a command (`:`), a search (`/`, `?`) or a prompt is being typed (such as nvim-tree's
 "create file", which asks through `vim.ui.input()`), the spotlight moves to
 the command line, whatever the split count: the focused window does not
 change, but the text being typed is somewhere else.
@@ -408,19 +408,25 @@ change, but the text being typed is somewhere else.
   is noice's window, border included: the `cmdline_popup` wherever it is
   placed. noice draws it a moment after the command line opens, and the whole
   pane stays lit until it does
-- Searches (`/`, `?`) keep the whole pane lit instead, since the matches are
-  in the buffer. So does a `:s` preview with `inccommand`: the command line
-  alone takes the spotlight there, not the buffer being previewed
-- Completion menus open next to the command line are outside the spotlight
+- The buffer is dimmed meanwhile: search matches highlighted by `incsearch`
+  and a `:s` preview with `inccommand` are outside the spotlight, and so are
+  completion menus open next to the command line
+
+### Telescope
+
+While a [Telescope](https://github.com/nvim-telescope/telescope.nvim) prompt
+is focused, the spotlight is the box around the picker: prompt, results and
+preview, borders included. It follows the layout when the preview is toggled
+or the layout cycled, and goes back to the split when the picker closes.
 
 ### Fallback to the whole tmux pane
 
 - The current tab has **a single split**: there is nothing to single out, so
   the whole pane (command line included) stays lit. Narrowing starts with the
   second split
-- The current window is **floating** (Telescope, pickers, …), since floats sit
-  on top of the splits and would otherwise be dimmed
-- A **search** (`/`, `?`) is being typed
+- The current window is **floating** and not a Telescope prompt (other
+  pickers, …), since floats sit on top of the splits and would otherwise be
+  dimmed
 - noice owns the command line but has not drawn it yet
 - The pane is in a tmux mode (copy-mode, `choose-tree`)
 - neovim was suspended (`Ctrl-Z`) or exited (the option is cleared)

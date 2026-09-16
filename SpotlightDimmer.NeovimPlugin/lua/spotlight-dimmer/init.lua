@@ -8,9 +8,10 @@
 -- daemon only honours pane geometry for a focused terminal attached to a live
 -- tmux client, the neovim rect only matters when the whole chain is focused:
 -- terminal window > tmux pane > neovim split. With a single split in the tab
--- nothing is published, and the whole pane stays lit. While a command or a
--- prompt (nvim-tree's "create file", ...) is being typed, the rect is the
--- command line instead: the bottom rows, or noice's popup wherever it is.
+-- nothing is published, and the whole pane stays lit. While a command, a
+-- search or a prompt (nvim-tree's "create file", ...) is being typed, the
+-- rect is the command line instead: the bottom rows, or noice's popup
+-- wherever it is. A Telescope picker gets the box around all its windows.
 --
 -- Payload (all integers, cells, 0-based):
 --   "<grid_cols>,<grid_rows>,<col>,<row>,<width>,<height>"
@@ -183,28 +184,66 @@ function M.cmdline_rect()
   return rect
 end
 
---- Searches (/, ?) keep lighting the whole pane: the matches being jumped to
---- are in the buffer, not on the command line.
-local function typing_prompt()
-  if not in_cmdline() then
-    return false
+--- Smallest rect holding all of `rects`.
+local function union(rects)
+  local box
+  for _, rect in ipairs(rects) do
+    if box then
+      local right = math.max(box.col + box.width, rect.col + rect.width)
+      local bottom = math.max(box.row + box.height, rect.row + rect.height)
+      box.col = math.min(box.col, rect.col)
+      box.row = math.min(box.row, rect.row)
+      box.width = right - box.col
+      box.height = bottom - box.row
+    else
+      box = vim.deepcopy(rect)
+    end
   end
-  local type = vim.fn.getcmdtype()
-  return type ~= "/" and type ~= "?"
+  return box
+end
+
+--- Cell rect around the Telescope picker whose prompt is focused: prompt,
+--- results and preview, with their border windows. nil when the focused
+--- window is not a Telescope prompt, or its picker has not registered yet
+--- (it does once its windows are open and focused).
+local function telescope_rect()
+  local telescope_state = package.loaded["telescope.state"]
+  if not telescope_state then
+    return nil
+  end
+  local ok, status = pcall(telescope_state.get_status, vim.api.nvim_get_current_buf())
+  local layout = ok and status and status.layout
+  if not layout then
+    return nil
+  end
+
+  local rects = {}
+  for _, part in ipairs({ "prompt", "results", "preview" }) do
+    local window = layout[part]
+    for _, win in ipairs({ window and window.winid, window and window.border and window.border.winid }) do
+      if win and vim.api.nvim_win_is_valid(win) then
+        table.insert(rects, float_rect(win))
+      end
+    end
+  end
+  return union(rects)
 end
 
 --- The pane option payload for the current window, or "" to unset it.
 --- A tab with a single split has nothing to single out, so it unsets the
 --- option too and the whole pane (command line included) stays lit.
---- Typing a command or a prompt narrows the pane down to the command line
---- instead, whatever the split count: the focused window does not change, but
---- what is being typed is on the bottom rows, or in noice's floating popup
---- over any of the splits.
+--- Typing a command, a search or a prompt narrows the pane down to the
+--- command line instead, whatever the split count: the focused window does
+--- not change, but what is being typed is on the bottom rows, or in noice's
+--- floating popup over any of the splits. A focused Telescope prompt narrows
+--- it down to the picker; other floats light the whole pane.
 function M.payload()
   local rect
-  if typing_prompt() then
+  if in_cmdline() then
     rect = M.cmdline_rect()
-  elseif in_cmdline() or count_splits() <= 1 then
+  elseif is_floating(vim.api.nvim_get_current_win()) then
+    rect = telescope_rect()
+  elseif count_splits() <= 1 then
     return ""
   else
     rect = M.compute_rect()
@@ -219,7 +258,8 @@ function M.payload()
 end
 
 --- The terminal-title transport's segment ("sd-nvim=<payload>"), or "" when
---- there is nothing to narrow (single split, floating window, search).
+--- there is nothing to narrow (single split, floating window other than
+--- Telescope).
 --- For code that owns 'titlestring' and composes it: recompose on the
 --- events in M.EVENTS, and on the "User SpotlightDimmer" autocmd, which fires
 --- when the rect changes without one of them (noice drawing its popup).
@@ -298,22 +338,31 @@ M.EVENTS = LAYOUT_EVENTS
 local LAYOUT_OPTIONS = { "laststatus", "showtabline", "winbar", "cmdheight" }
 
 --- noice draws its command-line popup on its own schedule, after
---- CmdlineEnter, in windows opened with noautocmd: no event tells when it
---- appears or moves. Redraws do, so while the command line is open every
---- window redraw calls `on_change`, which must be cheap and deduplicated.
-local function watch_cmdline_redraws(group, on_change)
-  local open = false
+--- CmdlineEnter, and Telescope (through plenary) opens, focuses and closes
+--- its windows, all with noautocmd: no event tells when they appear, move or
+--- go. Redraws do. A redraw calls `on_change` when the focused window
+--- changed, and every time while the command line is open or a float is
+--- focused (and once more after), so `on_change` must be cheap and
+--- deduplicated.
+local function watch_redraws(group, on_change)
+  local cmdline_open = false
+  local last_win = nil
+  local watching = false
   vim.api.nvim_create_autocmd("CmdlineEnter", {
-    group = group, callback = function() open = true end,
+    group = group, callback = function() cmdline_open = true end,
   })
   vim.api.nvim_create_autocmd("CmdlineLeave", {
-    group = group, callback = function() open = false end,
+    group = group, callback = function() cmdline_open = false end,
   })
   vim.api.nvim_set_decoration_provider(vim.api.nvim_create_namespace("SpotlightDimmer"), {
     on_win = function()
-      if open then
+      local win = vim.api.nvim_get_current_win()
+      local watch = cmdline_open or is_floating(win)
+      if watch or watching or win ~= last_win then
         on_change()
       end
+      last_win = win
+      watching = watch
       return false
     end,
   })
@@ -349,7 +398,7 @@ local function setup_title(group)
   vim.api.nvim_create_autocmd("OptionSet", {
     group = group, pattern = LAYOUT_OPTIONS, callback = update,
   })
-  watch_cmdline_redraws(group, update)
+  watch_redraws(group, update)
   if vim.v.vim_did_enter == 1 then
     update()
   end
@@ -376,7 +425,7 @@ function M.setup(opts)
   vim.api.nvim_create_autocmd("OptionSet", {
     group = group, pattern = LAYOUT_OPTIONS, callback = schedule_report,
   })
-  watch_cmdline_redraws(group, schedule_report)
+  watch_redraws(group, schedule_report)
 
   -- Suspended (Ctrl-Z) or gone: the shell underneath owns the pane again.
   vim.api.nvim_create_autocmd("VimSuspend", {
