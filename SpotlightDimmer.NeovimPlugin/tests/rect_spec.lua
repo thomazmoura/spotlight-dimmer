@@ -131,26 +131,65 @@ vim.api.nvim_open_win(buf, true, {
 check("floating window returns nil", sd.compute_rect(), nil)
 check("floating window payload unsets the option", sd.payload(), "")
 
--- Command-line mode lights the whole pane ---------------------------------
+-- Command-line mode spotlights the command line --------------------------
 -- A prompt (nvim-tree's "create file", via vim.ui.input) keeps the focused
 -- window but draws on the command line, or in noice's floating popup.
 
-local function payload_in_cmdline()
+-- Payload read from inside command-line mode: `keys` opens it ("/", ":"),
+-- and <C-r>= evaluates while it is still open.
+local function payload_in_cmdline(keys)
   local got
-  -- <C-r>= evaluates while still in command-line mode
   _G.sd_capture = function()
     got = sd.payload()
     return ""
   end
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(
-    [[:<C-r>=v:lua.sd_capture()<CR><Esc>]], true, false, true), "x", false)
+    (keys or ":") .. [[<C-r>=v:lua.sd_capture()<CR><Esc>]], true, false, true), "x", false)
   return got
 end
 
 reset(2)
 vim.cmd("vsplit")
-check("command line payload unsets the option", payload_in_cmdline(), "")
+check("command line takes the spotlight", payload_in_cmdline(), "80,24,0,23,80,1")
 check("payload back after the command line", sd.payload(), "80,24,0,0,41,23")
+check("search keeps the whole pane lit", payload_in_cmdline("/"), "")
+vim.cmd("only")
+check("command line narrows a single split too", payload_in_cmdline(), "80,24,0,23,80,1")
+vim.o.cmdheight = 2
+check("command line spans cmdheight", payload_in_cmdline(), "80,24,0,22,80,2")
+vim.o.cmdheight = 0
+check("cmdheight=0 borrows the last row", payload_in_cmdline(), "80,24,0,23,80,1")
+
+-- noice: its popup is two floats, a border window and the text window
+-- positioned relative to it (nui). Stand in for noice's modules.
+reset(2)
+vim.cmd("vsplit")
+local noice_win = nil
+package.loaded["noice.config"] = {
+  is_running = function() return true end,
+  options = { cmdline = { enabled = true } },
+}
+package.loaded["noice.ui.cmdline"] = { win = function() return noice_win end }
+
+check("noice popup not drawn yet keeps the whole pane lit", payload_in_cmdline(), "")
+local popup_buf = vim.api.nvim_create_buf(false, true)
+local border_win = vim.api.nvim_open_win(popup_buf, false, {
+  relative = "editor", row = 8, col = 10, width = 62, height = 3, noautocmd = true,
+})
+noice_win = vim.api.nvim_open_win(popup_buf, false, {
+  relative = "win", win = border_win, row = 1, col = 2, width = 58, height = 1, noautocmd = true,
+})
+check("noice popup framed with its border window", payload_in_cmdline(), "80,24,10,8,62,3")
+
+vim.api.nvim_win_close(noice_win, true)
+vim.api.nvim_win_close(border_win, true)
+noice_win = vim.api.nvim_open_win(popup_buf, false, {
+  relative = "editor", row = 8, col = 30, width = 60, height = 1, border = "rounded",
+})
+check("native border counted, clamped to the grid", payload_in_cmdline(), "80,24,30,8,50,3")
+vim.api.nvim_win_close(noice_win, true)
+package.loaded["noice.config"] = nil
+package.loaded["noice.ui.cmdline"] = nil
 
 -- Title transport segment -------------------------------------------------
 

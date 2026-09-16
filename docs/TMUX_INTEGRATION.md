@@ -374,15 +374,16 @@ Requirements, **on the desktop** (where tmux and the terminal run):
 
 On the host, only the plugin is needed. If something else already sets
 `titlestring` there, pass `manage_title = false` and compose the segment into
-your own title on the same events (`require("spotlight-dimmer").EVENTS`; note
-`CmdlineEnter` and `CmdlineLeave` among them):
+your own title on the same events (`require("spotlight-dimmer").EVENTS`), and
+on the `User SpotlightDimmer` autocmd, which fires when the segment changes
+without one of them (noice drawing its command-line popup, for instance):
 
 ```lua
 vim.o.titlestring = my_title .. " " .. require("spotlight-dimmer").title_segment()
 ```
 
-`title_segment()` returns an empty string on a floating window, on the command
-line, or when the tab has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
+`title_segment()` returns an empty string on a floating window, during a
+search, or when the tab has a single split, which falls back to the whole pane. neovim restores the terminal title when it exits or
 is suspended, which takes the segment with it.
 
 The segment is visible in the terminal's window title.
@@ -394,6 +395,24 @@ own statusline (or the `laststatus=3` separator below it), its winbar, and
 the vertical separators on both sides are included. The tabline, the global
 statusline and the command line are not.
 
+### The command line
+
+While a command (`:`) or a prompt is being typed (such as nvim-tree's
+"create file", which asks through `vim.ui.input()`), the spotlight moves to
+the command line, whatever the split count: the focused window does not
+change, but the text being typed is somewhere else.
+
+- With the built-in command line, that is the bottom `cmdheight` rows (one
+  row with `cmdheight=0`)
+- With [noice.nvim](https://github.com/folke/noice.nvim)'s command line, it
+  is noice's window, border included: the `cmdline_popup` wherever it is
+  placed. noice draws it a moment after the command line opens, and the whole
+  pane stays lit until it does
+- Searches (`/`, `?`) keep the whole pane lit instead, since the matches are
+  in the buffer. So does a `:s` preview with `inccommand`: the command line
+  alone takes the spotlight there, not the buffer being previewed
+- Completion menus open next to the command line are outside the spotlight
+
 ### Fallback to the whole tmux pane
 
 - The current tab has **a single split**: there is nothing to single out, so
@@ -401,10 +420,8 @@ statusline and the command line are not.
   second split
 - The current window is **floating** (Telescope, pickers, …), since floats sit
   on top of the splits and would otherwise be dimmed
-- neovim is in **command-line mode**: `:`, `/`, or a prompt such as
-  nvim-tree's "create file" (`vim.ui.input()`). The focused window does not
-  change, but the text being typed sits on the bottom row, or in a floating
-  popup over any split with noice's `cmdline_popup`
+- A **search** (`/`, `?`) is being typed
+- noice owns the command line but has not drawn it yet
 - The pane is in a tmux mode (copy-mode, `choose-tree`)
 - neovim was suspended (`Ctrl-Z`) or exited (the option is cleared)
 - The stored rect was computed for a different pane size (right after a tmux
