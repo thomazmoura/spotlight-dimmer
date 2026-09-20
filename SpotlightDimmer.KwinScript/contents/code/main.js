@@ -170,6 +170,96 @@ function untrackWindow() {
     trackedHandlers = null;
 }
 
+// --- Always-on-top windows -------------------------------------------------
+//
+// Unlike the GNOME extension, this script is an adapter only and never
+// receives the overlays payload, so it cannot read `track_floating` and
+// always reports. That is affordable here because the triggering signals
+// (keepAbove toggled, an always-on-top window moved) are rare, and the diff
+// below keeps an unchanged set off the bus entirely.
+
+let lastFloatingJson = "[]";
+// window -> geometry handler, only for windows currently always-on-top.
+const floatingHandlers = new Map();
+
+function isFloating(window) {
+    return !!window
+        && window.keepAbove === true
+        && !window.minimized
+        && !window.desktopWindow
+        && !window.dock;
+}
+
+/** All always-on-top window rects, bottom of the stack first. */
+function sendFloating() {
+    if (daemonProtocol < 3) {
+        return;
+    }
+
+    const windows = workspace.stackingOrder ?? workspace.windows ?? [];
+    const rects = [];
+    for (const window of windows) {
+        if (isFloating(window)) {
+            rects.push(roundRect(window.frameGeometry));
+        }
+    }
+
+    const json = JSON.stringify(rects);
+    if (json === lastFloatingJson) {
+        return;
+    }
+
+    lastFloatingJson = json;
+    adapterCall("FloatingChanged", json);
+}
+
+/**
+ * Follow geometry only while a window is always-on-top, so dragging an
+ * ordinary window does not re-enumerate the stack on every frame.
+ */
+function updateFloatingSubscription(window) {
+    const wanted = isFloating(window);
+    const tracked = floatingHandlers.has(window);
+
+    if (wanted && !tracked) {
+        const handler = () => sendFloating();
+        try {
+            window.frameGeometryChanged.connect(handler);
+            floatingHandlers.set(window, handler);
+        } catch (e) {
+            print(`SpotlightDimmer: cannot follow always-on-top geometry: ${e}`);
+        }
+    } else if (!wanted && tracked) {
+        try {
+            window.frameGeometryChanged.disconnect(floatingHandlers.get(window));
+        } catch (e) {
+            // Window already gone - normal.
+        }
+        floatingHandlers.delete(window);
+    }
+}
+
+/** Watch one window for the state changes that affect the floating set. */
+function watchFloatingState(window) {
+    if (!window) {
+        return;
+    }
+
+    const onChanged = () => {
+        updateFloatingSubscription(window);
+        sendFloating();
+    };
+
+    if (window.keepAboveChanged !== undefined) {
+        window.keepAboveChanged.connect(onChanged);
+    }
+    if (window.minimizedChanged !== undefined) {
+        window.minimizedChanged.connect(onChanged);
+    }
+
+    updateFloatingSubscription(window);
+}
+
 function register() {
     // The reply callback confirms the daemon is up before the initial sync
     try {
@@ -183,6 +273,14 @@ function register() {
                 const active = workspace.activeWindow;
                 trackWindow(active);
                 sendFocus(active);
+
+                // A restarted daemon comes back with no floating rects, so
+                // bypass the diff on (re)registration.
+                for (const window of workspace.stackingOrder ?? workspace.windows ?? []) {
+                    watchFloatingState(window);
+                }
+                lastFloatingJson = null;
+                sendFloating();
             }
         );
     } catch (e) {
@@ -196,6 +294,20 @@ workspace.windowActivated.connect((window) => {
 });
 
 workspace.screensChanged.connect(sendMonitors);
+
+if (workspace.windowAdded !== undefined) {
+    workspace.windowAdded.connect((window) => {
+        watchFloatingState(window);
+        sendFloating();
+    });
+}
+
+if (workspace.windowRemoved !== undefined) {
+    workspace.windowRemoved.connect((window) => {
+        floatingHandlers.delete(window);
+        sendFloating();
+    });
+}
 
 // Work areas change when panels move/resize even if screens don't
 if (workspace.virtualScreenGeometryChanged !== undefined) {

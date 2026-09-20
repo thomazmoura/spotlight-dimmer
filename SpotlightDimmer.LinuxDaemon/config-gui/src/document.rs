@@ -188,6 +188,16 @@ impl Document {
         self.schedule_save();
     }
 
+    pub fn set_chrome_handling(&self, value: &str) {
+        self.set_overlay("ChromeHandling", json!(value));
+        self.schedule_save();
+    }
+
+    pub fn set_always_on_top_handling(&self, value: &str) {
+        self.set_overlay("AlwaysOnTopHandling", json!(value));
+        self.schedule_save();
+    }
+
     pub fn set_inactive_color(&self, hex: &str) {
         self.set_overlay("InactiveColor", json!(hex));
         self.schedule_save();

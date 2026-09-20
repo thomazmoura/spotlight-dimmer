@@ -30,14 +30,37 @@ export default class SpotlightDimmerExtension extends Extension {
     enable() {
         console.log('SpotlightDimmer: Enabling extension');
 
-        // Disable compositor unredirect to prevent fullscreen flickering
-        // This keeps overlays visible when fullscreen apps are running
+        // Names actually handed to Main.wm, so disable() removes exactly
+        // those: a keybinding may be skipped when the schema lacks its key.
+        this._keybindings = [];
+
+        // Nothing below may escape: an exception halfway through enable()
+        // would leave overlay widgets, signal handlers and the D-Bus name
+        // watch alive with no way to reach them again. GNOME catches what we
+        // rethrow and marks the extension as errored, which is recoverable.
         try {
-            global.compositor.disable_unredirect();
-            console.log('SpotlightDimmer: Disabled compositor unredirect');
+            this._enable();
         } catch (e) {
-            console.warn(`SpotlightDimmer: Could not disable unredirect: ${e.message}`);
+            console.error(`SpotlightDimmer: enable() failed, rolling back: ${e}`);
+            try {
+                this.disable();
+            } catch (cleanupError) {
+                console.error(`SpotlightDimmer: rollback failed: ${cleanupError}`);
+            }
+            throw e;
         }
+
+        console.log('SpotlightDimmer: Extension enabled');
+    }
+
+    /**
+     * Body of enable(), wrapped by it so any failure is rolled back.
+     * @private
+     */
+    _enable() {
+        // Disable compositor unredirect to prevent fullscreen flickering.
+        // This keeps overlays visible when fullscreen apps are running.
+        this._setUnredirect(false);
 
         this._overlayManager = new OverlayManager();
         this._focusTracker = new FocusTracker();
@@ -47,6 +70,7 @@ export default class SpotlightDimmerExtension extends Extension {
         this._focusChangedId = null;
         this._geometryChangedId = null;
         this._titleChangedId = null;
+        this._floatingChangedId = null;
         this._monitorsChangedId = null;
         this._fullscreenChangedId = null;
 
@@ -79,6 +103,11 @@ export default class SpotlightDimmerExtension extends Extension {
             (tracker, window) => this._daemonBridge.titleChanged(window.title ?? '')
         );
 
+        this._floatingChangedId = this._focusTracker.connect(
+            'floating-changed',
+            (tracker, rectsJson) => this._daemonBridge.floatingChanged(rectsJson)
+        );
+
         // Monitor hot-plug: recreate overlay widgets and re-report monitors
         this._monitorsChangedId = Main.layoutManager.connect(
             'monitors-changed',
@@ -96,28 +125,110 @@ export default class SpotlightDimmerExtension extends Extension {
         // onDaemonAppeared then performs registration and initial sync
         this._daemonBridge.init();
 
-        // Register global keyboard shortcut (Super+Shift+D)
-        this._settings = this.getSettings();
-        Main.wm.addKeybinding(
-            'toggle-dimming',
-            this._settings,
-            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            () => this._daemonBridge.toggle()
-        );
+        // Keyboard shortcuts. Both are optional: a stale compiled schema
+        // must degrade to "shortcut unavailable", never to a dead session.
+        this._settings = this._tryGetSettings();
+
+        // Super+Shift+D toggles dimming.
+        this._addKeybinding('toggle-dimming', () => this._daemonBridge.toggle());
 
         // Super+Alt+Shift+D opens the settings window, or closes it when
         // focused. Launched through its .desktop file so the Shell hands the
         // new process an activation token and the window may take focus.
-        Main.wm.addKeybinding(
-            'toggle-config-window',
-            this._settings,
-            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            () => this._toggleConfigWindow()
-        );
+        this._addKeybinding('toggle-config-window', () => this._toggleConfigWindow());
+    }
 
-        console.log('SpotlightDimmer: Extension enabled');
+    /**
+     * Turn compositor unredirection on or off.
+     *
+     * A fullscreen window is normally handed straight to the display,
+     * bypassing compositing — which also bypasses our overlays, so the
+     * dimming flickers or disappears. Switching unredirection off keeps
+     * everything composited.
+     *
+     * The call moved in GNOME 47: `Meta.{disable,enable}_unredirect_for_display()`
+     * became `global.compositor.{disable,enable}_unredirect()`. metadata.json
+     * declares support for 45 through 48, so both have to work. This
+     * feature-detects rather than parsing a shell version, which keeps
+     * working if the API moves again.
+     *
+     * @param {boolean} enabled - true restores unredirection, false suppresses it
+     * @private
+     */
+    _setUnredirect(enabled) {
+        try {
+            const compositor = global.compositor;
+            if (typeof compositor?.disable_unredirect === 'function') {
+                // GNOME 47+
+                if (enabled) {
+                    compositor.enable_unredirect();
+                } else {
+                    compositor.disable_unredirect();
+                }
+            } else if (enabled) {
+                // GNOME 45/46
+                Meta.enable_unredirect_for_display(global.display);
+            } else {
+                Meta.disable_unredirect_for_display(global.display);
+            }
+
+            console.log(`SpotlightDimmer: ${enabled ? 'Re-enabled' : 'Disabled'} compositor unredirect`);
+        } catch (e) {
+            // Non-fatal: only the fullscreen-flicker workaround is lost.
+            console.warn(`SpotlightDimmer: Could not ${enabled ? 'enable' : 'disable'} unredirect: ${e.message}`);
+        }
+    }
+
+    /**
+     * Load the extension's GSettings, or null when the schema is missing or
+     * unreadable (half-installed extension, schemas never compiled).
+     * @returns {Gio.Settings|null}
+     * @private
+     */
+    _tryGetSettings() {
+        try {
+            return this.getSettings();
+        } catch (e) {
+            console.error(`SpotlightDimmer: settings schema unavailable, keyboard shortcuts disabled (run 'make install-gnome' to reinstall): ${e.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Register a keybinding only when the compiled schema really defines it.
+     *
+     * CRITICAL: Main.wm.addKeybinding() ends in g_settings_get_value(), and
+     * GLib answers an unknown key with g_error() — an unconditional abort()
+     * inside the library. That is not a JS exception: GJS never sees it, so
+     * it cannot be caught, and on Wayland gnome-shell is the session leader,
+     * so the abort takes every running application down with it. This happens
+     * whenever the installed *.js is newer than the installed compiled
+     * gschemas (e.g. JS copied by hand, schemas left stale). The has_key()
+     * check below is the only thing standing between that mismatch and a
+     * forced logout, so it must stay in front of every addKeybinding call.
+     *
+     * @param {string} name - Key name in the extension's schema
+     * @param {Function} handler - Invoked when the shortcut fires
+     * @private
+     */
+    _addKeybinding(name, handler) {
+        if (!this._settings?.settings_schema?.has_key(name)) {
+            console.warn(`SpotlightDimmer: schema has no key '${name}', shortcut disabled (reinstall the extension with 'make install-gnome' to recompile its schemas)`);
+            return;
+        }
+
+        try {
+            Main.wm.addKeybinding(
+                name,
+                this._settings,
+                Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+                Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+                handler
+            );
+            this._keybindings.push(name);
+        } catch (e) {
+            console.error(`SpotlightDimmer: could not register shortcut '${name}': ${e.message}`);
+        }
     }
 
     /**
@@ -142,17 +253,18 @@ export default class SpotlightDimmerExtension extends Extension {
     disable() {
         console.log('SpotlightDimmer: Disabling extension');
 
-        Main.wm.removeKeybinding('toggle-dimming');
-        Main.wm.removeKeybinding('toggle-config-window');
+        for (const name of this._keybindings ?? []) {
+            try {
+                Main.wm.removeKeybinding(name);
+            } catch (e) {
+                console.warn(`SpotlightDimmer: could not remove shortcut '${name}': ${e.message}`);
+            }
+        }
+        this._keybindings = [];
         this._settings = null;
 
         // Re-enable compositor unredirect to restore default behavior
-        try {
-            global.compositor.enable_unredirect();
-            console.log('SpotlightDimmer: Re-enabled compositor unredirect');
-        } catch (e) {
-            console.warn(`SpotlightDimmer: Could not enable unredirect: ${e.message}`);
-        }
+        this._setUnredirect(true);
 
         if (this._focusChangedId) {
             this._focusTracker.disconnect(this._focusChangedId);
@@ -162,6 +274,11 @@ export default class SpotlightDimmerExtension extends Extension {
         if (this._geometryChangedId) {
             this._focusTracker.disconnect(this._geometryChangedId);
             this._geometryChangedId = null;
+        }
+
+        if (this._floatingChangedId) {
+            this._focusTracker.disconnect(this._floatingChangedId);
+            this._floatingChangedId = null;
         }
 
         if (this._titleChangedId) {
@@ -197,8 +314,16 @@ export default class SpotlightDimmerExtension extends Extension {
      */
     async _syncWithDaemon() {
         await this._daemonBridge.register();
+        // The extension may have been disabled while that call was in
+        // flight, which tears these down.
+        if (!this._daemonBridge) {
+            return;
+        }
         this._sendMonitors();
         this._sendFocus(global.display.focus_window);
+        // A restarted daemon comes back with no floating rects, so resend
+        // unconditionally rather than relying on the change diff.
+        this._focusTracker?.resendFloating();
     }
 
     /**
@@ -211,6 +336,16 @@ export default class SpotlightDimmerExtension extends Extension {
         if (!this._overlayManager || !Array.isArray(payload.monitors)) {
             return;
         }
+
+        // Stacking policy rides along with every payload: the daemon owns
+        // config, the extension only renders what it is handed.
+        if (payload.chrome_handling) {
+            this._overlayManager.setChromeHandling(payload.chrome_handling);
+        }
+
+        // Only enumerate always-on-top windows when the daemon will act on
+        // them: 'restacked' fires on every raise, so this is not free.
+        this._focusTracker.setTrackFloating(payload.track_floating === true);
 
         for (const monitor of payload.monitors) {
             const index = parseInt(monitor.key, 10);
@@ -384,8 +519,9 @@ export default class SpotlightDimmerExtension extends Extension {
     _onMonitorsChanged() {
         console.log('SpotlightDimmer: Monitors changed, recreating overlays');
 
+        const chromeHandling = this._overlayManager.chromeHandling;
         this._overlayManager.destroy();
-        this._overlayManager = new OverlayManager();
+        this._overlayManager = new OverlayManager(chromeHandling);
         this._createOverlaysForAllMonitors();
 
         this._sendMonitors();

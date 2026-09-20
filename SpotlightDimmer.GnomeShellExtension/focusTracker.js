@@ -31,6 +31,12 @@ export const FocusTracker = GObject.registerClass({
         'window-title-changed': {
             param_types: [GObject.TYPE_OBJECT],
         },
+        // Emitted when the set of always-on-top windows, or any of their
+        // rects, changed. Parameter: the rects as a JSON array string, in
+        // stacking order with the topmost last.
+        'floating-changed': {
+            param_types: [GObject.TYPE_STRING],
+        },
     },
 }, class FocusTracker extends GObject.Object {
     _init() {
@@ -40,6 +46,13 @@ export const FocusTracker = GObject.registerClass({
         this._currentWindow = null;
         this._windowSignalIds = [];
         this._wmSizeChangeId = null;
+
+        // Always-on-top tracking stays off until the daemon asks for it, so
+        // the default configuration pays nothing for this feature.
+        this._trackFloating = false;
+        this._restackedId = null;
+        this._floatingSignalIds = [];
+        this._lastFloatingJson = '[]';
 
         this._connectDisplaySignals();
 
@@ -84,6 +97,172 @@ export const FocusTracker = GObject.registerClass({
         // Emit focus changed signal
         const monitor = newWindow ? newWindow.get_monitor() : 0;
         this.emit('focus-changed', newWindow, monitor);
+    }
+
+    /**
+     * Turn always-on-top tracking on or off. Driven by `track_floating` in
+     * the daemon's overlays payload.
+     * @param {boolean} enabled - Whether to report always-on-top windows
+     */
+    setTrackFloating(enabled) {
+        const wanted = !!enabled;
+        if (wanted === this._trackFloating) {
+            return;
+        }
+
+        this._trackFloating = wanted;
+
+        if (!wanted) {
+            if (this._restackedId) {
+                global.display.disconnect(this._restackedId);
+                this._restackedId = null;
+            }
+            this._disconnectFloatingWindows();
+            // Tell the daemon to drop whatever it still holds.
+            if (this._lastFloatingJson !== '[]') {
+                this._lastFloatingJson = '[]';
+                this.emit('floating-changed', '[]');
+            }
+            return;
+        }
+
+        // 'restacked' is the only signal that covers a window being raised,
+        // lowered, added, removed or having its above state toggled.
+        this._restackedId = global.display.connect('restacked', () => {
+            this._refreshFloating(true);
+        });
+        this._refreshFloating(true);
+    }
+
+    /**
+     * Re-send the current always-on-top rects even if unchanged. Used after
+     * the daemon restarts, since it comes back with empty state.
+     */
+    resendFloating() {
+        if (!this._trackFloating) {
+            return;
+        }
+
+        this._lastFloatingJson = null;
+        this._refreshFloating(true);
+    }
+
+    /**
+     * Collect the rects of every visible always-on-top window, in stacking
+     * order. `global.get_window_actors()` is already bottom-first, which is
+     * the order the daemon expects.
+     * @returns {Array<Object>} Rects as {x, y, width, height}
+     * @private
+     */
+    _collectFloating() {
+        const rects = [];
+
+        let actors;
+        try {
+            actors = global.get_window_actors();
+        } catch (e) {
+            console.warn(`SpotlightDimmer: Error listing window actors: ${e.message}`);
+            return rects;
+        }
+
+        for (const actor of actors) {
+            try {
+                const window = actor.meta_window ?? actor.get_meta_window();
+                if (!window || window.minimized || !window.is_above()) {
+                    continue;
+                }
+
+                // Frame rect, like the focus path: get_buffer_rect() would
+                // include CSD shadows and overshoot the visible window.
+                const rect = window.get_frame_rect();
+                if (!rect || rect.width <= 0 || rect.height <= 0) {
+                    continue;
+                }
+
+                rects.push({
+                    x: rect.x,
+                    y: rect.y,
+                    width: rect.width,
+                    height: rect.height,
+                });
+            } catch (e) {
+                // Window destroyed mid-enumeration; skip it.
+            }
+        }
+
+        return rects;
+    }
+
+    /**
+     * Re-enumerate always-on-top windows and emit only when something
+     * actually changed. The diff matters: 'restacked' fires on every raise,
+     * and re-sending an unchanged set would put needless traffic on D-Bus.
+     * @param {boolean} resubscribe - Also rebuild per-window geometry signals
+     * @private
+     */
+    _refreshFloating(resubscribe) {
+        if (!this._trackFloating) {
+            return;
+        }
+
+        if (resubscribe) {
+            this._subscribeFloatingWindows();
+        }
+
+        const json = JSON.stringify(this._collectFloating());
+        if (json === this._lastFloatingJson) {
+            return;
+        }
+
+        this._lastFloatingJson = json;
+        this.emit('floating-changed', json);
+    }
+
+    /**
+     * Follow position and size on every always-on-top window, so dragging
+     * one moves its exemption with it.
+     * @private
+     */
+    _subscribeFloatingWindows() {
+        this._disconnectFloatingWindows();
+
+        let actors;
+        try {
+            actors = global.get_window_actors();
+        } catch (e) {
+            return;
+        }
+
+        for (const actor of actors) {
+            try {
+                const window = actor.meta_window ?? actor.get_meta_window();
+                if (!window || !window.is_above()) {
+                    continue;
+                }
+
+                for (const signal of ['position-changed', 'size-changed']) {
+                    const id = window.connect(signal, () => this._refreshFloating(false));
+                    this._floatingSignalIds.push({ window, id });
+                }
+            } catch (e) {
+                // Window destroyed mid-enumeration; skip it.
+            }
+        }
+    }
+
+    /**
+     * Drop the per-window geometry signals from the always-on-top set.
+     * @private
+     */
+    _disconnectFloatingWindows() {
+        for (const { window, id } of this._floatingSignalIds) {
+            try {
+                window.disconnect(id);
+            } catch (e) {
+                // Window already destroyed - normal.
+            }
+        }
+        this._floatingSignalIds = [];
     }
 
     /**
@@ -241,6 +420,14 @@ export const FocusTracker = GObject.registerClass({
             global.window_manager.disconnect(this._wmSizeChangeId);
             this._wmSizeChangeId = null;
         }
+
+        // Disconnect from always-on-top tracking
+        if (this._restackedId) {
+            global.display.disconnect(this._restackedId);
+            this._restackedId = null;
+        }
+
+        this._disconnectFloatingWindows();
 
         // Disconnect from window signals
         this._untrackCurrentWindow();

@@ -147,9 +147,15 @@ fn draw_monitor(
         let _ = cr.fill();
     } else {
         match config.mode {
-            // Unknown behaves like FullScreen on the focused monitor: no
-            // overlays there, other monitors still dimmed.
-            DimmingMode::FullScreen | DimmingMode::Unknown => {}
+            // Unknown behaves like FullScreen: the whole focused monitor is
+            // the spotlight, covered by the active overlay.
+            DimmingMode::FullScreen | DimmingMode::Unknown => {
+                set_rgba(cr, active);
+                cr.rectangle(x, y, width, height);
+                let _ = cr.fill();
+            }
+            // Partial and PartialWithActive render identically: the active
+            // overlay is always drawn, so the monitor is fully covered.
             DimmingMode::Partial | DimmingMode::PartialWithActive => {
                 // Everything except the active window, as one even-odd
                 // filled path (the daemon draws it as four separate rects).
@@ -160,11 +166,9 @@ fn draw_monitor(
                 let _ = cr.fill();
                 cr.set_fill_rule(FillRule::Winding);
 
-                if config.mode == DimmingMode::PartialWithActive {
-                    set_rgba(cr, active);
-                    cr.rectangle(window.0, window.1, window.2, window.3);
-                    let _ = cr.fill();
-                }
+                set_rgba(cr, active);
+                cr.rectangle(window.0, window.1, window.2, window.3);
+                let _ = cr.fill();
             }
         }
     }

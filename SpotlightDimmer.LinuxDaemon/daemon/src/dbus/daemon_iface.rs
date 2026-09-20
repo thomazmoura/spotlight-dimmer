@@ -260,6 +260,26 @@ impl AdapterIface {
         });
     }
 
+    /// Protocol v3: the always-on-top window rects, in stacking order with
+    /// the topmost last, as `[{"x":..,"y":..,"width":..,"height":..}]`. An
+    /// empty array clears them. Adapters send this only when the set
+    /// actually changed, so a restack that moves nothing costs no traffic.
+    /// Invalid JSON is logged and ignored.
+    fn floating_changed(&self, rects_json: String, #[zbus(header)] header: Header<'_>) {
+        let rects = match serde_json::from_str::<Vec<Rect>>(&rects_json) {
+            Ok(rects) => rects,
+            Err(e) => {
+                eprintln!("SpotlightDimmer: invalid FloatingChanged payload: {e}");
+                return;
+            }
+        };
+
+        let _ = self.tx.send_blocking(Event::FloatingChanged {
+            sender: sender_of(&header),
+            rects,
+        });
+    }
+
     fn title_changed(&self, title: String, #[zbus(header)] header: Header<'_>) {
         // The change itself triggers a tmux requery (appIntegrations.js
         // semantics); the new title is also the tty source for terminals

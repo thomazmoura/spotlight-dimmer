@@ -144,6 +144,8 @@ Controls the dimming behavior. Available modes:
 
 **Default**: `"FullScreen"`
 
+> **On Linux, the active overlay is now drawn in every mode.** The whole screen is covered by either the inactive or the active overlay, with no uncovered gap, so that a window or popup floating above the desktop can be given one style and read uniformly (see `AlwaysOnTopHandling` below). A consequence is that `Partial` and `PartialWithActive` render identically, and that the focused area is tinted at `ActiveOpacity` in `FullScreen` mode too. Set `"ActiveOpacity": 0` for the pre-0.6 look, where the focused area was left untouched. `Partial` is kept as a separate mode string so existing configurations keep working. Windows is unaffected.
+
 #### `InactiveColor` (string)
 The color of the dimming overlay for inactive areas.
 
@@ -167,16 +169,17 @@ How opaque/dark the inactive overlay should be.
 - `204` - 80% opacity (strong dimming)
 
 #### `ActiveColor` (string)
-The color of the overlay on the active window (used only in `PartialWithActive` mode).
+The color of the overlay on the active window (Windows: `PartialWithActive` mode only; Linux: every mode).
 
 - Format: Hex color code
 - **Default**: `"#000000"` (black)
 
 #### `ActiveOpacity` (integer)
-Opacity for the active window overlay (used only in `PartialWithActive` mode).
+Opacity for the active window overlay (Windows: `PartialWithActive` mode only; Linux: every mode — see the note under `Mode`).
 
 - Range: `0` to `255`
 - Should be **less than** `InactiveOpacity` to create a spotlight effect
+- `0` leaves the focused area completely untouched, which is the pre-0.6 Linux behaviour in `FullScreen` and `Partial`
 - **Default**: `102` (~40% opacity)
 
 #### `ExcludeFromScreenCapture` (boolean)
@@ -184,6 +187,35 @@ Whether to exclude overlay windows from screen captures and recordings.
 
 - **Default**: `false`
 - When `true`, overlays won't appear in screenshots, screen recordings, or streaming software
+
+#### `ChromeHandling` (string, Linux only)
+How surfaces the desktop shell draws *above* application windows — notification banners, on-screen displays, panel menus, the panel and the dock — are treated.
+
+- Values: `"Highlight"`, `"Dim"`
+- **Default**: `"Highlight"`
+- `"Highlight"` stacks the overlays below shell chrome, so notifications and popups are always fully lit
+- `"Dim"` stacks the overlays above shell chrome, dimming it along with everything else (the behaviour of every release before this one)
+
+Why the default changed: with the overlays on top, a notification that overlaps the edge of the spotlight is painted dark on the part that sits over a dimmed area and left untouched on the part over the active window. The same banner ends up two-toned, which reads as a rendering bug.
+
+On KDE this maps to the layer the dimming surfaces use: `"Highlight"` puts them on the `Top` layer, below the `Overlay` layer where notifications live. Panels are also on `Top`, so with `"Highlight"` on KDE whether the panel is dimmed is decided by the compositor at map time and is not guaranteed either way. On GNOME `"Highlight"` is exact: the overlays are stacked directly above the window group and below every piece of chrome.
+
+This setting only affects the shell's own surfaces. Application windows marked always-on-top are still dimmed like any other window.
+
+#### `AlwaysOnTopHandling` (string, Linux only)
+What happens to application windows you pinned always-on-top — a video player kept above your editor, for example. These are ordinary windows the compositor can enumerate, unlike the shell's own surfaces covered by `ChromeHandling`.
+
+- Values: `"Ignore"`, `"Highlight"`, `"Dim"`
+- **Default**: `"Ignore"`
+- `"Ignore"` dims them like any other window, which is how every release before this one behaved
+- `"Highlight"` treats them as part of the spotlight: the active overlay covers them and the dimming underneath is cut away
+- `"Dim"` covers them with the inactive overlay uniformly
+
+Use `"Highlight"` or `"Dim"` when an always-on-top window straddles the edge of the spotlight and ends up lit on one side and dimmed on the other. Both settings fix that; they differ only in which of the two styles the window gets.
+
+When two always-on-top windows overlap, the one higher in the stack wins the shared area.
+
+This costs nothing while set to `"Ignore"`: the daemon tells the adapter not to enumerate windows at all, so no extra work happens on the GNOME side. With it enabled, the extension re-reads the always-on-top set whenever windows are restacked and only sends an update when a rect actually changed.
 
 #### `Enabled` (boolean, Linux only)
 Whether dimming is turned on.

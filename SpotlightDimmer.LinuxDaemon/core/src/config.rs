@@ -37,6 +37,82 @@ impl DimmingMode {
     }
 }
 
+/// How surfaces the shell or compositor draws *above* application windows —
+/// notification banners, OSD, panel menus, docks — are treated.
+///
+/// These are not application windows and no supported API enumerates their
+/// geometry, so the only portable lever is where the overlays stack relative
+/// to them. That makes the choice binary and exact: either the overlays sit
+/// below such surfaces (never dimming them) or above (always dimming them).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ChromeHandling {
+    /// Stack the overlays below shell chrome, so notifications and popups are
+    /// always fully lit. The default, because with the overlays on top a
+    /// banner straddling the spotlight edge is painted dark on one side and
+    /// left untouched on the other, which reads as a rendering bug.
+    #[default]
+    Highlight,
+    /// Stack the overlays above shell chrome, dimming panels, docks and
+    /// notifications along with everything else. The behavior of every
+    /// release before this one.
+    Dim,
+}
+
+impl ChromeHandling {
+    /// Unrecognized values keep the default, matching the lenient per-field
+    /// parsing used everywhere else in this module.
+    pub fn parse(s: &str) -> ChromeHandling {
+        match s {
+            "Dim" => ChromeHandling::Dim,
+            _ => ChromeHandling::Highlight,
+        }
+    }
+
+    /// The wire form sent to renderers in the overlays payload.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ChromeHandling::Highlight => "Highlight",
+            ChromeHandling::Dim => "Dim",
+        }
+    }
+}
+
+/// What happens to application windows the user marked always-on-top, which
+/// float above other windows but are ordinary windows the compositor can
+/// enumerate (unlike shell chrome — see [`ChromeHandling`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum AlwaysOnTopHandling {
+    /// Dim them like any other window. The behavior of every release before
+    /// this one, and the default so nothing changes silently.
+    #[default]
+    Ignore,
+    /// Treat them as part of the spotlight: the active overlay covers them
+    /// and the inactive overlay is cut away underneath.
+    Highlight,
+    /// Cover them with the inactive overlay uniformly, so one never comes out
+    /// dimmed on the part over a dimmed area and lit on the part over the
+    /// active window.
+    Dim,
+}
+
+impl AlwaysOnTopHandling {
+    /// Unrecognized values keep the default, matching the lenient per-field
+    /// parsing used everywhere else in this module.
+    pub fn parse(s: &str) -> AlwaysOnTopHandling {
+        match s {
+            "Highlight" => AlwaysOnTopHandling::Highlight,
+            "Dim" => AlwaysOnTopHandling::Dim,
+            _ => AlwaysOnTopHandling::Ignore,
+        }
+    }
+
+    /// Whether floating rects need reporting at all. When this is false the
+    /// adapters skip enumerating and diffing windows entirely.
+    pub fn tracks_windows(self) -> bool {
+        self != AlwaysOnTopHandling::Ignore
+    }
+}
+
 /// Overlay appearance settings (the `Overlay` section of config.json).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OverlayConfig {
@@ -50,6 +126,12 @@ pub struct OverlayConfig {
     /// Persisted on/off state of the dimming (`Overlay.Enabled`). Flipped by
     /// the toggle shortcut and the settings window; `true` when absent.
     pub enabled: bool,
+    /// Whether shell chrome (notifications, OSD, panels, docks) is dimmed
+    /// along with windows, or stays lit.
+    pub chrome_handling: ChromeHandling,
+    /// Whether always-on-top application windows are exempted from the
+    /// dimming, covered by it uniformly, or treated as ordinary windows.
+    pub always_on_top_handling: AlwaysOnTopHandling,
 }
 
 impl Default for OverlayConfig {
@@ -61,6 +143,8 @@ impl Default for OverlayConfig {
             active_color: Color::BLACK,
             active_opacity: 102,
             enabled: true,
+            chrome_handling: ChromeHandling::Highlight,
+            always_on_top_handling: AlwaysOnTopHandling::Ignore,
         }
     }
 }
@@ -177,6 +261,18 @@ fn parse_overlay(overlay: &Value, out: &mut OverlayConfig) {
 
     if let Some(enabled) = overlay.get("Enabled").and_then(Value::as_bool) {
         out.enabled = enabled;
+    }
+
+    if let Some(chrome) = overlay.get("ChromeHandling").and_then(Value::as_str) {
+        if !chrome.is_empty() {
+            out.chrome_handling = ChromeHandling::parse(chrome);
+        }
+    }
+
+    if let Some(aot) = overlay.get("AlwaysOnTopHandling").and_then(Value::as_str) {
+        if !aot.is_empty() {
+            out.always_on_top_handling = AlwaysOnTopHandling::parse(aot);
+        }
     }
 }
 
@@ -483,6 +579,63 @@ mod tests {
     fn non_numeric_opacity_keeps_default() {
         let config = AppConfig::from_json(r#"{"Overlay": {"InactiveOpacity": "dark"}}"#).unwrap();
         assert_eq!(config.overlay.inactive_opacity, 153);
+    }
+
+    #[test]
+    fn chrome_handling_defaults_to_highlight_and_parses_leniently() {
+        assert_eq!(
+            OverlayConfig::default().chrome_handling,
+            ChromeHandling::Highlight
+        );
+
+        let dim = AppConfig::from_json(r#"{"Overlay":{"ChromeHandling":"Dim"}}"#).unwrap();
+        assert_eq!(dim.overlay.chrome_handling, ChromeHandling::Dim);
+
+        // Unrecognized, empty and absent all keep the default, like every
+        // other field in this module.
+        for json in [
+            r#"{"Overlay":{"ChromeHandling":"Sideways"}}"#,
+            r#"{"Overlay":{"ChromeHandling":""}}"#,
+            r#"{"Overlay":{"ChromeHandling":7}}"#,
+            r#"{"Overlay":{}}"#,
+        ] {
+            let config = AppConfig::from_json(json).unwrap();
+            assert_eq!(
+                config.overlay.chrome_handling,
+                ChromeHandling::Highlight,
+                "{json}"
+            );
+        }
+    }
+
+    #[test]
+    fn always_on_top_handling_defaults_to_ignore_and_parses_leniently() {
+        assert_eq!(
+            OverlayConfig::default().always_on_top_handling,
+            AlwaysOnTopHandling::Ignore
+        );
+        assert!(!AlwaysOnTopHandling::Ignore.tracks_windows());
+        assert!(AlwaysOnTopHandling::Highlight.tracks_windows());
+        assert!(AlwaysOnTopHandling::Dim.tracks_windows());
+
+        for (json, expected) in [
+            (
+                r#"{"Overlay":{"AlwaysOnTopHandling":"Highlight"}}"#,
+                AlwaysOnTopHandling::Highlight,
+            ),
+            (
+                r#"{"Overlay":{"AlwaysOnTopHandling":"Dim"}}"#,
+                AlwaysOnTopHandling::Dim,
+            ),
+            (
+                r#"{"Overlay":{"AlwaysOnTopHandling":"Sideways"}}"#,
+                AlwaysOnTopHandling::Ignore,
+            ),
+            (r#"{"Overlay":{}}"#, AlwaysOnTopHandling::Ignore),
+        ] {
+            let config = AppConfig::from_json(json).unwrap();
+            assert_eq!(config.overlay.always_on_top_handling, expected, "{json}");
+        }
     }
 
     #[test]

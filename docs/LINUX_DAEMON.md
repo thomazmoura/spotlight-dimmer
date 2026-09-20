@@ -165,7 +165,7 @@ it is buried, and closes it when it is already focused.
 - KDE: `make install-kde-shortcut` binds the same launcher; package users bind
   "SpotlightDimmer Settings Toggle" in System Settings → Shortcuts.
 
-## D-Bus contract (protocol version 1)
+## D-Bus contract (protocol version 3)
 
 All on the session bus. `org.spotlightdimmer.Daemon` is activatable;
 `org.spotlightdimmer.PaneTracker` deliberately is not (tmux hooks must be
@@ -194,14 +194,40 @@ Object `/org/spotlightdimmer/Daemon`:
     `client` is the decoration-excluded client area (anchors inner-pane
     highlights; omit or send a degenerate rect to fall back to the frame).
   - `FocusCleared()`, `GeometryChanged(iiii)`,
-    `GeometryChanged2(s rectsJson)`, `TitleChanged(s)`
+    `GeometryChanged2(s rectsJson)`, `TitleChanged(s)`,
+    `FloatingChanged(s rectsJson)`
 - `org.spotlightdimmer.Renderer1` — outbound overlay definitions:
   - `RegisterRenderer() -> s` — returns the current payload snapshot.
   - signal `OverlaysChanged(u serial, s overlaysJson)` — payload:
-    `{"serial":n,"enabled":bool,"monitors":[{"key":"0","overlays":[{"region":0,
+    `{"serial":n,"enabled":bool,"chrome_handling":"Highlight",
+    "monitors":[{"key":"0","overlays":[{"region":0,
     "visible":true,"x":..,"y":..,"width":..,"height":..,"color":{"r":0,"g":0,
     "b":0},"opacity":153}]}]}`. Regions: 0=FullScreen, 1=Top, 2=Bottom,
     3=Left, 4=Right, 5=Center (matches the C# `OverlayRegion`).
+  - `FloatingChanged` (v3) carries the always-on-top window rects as
+    `[{"x":..,"y":..,"width":..,"height":..}]`, in stacking order with the
+    topmost last; an empty array clears them. Adapters send it only when the
+    set actually changed.
+  - `track_floating` (v3) tells the adapter whether to report those rects at
+    all. It is false under the default `AlwaysOnTopHandling: "Ignore"`, so
+    GNOME does not enumerate windows on `restacked` unless the feature is
+    on. The KWin script is an adapter only and never receives the payload,
+    so it always reports; its triggering signals are rare enough that the
+    change diff keeps the bus quiet.
+  - `chrome_handling` is `"Highlight"` or `"Dim"` and tells a renderer where
+    to stack the overlays relative to shell chrome. It rides in the payload
+    rather than being read from config by the renderer, because the daemon
+    owns configuration and adapters only paint what they are handed. It is
+    present in the paused payload too, so a renderer keeps its stacking
+    while dimming is off. A renderer that ignores the field keeps its
+    previous behaviour, so this is not a protocol break.
+  - Overlay counts are no longer bounded by the six region slots: cutting an
+    always-on-top window out of an edge band splits that band into up to
+    four rects, so several overlays can share one `region` value. Renderers
+    must consume the list in order rather than keying by `region`. This
+    needs no capability negotiation — an older renderer never calls
+    `FloatingChanged`, so the daemon has no rects to cut with and emits the
+    legacy set unchanged.
 
 Object `/org/spotlightdimmer/PaneTracker`, interface
 `org.spotlightdimmer.PaneTracker` (unchanged from the previous GNOME-only
@@ -240,3 +266,18 @@ dbus-run-session -- bash                   # isolated bus, then:
   degrades to whole-window automatically.
 - At fractional scaling, KWin's `frameGeometry` rounding and GTK's logical
   pixel snapping can differ by ±1px — cosmetically irrelevant for dimming.
+- On KDE, `ChromeHandling: "Highlight"` puts the dimming surfaces on the
+  `Top` layer so Plasma notifications and OSD (which live on the `Overlay`
+  layer) stay lit. Panels are on `Top` as well, so panel-vs-dimmer order
+  there is decided by map time and is guaranteed in neither direction. On
+  GNOME the same setting is exact, because the extension stacks its actors
+  directly above the window group inside `uiGroup`.
+- `ChromeHandling` governs only the shell's own surfaces. Application
+  windows pinned always-on-top are covered by `AlwaysOnTopHandling`
+  instead, which reports their geometry over `FloatingChanged` and cuts
+  them out of the overlays in the calculator.
+- Shell chrome cannot be given the `AlwaysOnTopHandling` treatment, because
+  no supported API exposes its geometry: GNOME only has the private
+  `Main.layoutManager._trackedActors`, and Plasma's notification surfaces
+  are layer-shell surfaces the KWin scripting API cannot see at all. That
+  is why chrome is handled by stacking and windows by geometry.

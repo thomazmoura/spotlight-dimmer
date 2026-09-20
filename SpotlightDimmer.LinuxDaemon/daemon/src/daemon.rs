@@ -136,6 +136,12 @@ impl Daemon {
                 self.apply().await;
             }
 
+            Event::FloatingChanged { sender, rects } => {
+                self.ensure_registered(&sender);
+                self.state.floating = rects;
+                self.apply().await;
+            }
+
             Event::FocusCleared { sender } => {
                 self.ensure_registered(&sender);
                 self.state.focus = None;

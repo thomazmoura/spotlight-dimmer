@@ -19,7 +19,11 @@ pub const PANE_TRACKER_NAME: &str = "org.spotlightdimmer.PaneTracker";
 pub const PANE_TRACKER_PATH: &str = "/org/spotlightdimmer/PaneTracker";
 /// v2: FocusChanged2/GeometryChanged2 carry the client-area rect alongside
 /// the frame, so decorations no longer skew inner-pane (tmux) highlights.
-pub const PROTOCOL_VERSION: u32 = 2;
+/// v3: FloatingChanged reports always-on-top window rects, and the overlays
+/// payload carries `chrome_handling` and `track_floating`. Both additions
+/// are ignorable: an adapter that never calls FloatingChanged and a renderer
+/// that ignores the new fields keep behaving exactly as they did on v2.
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Connect to the session bus, export all interfaces and claim both
 /// well-known names. Fails if another daemon instance already owns them.

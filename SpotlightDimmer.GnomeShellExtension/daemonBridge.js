@@ -55,6 +55,9 @@ const ADAPTER_INTERFACE_XML = `
     <method name="TitleChanged">
       <arg type="s" name="title" direction="in"/>
     </method>
+    <method name="FloatingChanged">
+      <arg type="s" name="rectsJson" direction="in"/>
+    </method>
   </interface>
 </node>`;
 
@@ -179,6 +182,11 @@ export class DaemonBridge {
         try {
             const capabilities = {
                 renders_overlays: GLib.Variant.new_boolean(true),
+                // Protocol v3: this renderer grows its overlay pool on
+                // demand, so the daemon may emit more than the six legacy
+                // region slots (an always-on-top window splits a band).
+                dynamic_overlay_count: GLib.Variant.new_boolean(true),
+                reports_floating: GLib.Variant.new_boolean(true),
             };
             const [version] = await this._adapter.RegisterAdapterAsync('gnome', capabilities);
             console.log(`SpotlightDimmer: registered with daemon (protocol v${version})`);
@@ -242,6 +250,20 @@ export class DaemonBridge {
         this._adapter?.GeometryChangedAsync(
             rect.x, rect.y, rect.width, rect.height
         ).catch(e => console.warn(`SpotlightDimmer: GeometryChanged failed: ${e.message}`));
+    }
+
+    /**
+     * Report the always-on-top window rects (protocol v3). Silently skipped
+     * on an older daemon, which would answer UnknownMethod.
+     * @param {string} rectsJson - Rects as a JSON array, topmost last
+     */
+    floatingChanged(rectsJson) {
+        if (this._protocolVersion < 3) {
+            return;
+        }
+
+        this._adapter?.FloatingChangedAsync(rectsJson).catch(
+            e => console.warn(`SpotlightDimmer: FloatingChanged failed: ${e.message}`));
     }
 
     titleChanged(title) {

@@ -1,10 +1,10 @@
 //! Layer-shell overlay renderer for compositors that support the
 //! wlr-layer-shell protocol (KDE Plasma / KWin, wlroots compositors).
 //!
-//! One full-output GTK window per monitor on the Overlay layer: overlays are
-//! flat rectangles, so a single surface painting 0-6 rects per output is
-//! simpler and cheaper for the compositor than six layer surfaces, and
-//! updates atomically. GNOME does not support layer-shell — there the GNOME
+//! One full-output GTK window per monitor, on the layer chosen by
+//! `Overlay.ChromeHandling`: overlays are flat rectangles, so a single
+//! surface painting 0-6 rects per output is simpler and cheaper for the
+//! compositor than six layer surfaces, and updates atomically. GNOME does not support layer-shell — there the GNOME
 //! extension registers as the renderer and this module stays idle.
 //!
 //! Click-through: the input region is set empty on every map (the surface
@@ -46,6 +46,10 @@ struct OverlayWindow {
 pub struct LayerShellRenderer {
     init_state: InitState,
     windows: HashMap<String, OverlayWindow>,
+    /// Layer the surfaces currently sit on, derived from the payload's
+    /// chrome handling. Tracked so a config hot-reload can restack live
+    /// windows instead of only affecting ones created afterwards.
+    layer: Layer,
 }
 
 impl LayerShellRenderer {
@@ -53,6 +57,7 @@ impl LayerShellRenderer {
         LayerShellRenderer {
             init_state: InitState::Uninitialized,
             windows: HashMap::new(),
+            layer: layer_for(DEFAULT_CHROME_HANDLING),
         }
     }
 
@@ -63,6 +68,7 @@ impl LayerShellRenderer {
             return;
         }
 
+        self.apply_layer(layer_for(payload.chrome_handling));
         self.sync_windows(monitors);
 
         for monitor_overlays in &payload.monitors {
@@ -146,9 +152,24 @@ impl LayerShellRenderer {
         }
     }
 
+    /// Restack live surfaces when the chrome handling changed under a config
+    /// hot-reload. `set_layer` works on mapped layer surfaces, so no window
+    /// needs recreating.
+    fn apply_layer(&mut self, layer: Layer) {
+        if self.layer == layer {
+            return;
+        }
+
+        self.layer = layer;
+        for ow in self.windows.values() {
+            ow.window.set_layer(layer);
+        }
+    }
+
     /// Reconcile the window set with the reported monitors: drop windows for
     /// gone monitors, recreate on geometry change, create missing ones.
     fn sync_windows(&mut self, monitors: &[Monitor]) {
+        let layer = self.layer;
         let alive: HashSet<&str> = monitors.iter().map(|m| m.key.as_str()).collect();
         self.windows.retain(|key, ow| {
             let keep = alive.contains(key.as_str());
@@ -171,18 +192,36 @@ impl LayerShellRenderer {
 
             if !self.windows.contains_key(&monitor.key) {
                 self.windows
-                    .insert(monitor.key.clone(), create_window(monitor));
+                    .insert(monitor.key.clone(), create_window(monitor, layer));
             }
         }
     }
 }
 
-fn create_window(monitor: &Monitor) -> OverlayWindow {
+/// Chrome handling assumed before the first payload arrives; must match
+/// `ChromeHandling::default()`.
+const DEFAULT_CHROME_HANDLING: &str = "Highlight";
+
+/// Map the chrome handling to a wlr layer.
+///
+/// `Overlay` is the topmost layer, so the dimming covers notifications, OSD
+/// and Plasma popups along with windows. `Top` sits above normal windows but
+/// below the overlay layer, which is where notifications live, so they stay
+/// lit. Caveat: panels are also on `Top`, so panel-vs-dimmer order there is
+/// decided by map time and is not guaranteed either way.
+fn layer_for(chrome_handling: &str) -> Layer {
+    match chrome_handling {
+        "Dim" => Layer::Overlay,
+        _ => Layer::Top,
+    }
+}
+
+fn create_window(monitor: &Monitor, layer: Layer) -> OverlayWindow {
     let window = gtk::Window::new();
     window.add_css_class("spotlight-dimmer-overlay");
 
     window.init_layer_shell();
-    window.set_layer(Layer::Overlay);
+    window.set_layer(layer);
     for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
         window.set_anchor(edge, true);
     }

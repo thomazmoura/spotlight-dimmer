@@ -44,6 +44,13 @@ pub enum Event {
         frame: Rect,
         client: Option<Rect>,
     },
+    /// Protocol v3: the adapter's always-on-top window set changed (added,
+    /// removed, moved or resized). Rects are in stacking order, topmost
+    /// last.
+    FloatingChanged {
+        sender: String,
+        rects: Vec<Rect>,
+    },
     /// The focused window's title changed (tmux attach/detach and wezterm tab
     /// switches change the title without any focus/geometry event). The title
     /// itself matters for the window-title tty source.

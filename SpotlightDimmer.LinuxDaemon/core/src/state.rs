@@ -51,6 +51,16 @@ pub struct MonitorOverlays {
 pub struct OverlaysPayload {
     pub serial: u64,
     pub enabled: bool,
+    /// Where renderers must stack the overlays relative to shell chrome.
+    /// Travels in the payload rather than in a config file the renderer
+    /// reads, because since 0.2.0 the daemon owns config and the adapters
+    /// only paint what they are handed.
+    pub chrome_handling: &'static str,
+    /// Whether the adapter should report always-on-top window rects. False
+    /// under the default `AlwaysOnTopHandling: "Ignore"`, so adapters skip
+    /// enumerating and diffing windows entirely and the feature costs
+    /// nothing until it is turned on.
+    pub track_floating: bool,
     pub monitors: Vec<MonitorOverlays>,
 }
 
@@ -67,6 +77,10 @@ pub struct AppState {
     /// Resolved inner spotlight rect (e.g. the focused tmux pane) in screen
     /// space; substitutes the window frame when present.
     pub inner_rect: Option<Rect>,
+    /// Always-on-top window rects reported by the adapter, in stacking order
+    /// with the topmost last. Empty unless `Overlay.AlwaysOnTopHandling`
+    /// asks for them, so the default costs nothing.
+    pub floating: Vec<Rect>,
     enabled: bool,
     serial: u64,
 }
@@ -78,6 +92,7 @@ impl AppState {
             monitors: Vec::new(),
             focus: None,
             inner_rect: None,
+            floating: Vec::new(),
             enabled: true,
             serial: 0,
         }
@@ -137,6 +152,12 @@ impl AppState {
             return Some(OverlaysPayload {
                 serial: self.serial,
                 enabled: false,
+                chrome_handling: self.config.overlay.chrome_handling.as_str(),
+                track_floating: self
+                    .config
+                    .overlay
+                    .always_on_top_handling
+                    .tracks_windows(),
                 monitors,
             });
         }
@@ -173,6 +194,7 @@ impl AppState {
                     None
                 },
                 is_focused,
+                &self.floating,
             )?; // 0x0 window: freeze everything until the next geometry event
 
             monitors.push(MonitorOverlays {
@@ -185,6 +207,12 @@ impl AppState {
         Some(OverlaysPayload {
             serial: self.serial,
             enabled: true,
+            chrome_handling: self.config.overlay.chrome_handling.as_str(),
+            track_floating: self
+                .config
+                .overlay
+                .always_on_top_handling
+                .tracks_windows(),
             monitors,
         })
     }
@@ -253,9 +281,13 @@ mod tests {
         assert_eq!(payload.serial, 1);
         assert_eq!(payload.monitors.len(), 2);
 
-        // Focused monitor 0: no overlays
+        // Focused monitor 0: covered by the active overlay, so the monitor
+        // is fully accounted for without being dimmed as inactive.
         assert_eq!(payload.monitors[0].key, "0");
-        assert!(payload.monitors[0].overlays.is_empty());
+        let active = &payload.monitors[0].overlays;
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].region, region::FULLSCREEN);
+        assert_eq!(active[0].opacity, state.config.overlay.active_opacity);
 
         // Monitor 1: overlay covering the full monitor geometry
         let overlays = &payload.monitors[1].overlays;
@@ -308,10 +340,14 @@ mod tests {
 
         let payload = state.recompute().unwrap();
         let overlays = &payload.monitors[0].overlays;
-        assert_eq!(overlays.len(), 1);
-        let top = &overlays[0];
-        assert_eq!(top.region, region::TOP);
+        // The panel strip plus the active overlay over the window itself.
+        assert_eq!(overlays.len(), 2);
+        let top = overlays
+            .iter()
+            .find(|d| d.region == region::TOP)
+            .expect("panel strip is dimmed");
         assert_eq!((top.x, top.y, top.width, top.height), (0, 0, 1920, 32));
+        assert_eq!(top.opacity, state.config.overlay.inactive_opacity);
     }
 
     #[test]
@@ -344,6 +380,42 @@ mod tests {
     }
 
     #[test]
+    fn chrome_handling_travels_in_every_payload_including_the_paused_one() {
+        let mut state = two_monitor_state();
+        state.config.overlay.chrome_handling = crate::config::ChromeHandling::Dim;
+        state.focus = focus(Rect::new(100, 100, 800, 600));
+
+        assert_eq!(state.recompute().unwrap().chrome_handling, "Dim");
+
+        // Renderers keep their stacking while paused, so the paused payload
+        // has to carry the policy too.
+        state.set_enabled(false);
+        assert_eq!(state.recompute().unwrap().chrome_handling, "Dim");
+    }
+
+    #[test]
+    fn floating_rects_are_applied_per_monitor() {
+        use crate::config::AlwaysOnTopHandling;
+
+        let mut state = two_monitor_state();
+        state.config.overlay.mode = DimmingMode::Partial;
+        state.config.overlay.always_on_top_handling = AlwaysOnTopHandling::Highlight;
+        state.focus = focus(Rect::new(100, 132, 800, 600));
+        // One surface on each monitor; each must only affect its own.
+        state.floating = vec![Rect::new(50, 50, 200, 200), Rect::new(2000, 50, 200, 200)];
+
+        let payload = state.recompute().unwrap();
+        for monitor in &payload.monitors {
+            let floating: Vec<&OverlayDef> = monitor
+                .overlays
+                .iter()
+                .filter(|d| d.region == crate::calculator::region::FLOATING)
+                .collect();
+            assert_eq!(floating.len(), 1, "monitor {}", monitor.key);
+        }
+    }
+
+    #[test]
     fn payload_serializes_with_expected_field_names() {
         let mut state = two_monitor_state();
         state.focus = focus(Rect::new(100, 100, 800, 600));
@@ -354,6 +426,8 @@ mod tests {
 
         assert_eq!(value["serial"], 1);
         assert_eq!(value["enabled"], true);
+        assert_eq!(value["chrome_handling"], "Highlight");
+        assert_eq!(value["track_floating"], false);
         assert_eq!(value["monitors"][1]["key"], "1");
 
         let overlay = &value["monitors"][1]["overlays"][0];

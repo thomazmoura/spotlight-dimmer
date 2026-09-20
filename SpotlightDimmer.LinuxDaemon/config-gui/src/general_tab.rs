@@ -9,7 +9,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk4 as gtk;
 
-use spotlight_dimmer_core::config::DimmingMode;
+use spotlight_dimmer_core::config::{AlwaysOnTopHandling, ChromeHandling, DimmingMode};
 
 use crate::document::Document;
 use crate::preview::Preview;
@@ -17,10 +17,23 @@ use crate::widgets::{hex_from_rgba, hint, labelled_row, opacity_label, section, 
 
 const MODES: [&str; 3] = ["FullScreen", "Partial", "PartialWithActive"];
 
+/// Order must match the index mapping in `always_on_top_index`/`connect`.
+const ALWAYS_ON_TOP: [&str; 3] = ["Ignore", "Highlight", "Dim"];
+
+fn always_on_top_index(handling: AlwaysOnTopHandling) -> u32 {
+    match handling {
+        AlwaysOnTopHandling::Ignore => 0,
+        AlwaysOnTopHandling::Highlight => 1,
+        AlwaysOnTopHandling::Dim => 2,
+    }
+}
+
 pub struct GeneralTab {
     root: gtk::Widget,
     mode_model: gtk::StringList,
     mode: gtk::DropDown,
+    chrome_dim: gtk::Switch,
+    always_on_top: gtk::DropDown,
     inactive_color: gtk::ColorDialogButton,
     inactive_opacity: gtk::Scale,
     inactive_value: gtk::Label,
@@ -51,12 +64,36 @@ impl GeneralTab {
             .hexpand(true)
             .build();
 
+        // Switch rather than a dropdown: the underlying ChromeHandling is
+        // binary, and "off" is the default the user should land on.
+        let chrome_dim = gtk::Switch::builder().halign(gtk::Align::Start).build();
+
         let (mode_frame, mode_box) = section("Dimming");
         mode_box.append(&labelled_row("Mode:", &mode));
         mode_box.append(&hint(
             "FullScreen dims whole unfocused monitors. Partial also dims the focused \
              monitor around the active window. PartialWithActive additionally tints the \
              active window itself.",
+        ));
+        let always_on_top = gtk::DropDown::builder()
+            .model(&gtk::StringList::new(&ALWAYS_ON_TOP))
+            .hexpand(true)
+            .build();
+
+        mode_box.append(&labelled_row("Dim shell chrome:", &chrome_dim));
+        mode_box.append(&hint(
+            "Off (the default) keeps notifications, popups, the panel and the dock fully \
+             lit, because the dimming stacks below them. On dims them along with windows, \
+             which is how every release before this one behaved \u{2014} note that a \
+             notification overlapping the edge of the spotlight then looks lit on one side \
+             and dimmed on the other.",
+        ));
+        mode_box.append(&labelled_row("Always-on-top windows:", &always_on_top));
+        mode_box.append(&hint(
+            "Ignore (the default) dims windows you pinned always-on-top like any other \
+             window. Highlight keeps them lit as part of the spotlight; Dim covers them \
+             with the inactive overlay. Either of the last two also stops such a window \
+             coming out lit on the part over the active window and dimmed on the rest.",
         ));
         root.append(&mode_frame);
 
@@ -85,6 +122,8 @@ impl GeneralTab {
             root: root.upcast(),
             mode_model,
             mode,
+            chrome_dim,
+            always_on_top,
             inactive_color,
             inactive_opacity,
             inactive_value,
@@ -146,6 +185,31 @@ impl GeneralTab {
             d.set_active_opacity(v)
         });
 
+        let document_for_chrome = document.clone();
+        let loading = self.loading.clone();
+        self.chrome_dim.connect_active_notify(move |switch| {
+            if loading.get() {
+                return;
+            }
+            document_for_chrome.set_chrome_handling(if switch.is_active() {
+                "Dim"
+            } else {
+                "Highlight"
+            });
+        });
+
+        let document_for_aot = document.clone();
+        let loading = self.loading.clone();
+        self.always_on_top.connect_selected_notify(move |dropdown| {
+            if loading.get() {
+                return;
+            }
+            let Some(value) = ALWAYS_ON_TOP.get(dropdown.selected() as usize) else {
+                return;
+            };
+            document_for_aot.set_always_on_top_handling(value);
+        });
+
         let document_for_mode = document.clone();
         let loading = self.loading.clone();
         let preview = self.preview.clone();
@@ -179,6 +243,10 @@ impl GeneralTab {
             overlay.mode,
             document.overlay_raw_string("Mode"),
         );
+        self.chrome_dim
+            .set_active(overlay.chrome_handling == ChromeHandling::Dim);
+        self.always_on_top
+            .set_selected(always_on_top_index(overlay.always_on_top_handling));
         self.inactive_color.set_rgba(&to_rgba(overlay.inactive_color));
         self.active_color.set_rgba(&to_rgba(overlay.active_color));
         self.inactive_opacity.set_value(overlay.inactive_opacity as f64);

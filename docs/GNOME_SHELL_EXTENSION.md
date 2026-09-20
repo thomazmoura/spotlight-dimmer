@@ -273,7 +273,8 @@ export class OverlayManager {
                 height: 0,
             });
 
-            // Add to top chrome (above all windows)
+            // Add to top chrome (above all windows, and above shell chrome
+            // too — see Overlay.ChromeHandling, which restacks below it)
             Main.layoutManager.addTopChrome(overlay);
             overlays.push(overlay);
         }
@@ -700,7 +701,9 @@ const primary = global.display.get_primary_monitor();
 ```javascript
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// Add overlay above all windows
+// Add overlay above all windows. Note this raises to the top of uiGroup at
+// add time only: chrome added later (another extension, modal dialogs) lands
+// above it, and notifications/OSD registered before it land below.
 Main.layoutManager.addTopChrome(widget);
 
 // Remove overlay
