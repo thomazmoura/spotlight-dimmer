@@ -206,8 +206,8 @@ This setting only affects the shell's own surfaces. Application windows marked a
 What happens to application windows you pinned always-on-top — a video player kept above your editor, for example. These are ordinary windows the compositor can enumerate, unlike the shell's own surfaces covered by `ChromeHandling`.
 
 - Values: `"Ignore"`, `"Highlight"`, `"Dim"`
-- **Default**: `"Ignore"`
-- `"Ignore"` dims them like any other window, which is how every release before this one behaved
+- **Default**: `"Dim"` (was `"Ignore"` in 0.6.0)
+- `"Ignore"` dims them like any other window, which is how every release before 0.6.0 behaved
 - `"Highlight"` treats them as part of the spotlight: the active overlay covers them and the dimming underneath is cut away
 - `"Dim"` covers them with the inactive overlay uniformly
 

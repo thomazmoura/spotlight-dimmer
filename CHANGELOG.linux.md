@@ -7,15 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-21
+
 ### Fixed
 - **The focused window is no longer dimmed when it is pinned always-on-top**: With `Overlay.AlwaysOnTopHandling` set to `"Dim"`, a window you had pinned on top was covered by the inactive overlay even while you were typing in it, so the dimming hid the very thing it is supposed to point at. The focused window now always keeps its spotlight, whichever handling is configured; every other always-on-top window is still covered whole, so one straddling the spotlight edge keeps reading uniformly instead of two-toned
 - **Always-on-top handling now follows the terminal pane or neovim split**: The exemption above uses the actual highlight area, not just the window frame. When an integration narrows the spotlight to a tmux pane or a neovim split inside a pinned terminal, only that region stays lit and the other panes of the same window are covered, matching how panes behave in a terminal that is not pinned. Before, the highlight area was ignored here and the whole window was treated as one block
+
+### Changed
+- **Always-on-top windows are now covered by the inactive overlay by default**: `Overlay.AlwaysOnTopHandling` now defaults to `"Dim"` instead of `"Ignore"`, so a window you pinned on top — a video player above your editor, for example — reads as one uniform dimmed block instead of coming out lit on the part over the active window and dimmed on the rest. The focused window is exempt, as described above. Configurations that set the value explicitly are unaffected; set `"AlwaysOnTopHandling": "Ignore"`, or pick "Ignore" in the settings window, to get the 0.6.0 behaviour back
 
 ---
 
 ### Corrigido
 - **A janela em foco não é mais escurecida quando está fixada sempre no topo**: Com o `Overlay.AlwaysOnTopHandling` definido como `"Dim"`, uma janela fixada no topo era coberta pela sobreposição inativa mesmo enquanto você digitava nela, de modo que o escurecimento escondia justamente aquilo que deveria destacar. A janela em foco agora sempre mantém o holofote, qualquer que seja o tratamento configurado; todas as outras janelas sempre no topo continuam sendo cobertas por inteiro, então uma que cruze a borda do holofote continua sendo lida de forma uniforme em vez de ficar com dois tons
 - **O tratamento de sempre no topo agora acompanha o painel do terminal ou a divisão do neovim**: A exceção acima usa a área de destaque real, não apenas o quadro da janela. Quando uma integração reduz o holofote a um painel do tmux ou a uma divisão do neovim dentro de um terminal fixado, apenas aquela região permanece iluminada e os demais painéis da mesma janela são cobertos, igual ao comportamento dos painéis em um terminal que não está fixado. Antes, a área de destaque era ignorada nesse caso e a janela inteira era tratada como um bloco só
+
+### Alterado
+- **Janelas sempre no topo agora são cobertas pela sobreposição inativa por padrão**: O `Overlay.AlwaysOnTopHandling` agora tem `"Dim"` como padrão em vez de `"Ignore"`, de modo que uma janela fixada no topo — um reprodutor de vídeo acima do seu editor, por exemplo — é lida como um único bloco escurecido e uniforme, em vez de ficar iluminada na parte sobre a janela ativa e escurecida no resto. A janela em foco é exceção, como descrito acima. Configurações que definem o valor explicitamente não são afetadas; defina `"AlwaysOnTopHandling": "Ignore"`, ou escolha "Ignore" na janela de configurações, para recuperar o comportamento da 0.6.0
 
 ## [0.6.0] - 2026-09-20
 
