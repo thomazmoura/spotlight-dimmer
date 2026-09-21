@@ -82,16 +82,18 @@ impl ChromeHandling {
 /// enumerate (unlike shell chrome — see [`ChromeHandling`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlwaysOnTopHandling {
-    /// Dim them like any other window. The behavior of every release before
-    /// this one, and the default so nothing changes silently.
-    #[default]
+    /// Dim them like any other window, which is what every release up to
+    /// 0.6.0 did. Cheapest: the adapters never enumerate windows at all.
     Ignore,
     /// Treat them as part of the spotlight: the active overlay covers them
     /// and the inactive overlay is cut away underneath.
     Highlight,
     /// Cover them with the inactive overlay uniformly, so one never comes out
     /// dimmed on the part over a dimmed area and lit on the part over the
-    /// active window.
+    /// active window. The default: that split rendering reads as a bug, and
+    /// the focused window is exempt either way, so the keyboard focus stays
+    /// visible.
+    #[default]
     Dim,
 }
 
@@ -101,8 +103,8 @@ impl AlwaysOnTopHandling {
     pub fn parse(s: &str) -> AlwaysOnTopHandling {
         match s {
             "Highlight" => AlwaysOnTopHandling::Highlight,
-            "Dim" => AlwaysOnTopHandling::Dim,
-            _ => AlwaysOnTopHandling::Ignore,
+            "Ignore" => AlwaysOnTopHandling::Ignore,
+            _ => AlwaysOnTopHandling::Dim,
         }
     }
 
@@ -144,7 +146,7 @@ impl Default for OverlayConfig {
             active_opacity: 102,
             enabled: true,
             chrome_handling: ChromeHandling::Highlight,
-            always_on_top_handling: AlwaysOnTopHandling::Ignore,
+            always_on_top_handling: AlwaysOnTopHandling::Dim,
         }
     }
 }

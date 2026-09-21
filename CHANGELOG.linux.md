@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The focused window is no longer dimmed when it is pinned always-on-top**: With `Overlay.AlwaysOnTopHandling` set to `"Dim"`, a window you had pinned on top was covered by the inactive overlay even while you were typing in it, so the dimming hid the very thing it is supposed to point at. The focused window now always keeps its spotlight, whichever handling is configured; every other always-on-top window is still covered whole, so one straddling the spotlight edge keeps reading uniformly instead of two-toned
+- **Always-on-top handling now follows the terminal pane or neovim split**: The exemption above uses the actual highlight area, not just the window frame. When an integration narrows the spotlight to a tmux pane or a neovim split inside a pinned terminal, only that region stays lit and the other panes of the same window are covered, matching how panes behave in a terminal that is not pinned. Before, the highlight area was ignored here and the whole window was treated as one block
+
+---
+
+### Corrigido
+- **A janela em foco não é mais escurecida quando está fixada sempre no topo**: Com o `Overlay.AlwaysOnTopHandling` definido como `"Dim"`, uma janela fixada no topo era coberta pela sobreposição inativa mesmo enquanto você digitava nela, de modo que o escurecimento escondia justamente aquilo que deveria destacar. A janela em foco agora sempre mantém o holofote, qualquer que seja o tratamento configurado; todas as outras janelas sempre no topo continuam sendo cobertas por inteiro, então uma que cruze a borda do holofote continua sendo lida de forma uniforme em vez de ficar com dois tons
+- **O tratamento de sempre no topo agora acompanha o painel do terminal ou a divisão do neovim**: A exceção acima usa a área de destaque real, não apenas o quadro da janela. Quando uma integração reduz o holofote a um painel do tmux ou a uma divisão do neovim dentro de um terminal fixado, apenas aquela região permanece iluminada e os demais painéis da mesma janela são cobertos, igual ao comportamento dos painéis em um terminal que não está fixado. Antes, a área de destaque era ignorada nesse caso e a janela inteira era tratada como um bloco só
+
 ## [0.6.0] - 2026-09-20
 
 ### Fixed

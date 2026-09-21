@@ -213,6 +213,8 @@ What happens to application windows you pinned always-on-top — a video player 
 
 Use `"Highlight"` or `"Dim"` when an always-on-top window straddles the edge of the spotlight and ends up lit on one side and dimmed on the other. Both settings fix that; they differ only in which of the two styles the window gets.
 
+The focused window is never covered by either setting: if the window you are typing in is itself pinned always-on-top, it keeps the spotlight, so the dimming never hides where the keyboard focus is. When an integration narrows the spotlight to an inner region of that window — a tmux pane, a neovim split — only the focused region stays lit and the rest of the same window is covered, exactly as it would be in a window that is not pinned. Other always-on-top windows are still covered whole, which is what keeps one straddling the spotlight edge from reading as two-toned.
+
 When two always-on-top windows overlap, the one higher in the stack wins the shared area.
 
 This costs nothing while set to `"Ignore"`: the daemon tells the adapter not to enumerate windows at all, so no extra work happens on the GNOME side. With it enabled, the extension re-reads the always-on-top set whenever windows are restacked and only sends an update when a rect actually changed.

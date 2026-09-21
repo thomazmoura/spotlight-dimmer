@@ -45,6 +45,9 @@ pub struct OverlayDef {
 /// overlays cover them too, matching the Windows client).
 /// `window_rect` is the spotlight target on the focused monitor (window frame
 /// or resolved inner pane rect), `None` on non-focused monitors.
+/// `focus_frame` is the focused window's own frame, which is how an entry in
+/// `floating` is recognized as the focused window itself; `None` on
+/// non-focused monitors.
 /// `floating` holds always-on-top window rects in stacking order, bottom
 /// first; it is empty unless `AlwaysOnTopHandling` asks for them.
 ///
@@ -60,6 +63,7 @@ pub fn calculate(
     config: &OverlayConfig,
     monitor: &Rect,
     window_rect: Option<&Rect>,
+    focus_frame: Option<&Rect>,
     is_focused_monitor: bool,
     floating: &[Rect],
 ) -> Option<Vec<OverlayDef>> {
@@ -69,8 +73,16 @@ pub fn calculate(
         }
     }
 
+    let spotlight = if is_focused_monitor {
+        window_rect
+            .map(|w| w.clamp_to(monitor))
+            .filter(|c| c.width > 0 && c.height > 0)
+    } else {
+        None
+    };
+
     let mut overlays = if is_focused_monitor {
-        focused_overlays(config, monitor, window_rect)
+        focused_overlays(config, monitor, spotlight)
     } else {
         // Non-focused monitors are entirely inactive in every mode.
         vec![fill(
@@ -81,7 +93,14 @@ pub fn calculate(
         )]
     };
 
-    apply_floating(&mut overlays, monitor, config, floating);
+    // The focused window keeps its spotlight even when it is always-on-top,
+    // so a pinned window never hides where the keyboard focus is.
+    let exempt = match (focus_frame, spotlight) {
+        (Some(frame), Some(spotlight)) => Some((*frame, spotlight)),
+        _ => None,
+    };
+
+    apply_floating(&mut overlays, monitor, config, floating, exempt);
 
     Some(overlays)
 }
@@ -101,15 +120,15 @@ fn fill(region: u8, rect: &Rect, color: Color, opacity: u8) -> OverlayDef {
 }
 
 /// Overlays for the monitor holding the focused window.
+///
+/// `spotlight` is already clamped to `monitor` and known non-empty, so the
+/// same rect the caller uses to exempt the focused window from floating
+/// treatment is the one the overlays are carved around.
 fn focused_overlays(
     config: &OverlayConfig,
     monitor: &Rect,
-    window: Option<&Rect>,
+    spotlight: Option<Rect>,
 ) -> Vec<OverlayDef> {
-    let spotlight = window
-        .map(|w| w.clamp_to(monitor))
-        .filter(|c| c.width > 0 && c.height > 0);
-
     let Some(spotlight) = spotlight else {
         // The focused window is not actually visible on this monitor; there
         // is no spotlight to carve out, so the monitor reads as inactive.
@@ -229,11 +248,20 @@ fn partial_overlays(monitor: &Rect, spotlight: &Rect, color: Color, opacity: u8)
 /// covered by exactly one overlay, so it reads uniformly. Both directions
 /// need the cut: a transparent overlay on top cannot undo the dim beneath
 /// it, and a second dim overlay on top would composite into a darker patch.
+///
+/// `exempt` carries the focused window's frame and its spotlight rect. When
+/// a floating surface *is* the focused window, the spotlight is left out of
+/// the covering: dimming it would hide where the keyboard focus is, and the
+/// spotlight may be an inner region (a tmux pane, a neovim split) rather than
+/// the whole frame, so the rest of that same window is still covered. Other
+/// always-on-top windows are covered whole, which is what keeps one
+/// straddling the spotlight edge from reading as two-toned.
 fn apply_floating(
     overlays: &mut Vec<OverlayDef>,
     monitor: &Rect,
     config: &OverlayConfig,
     floating: &[Rect],
+    exempt: Option<(Rect, Rect)>,
 ) {
     let (color, opacity) = match config.always_on_top_handling {
         // Always-on-top windows are dimmed like any other window: nothing to
@@ -244,29 +272,43 @@ fn apply_floating(
     };
 
     for rect in floating {
-        let hole = rect.clamp_to(monitor);
-        if hole.width <= 0 || hole.height <= 0 {
+        let clamped = rect.clamp_to(monitor);
+        if clamped.width <= 0 || clamped.height <= 0 {
             continue;
         }
 
-        // Cut the hole out of every overlay computed so far. Earlier
-        // floating rects are included, so when two always-on-top windows
-        // overlap the one later in stacking order wins.
-        let mut carved = Vec::with_capacity(overlays.len() + 3);
-        for def in overlays.iter() {
-            let def_rect = Rect::new(def.x, def.y, def.width, def.height);
-            for piece in def_rect.subtract(&hole) {
-                carved.push(OverlayDef {
-                    x: piece.x,
-                    y: piece.y,
-                    width: piece.width,
-                    height: piece.height,
-                    ..def.clone()
-                });
+        // The reported rect is compared before clamping: adapters publish the
+        // same frame geometry for the floating set and for the focus event,
+        // so the focused window is identified exactly.
+        let holes = match exempt {
+            Some((frame, spotlight)) if *rect == frame => clamped.subtract(&spotlight),
+            _ => vec![clamped],
+        };
+
+        for hole in holes {
+            if hole.width <= 0 || hole.height <= 0 {
+                continue;
             }
+
+            // Cut the hole out of every overlay computed so far. Earlier
+            // floating rects are included, so when two always-on-top windows
+            // overlap the one later in stacking order wins.
+            let mut carved = Vec::with_capacity(overlays.len() + 3);
+            for def in overlays.iter() {
+                let def_rect = Rect::new(def.x, def.y, def.width, def.height);
+                for piece in def_rect.subtract(&hole) {
+                    carved.push(OverlayDef {
+                        x: piece.x,
+                        y: piece.y,
+                        width: piece.width,
+                        height: piece.height,
+                        ..def.clone()
+                    });
+                }
+            }
+            carved.push(fill(region::FLOATING, &hole, color, opacity));
+            *overlays = carved;
         }
-        carved.push(fill(region::FLOATING, &hole, color, opacity));
-        *overlays = carved;
     }
 }
 
@@ -290,7 +332,7 @@ mod tests {
         window: Option<&Rect>,
         focused: bool,
     ) -> Option<Vec<OverlayDef>> {
-        calculate(config, monitor, window, focused, &[])
+        calculate(config, monitor, window, window, focused, &[])
     }
 
     fn find(defs: &[OverlayDef], region: u8) -> Option<&OverlayDef> {
@@ -543,13 +585,30 @@ mod tests {
     const SPOTLIGHT: Rect = Rect::new(500, 400, 800, 600);
     const STRADDLING: Rect = Rect::new(300, 300, 400, 200);
 
+    /// `calculate` on the focused monitor with the focused window's frame
+    /// equal to the spotlight, i.e. no integration narrowing it to a pane.
+    fn calc_floating(cfg: &OverlayConfig, floating: &[Rect]) -> Vec<OverlayDef> {
+        calculate(
+            cfg,
+            &MONITOR,
+            Some(&SPOTLIGHT),
+            Some(&SPOTLIGHT),
+            true,
+            floating,
+        )
+        .unwrap()
+    }
+
     #[test]
     fn ignore_leaves_floating_surfaces_dimmed_like_any_window() {
         let cfg = floating_config(AlwaysOnTopHandling::Ignore);
-        let with = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[STRADDLING]).unwrap();
-        let without = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[]).unwrap();
+        let with = calc_floating(&cfg, &[STRADDLING]);
+        let without = calc_floating(&cfg, &[]);
 
-        assert_eq!(with, without, "Ignore must be byte-identical to no floating");
+        assert_eq!(
+            with, without,
+            "Ignore must be byte-identical to no floating"
+        );
         assert!(find(&with, region::FLOATING).is_none());
     }
 
@@ -560,7 +619,7 @@ mod tests {
             (AlwaysOnTopHandling::Dim, 153),
         ] {
             let cfg = floating_config(handling);
-            let defs = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[STRADDLING]).unwrap();
+            let defs = calc_floating(&cfg, &[STRADDLING]);
 
             let floating: Vec<&OverlayDef> = defs
                 .iter()
@@ -588,7 +647,7 @@ mod tests {
     fn a_surface_inside_the_spotlight_only_carves_the_active_rect() {
         let cfg = floating_config(AlwaysOnTopHandling::Dim);
         let inside = Rect::new(600, 500, 100, 100);
-        let defs = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[inside]).unwrap();
+        let defs = calc_floating(&cfg, &[inside]);
 
         assert_covers_monitor(&defs, &MONITOR);
         let floating = find(&defs, region::FLOATING).unwrap();
@@ -601,12 +660,12 @@ mod tests {
         let cfg = floating_config(AlwaysOnTopHandling::Highlight);
 
         let elsewhere = Rect::new(4000, 4000, 300, 300);
-        let defs = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[elsewhere]).unwrap();
+        let defs = calc_floating(&cfg, &[elsewhere]);
         assert!(find(&defs, region::FLOATING).is_none());
         assert_covers_monitor(&defs, &MONITOR);
 
         let spanning = Rect::new(-100, 0, 400, 400);
-        let defs = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[spanning]).unwrap();
+        let defs = calc_floating(&cfg, &[spanning]);
         let floating = find(&defs, region::FLOATING).unwrap();
         assert_eq!(rect_of(floating), spanning.clamp_to(&MONITOR));
         assert_covers_monitor(&defs, &MONITOR);
@@ -619,7 +678,7 @@ mod tests {
         let upper = Rect::new(400, 350, 400, 200);
 
         // Stacking order, bottom first: the later rect wins the shared area.
-        let defs = calculate(&cfg, &MONITOR, Some(&SPOTLIGHT), true, &[lower, upper]).unwrap();
+        let defs = calc_floating(&cfg, &[lower, upper]);
         assert_covers_monitor(&defs, &MONITOR);
 
         let upper_def = defs
@@ -630,9 +689,94 @@ mod tests {
     }
 
     #[test]
+    fn the_focused_always_on_top_window_keeps_its_spotlight() {
+        // The focused window is itself pinned on top, so the adapters report
+        // it in the floating set. Dimming it would hide the keyboard focus.
+        for handling in [AlwaysOnTopHandling::Dim, AlwaysOnTopHandling::Highlight] {
+            let cfg = floating_config(handling);
+            let defs = calc_floating(&cfg, &[SPOTLIGHT]);
+
+            assert!(
+                find(&defs, region::FLOATING).is_none(),
+                "{handling:?}: the focused window must not be covered"
+            );
+
+            let center = find(&defs, region::CENTER).expect("{handling:?}: spotlight kept");
+            assert_eq!(rect_of(center), SPOTLIGHT, "{handling:?}");
+            assert_eq!(center.opacity, cfg.active_opacity, "{handling:?}");
+            assert_covers_monitor(&defs, &MONITOR);
+        }
+    }
+
+    #[test]
+    fn an_integration_pane_narrows_what_the_focused_window_keeps() {
+        // A pinned terminal running tmux: the focused pane stays lit and the
+        // rest of that same window is covered, like panes anywhere else.
+        let cfg = floating_config(AlwaysOnTopHandling::Dim);
+        let frame = Rect::new(400, 300, 1200, 800);
+        let pane = Rect::new(400, 300, 600, 800);
+
+        let defs = calculate(&cfg, &MONITOR, Some(&pane), Some(&frame), true, &[frame]).unwrap();
+
+        // The pane keeps the active overlay ...
+        let center = find(&defs, region::CENTER).expect("pane keeps the spotlight");
+        assert_eq!(rect_of(center), pane);
+
+        // ... and the rest of the frame is covered at the inactive opacity.
+        let floating: Vec<&OverlayDef> = defs
+            .iter()
+            .filter(|d| d.region == region::FLOATING)
+            .collect();
+        assert!(!floating.is_empty(), "the unfocused panes must be covered");
+        for def in &floating {
+            assert_eq!(def.opacity, cfg.inactive_opacity);
+            assert_eq!(
+                rect_of(def).overlap_area(&pane),
+                0,
+                "{def:?} covers the focused pane"
+            );
+        }
+        let area = |r: &Rect| r.width as i64 * r.height as i64;
+        let covered: i64 = floating.iter().map(|d| area(&rect_of(d))).sum();
+        assert_eq!(covered, area(&frame) - area(&pane));
+
+        assert_covers_monitor(&defs, &MONITOR);
+    }
+
+    #[test]
+    fn another_surface_over_the_pane_is_still_covered_whole() {
+        // Only the focused window is exempt: a separate always-on-top window
+        // straddling the pane edge must stay uniform, not two-toned.
+        let cfg = floating_config(AlwaysOnTopHandling::Dim);
+        let frame = Rect::new(400, 300, 1200, 800);
+        let pane = Rect::new(400, 300, 600, 800);
+        let player = Rect::new(800, 400, 400, 300);
+
+        let defs = calculate(
+            &cfg,
+            &MONITOR,
+            Some(&pane),
+            Some(&frame),
+            true,
+            &[frame, player],
+        )
+        .unwrap();
+
+        let over_player: Vec<&OverlayDef> = defs
+            .iter()
+            .filter(|d| rect_of(d).overlap_area(&player) > 0)
+            .collect();
+        assert_eq!(over_player.len(), 1, "{over_player:?}");
+        assert_eq!(rect_of(over_player[0]), player);
+        assert_eq!(over_player[0].opacity, cfg.inactive_opacity);
+
+        assert_covers_monitor(&defs, &MONITOR);
+    }
+
+    #[test]
     fn floating_surfaces_apply_on_unfocused_monitors_too() {
         let cfg = floating_config(AlwaysOnTopHandling::Highlight);
-        let defs = calculate(&cfg, &MONITOR, None, false, &[STRADDLING]).unwrap();
+        let defs = calculate(&cfg, &MONITOR, None, None, false, &[STRADDLING]).unwrap();
 
         let floating = find(&defs, region::FLOATING).unwrap();
         assert_eq!(rect_of(floating), STRADDLING);
@@ -640,3 +784,4 @@ mod tests {
         assert_covers_monitor(&defs, &MONITOR);
     }
 }
+

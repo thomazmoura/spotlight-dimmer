@@ -193,6 +193,13 @@ impl AppState {
                 } else {
                     None
                 },
+                // The focused window's own frame, so an always-on-top window
+                // that happens to be the focused one keeps its spotlight.
+                if is_focused {
+                    self.focus.as_ref().map(|f| &f.frame)
+                } else {
+                    None
+                },
                 is_focused,
                 &self.floating,
             )?; // 0x0 window: freeze everything until the next geometry event
