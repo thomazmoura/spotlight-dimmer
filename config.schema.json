@@ -79,6 +79,14 @@
         "Enabled": {
           "type": "boolean",
           "description": "Linux only: whether dimming is on. Saved by the daemon whenever dimming is toggled, so a pause survives restarts. Ignored on Windows (use the tray icon)."
+        },
+        "ChromeHandling": {
+          "type": "string",
+          "description": "Linux only. Whether the desktop shell's own surfaces - notifications, on-screen displays, panel menus, the panel and the dock - are dimmed with your windows. 'Highlight' (default) keeps them lit, 'Dim' covers them like any other window. Ignored by the Windows client."
+        },
+        "AlwaysOnTopHandling": {
+          "type": "string",
+          "description": "Linux only. What happens to windows pinned always-on-top: 'Ignore' (default) dims them like any other window, 'Highlight' treats them as part of the spotlight, 'Dim' covers them with the inactive overlay. Ignored by the Windows client."
         }
       }
     },

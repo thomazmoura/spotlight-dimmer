@@ -127,6 +127,29 @@ public class OverlayConfig
     /// Default: true
     /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Linux only. Whether the desktop shell's own surfaces - notification
+    /// banners, on-screen displays, panel menus, the panel and the dock - are
+    /// dimmed along with application windows. "Highlight" (the default) keeps
+    /// them lit; "Dim" covers them like any other window. The Windows client
+    /// has no shell chrome to stack against and ignores this value. Declared
+    /// here so the generated JSON schema validates configuration files shared
+    /// between the two platforms.
+    /// Default: "Highlight"
+    /// </summary>
+    public string ChromeHandling { get; set; } = "Highlight";
+
+    /// <summary>
+    /// Linux only. What happens to application windows pinned always-on-top,
+    /// such as a video player kept above an editor. "Ignore" (the default)
+    /// dims them like any other window, "Highlight" treats them as part of the
+    /// spotlight, and "Dim" covers them with the inactive overlay. The Windows
+    /// client ignores this value. Declared here so the generated JSON schema
+    /// validates configuration files shared between the two platforms.
+    /// Default: "Ignore"
+    /// </summary>
+    public string AlwaysOnTopHandling { get; set; } = "Ignore";
 }
 
 /// <summary>

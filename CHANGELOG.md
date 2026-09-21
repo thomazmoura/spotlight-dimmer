@@ -10,12 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Configuration files with Linux integrations no longer flagged as invalid**: `config.schema.json` rejected the `WmClass` and `TtySource` keys that the Linux daemon reads from `AppIntegrations`, so anyone sharing one `config.json` between Windows and Linux saw spurious red squiggles in VS Code on a perfectly valid file. Both keys are now part of the schema, documented as Linux-only and ignored by the Windows client
 - **`Overlay.Enabled` accepted by the configuration schema**: The Linux daemon now saves its dimming on/off state as `Overlay.Enabled`. The key is part of `config.schema.json`, so a `config.json` shared with Linux doesn't show validation errors. The Windows client ignores it and keeps pausing from the tray icon
+- **New Linux dimming settings accepted by the schema**: `Overlay.ChromeHandling` and `Overlay.AlwaysOnTopHandling`, introduced by the Linux daemon, made VS Code flag a perfectly valid `config.json` as invalid for anyone sharing one file between Windows and Linux. Both keys are now part of `config.schema.json`, documented as Linux-only and ignored by the Windows client
 
 ---
 
 ### Corrigido
 - **Arquivos de configuração com integrações do Linux não são mais marcados como inválidos**: O `config.schema.json` rejeitava as chaves `WmClass` e `TtySource`, que o daemon Linux lê de `AppIntegrations`, então quem compartilha um mesmo `config.json` entre Windows e Linux via avisos de erro indevidos no VS Code em um arquivo perfeitamente válido. As duas chaves agora fazem parte do schema, documentadas como exclusivas do Linux e ignoradas pelo cliente Windows
 - **`Overlay.Enabled` aceito pelo schema de configuração**: O daemon Linux agora salva o estado ligado/desligado do escurecimento em `Overlay.Enabled`. A chave faz parte do `config.schema.json`, então um `config.json` compartilhado com o Linux não mostra erros de validação. O cliente Windows a ignora e continua pausando pelo ícone da bandeja
+- **Novas configurações de escurecimento do Linux aceitas pelo schema**: O `Overlay.ChromeHandling` e o `Overlay.AlwaysOnTopHandling`, introduzidos pelo daemon Linux, faziam o VS Code marcar um `config.json` perfeitamente válido como inválido para quem compartilha o mesmo arquivo entre Windows e Linux. As duas chaves agora fazem parte do `config.schema.json`, documentadas como exclusivas do Linux e ignoradas pelo cliente Windows
 
 ## [0.9.1] - 2026-07-12
 

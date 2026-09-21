@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-20
+
 ### Fixed
 - **Dimming no longer flickers over fullscreen apps on GNOME 45 and 46**: The workaround that keeps overlays painted over a fullscreen window — a video, a game, a presentation — had never actually run on those versions: it called an API that only exists from GNOME 47 on, failed silently every time, and left the dimming free to flicker or vanish whenever a window went fullscreen. The extension now uses the call each GNOME version actually provides
 - **A half-updated GNOME extension can no longer log you out**: If the extension's JavaScript was newer than its installed settings schema — which happens when the files are copied by hand instead of through `make install-gnome`, so the schema is never recompiled — enabling it took the whole session down: every open application closed at once, with no error shown and nothing marked as broken. Registering a keyboard shortcut for a key the installed schema does not have aborts GNOME Shell from inside GLib, and on Wayland the Shell is the session. The extension now checks the installed schema before claiming each shortcut, so a stale installation only loses that shortcut: dimming keeps working and a message in the log says to reinstall. A failure anywhere else during startup now also undoes what it had already set up, instead of leaving overlays and event handlers stranded
