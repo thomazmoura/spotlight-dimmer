@@ -90,10 +90,11 @@ impl GeneralTab {
         ));
         mode_box.append(&labelled_row("Always-on-top windows:", &always_on_top));
         mode_box.append(&hint(
-            "Ignore (the default) dims windows you pinned always-on-top like any other \
-             window. Highlight keeps them lit as part of the spotlight; Dim covers them \
-             with the inactive overlay. Either of the last two also stops such a window \
-             coming out lit on the part over the active window and dimmed on the rest.",
+            "Dim (the default) covers windows you pinned always-on-top with the inactive \
+             overlay; Highlight keeps them lit as part of the spotlight. Either one stops \
+             such a window coming out lit on the part over the active window and dimmed \
+             on the rest, and the focused window always keeps its spotlight. Ignore dims \
+             them like any other window.",
         ));
         root.append(&mode_frame);
 

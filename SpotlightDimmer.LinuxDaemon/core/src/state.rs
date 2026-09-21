@@ -434,7 +434,8 @@ mod tests {
         assert_eq!(value["serial"], 1);
         assert_eq!(value["enabled"], true);
         assert_eq!(value["chrome_handling"], "Highlight");
-        assert_eq!(value["track_floating"], false);
+        // AlwaysOnTopHandling defaults to "Dim", so the adapters must track.
+        assert_eq!(value["track_floating"], true);
         assert_eq!(value["monitors"][1]["key"], "1");
 
         let overlay = &value["monitors"][1]["overlays"][0];

@@ -611,11 +611,12 @@ mod tests {
     }
 
     #[test]
-    fn always_on_top_handling_defaults_to_ignore_and_parses_leniently() {
+    fn always_on_top_handling_defaults_to_dim_and_parses_leniently() {
         assert_eq!(
             OverlayConfig::default().always_on_top_handling,
-            AlwaysOnTopHandling::Ignore
+            AlwaysOnTopHandling::Dim
         );
+        assert_eq!(AlwaysOnTopHandling::default(), AlwaysOnTopHandling::Dim);
         assert!(!AlwaysOnTopHandling::Ignore.tracks_windows());
         assert!(AlwaysOnTopHandling::Highlight.tracks_windows());
         assert!(AlwaysOnTopHandling::Dim.tracks_windows());
@@ -629,11 +630,16 @@ mod tests {
                 r#"{"Overlay":{"AlwaysOnTopHandling":"Dim"}}"#,
                 AlwaysOnTopHandling::Dim,
             ),
+            // Opting out explicitly must still work now that it is not the default.
             (
-                r#"{"Overlay":{"AlwaysOnTopHandling":"Sideways"}}"#,
+                r#"{"Overlay":{"AlwaysOnTopHandling":"Ignore"}}"#,
                 AlwaysOnTopHandling::Ignore,
             ),
-            (r#"{"Overlay":{}}"#, AlwaysOnTopHandling::Ignore),
+            (
+                r#"{"Overlay":{"AlwaysOnTopHandling":"Sideways"}}"#,
+                AlwaysOnTopHandling::Dim,
+            ),
+            (r#"{"Overlay":{}}"#, AlwaysOnTopHandling::Dim),
         ] {
             let config = AppConfig::from_json(json).unwrap();
             assert_eq!(config.overlay.always_on_top_handling, expected, "{json}");
