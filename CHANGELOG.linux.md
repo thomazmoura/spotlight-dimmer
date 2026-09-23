@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-23
+
 ### Added
 - **Profiles with a type-to-switch picker in the settings window**: Save the current mode, colours and opacities as a named profile and switch between profiles from the keyboard. Press the settings shortcut (Meta/Super+Alt+Shift+D), type a few letters of the name (matching is fuzzy, so `umb` finds **Umbra**) and press **Enter** to apply it, or **Ctrl+Enter** to apply it and close the window. The picker is the first section of the **Mode** tab and has the cursor whenever the window opens
   - Up/Down move the highlight, Escape clears the filter, and clicking a row applies it too
