@@ -11,6 +11,10 @@ use crate::daemon_link::{Command, DaemonLink, DaemonStatus};
 use crate::document::Document;
 use crate::general_tab::GeneralTab;
 use crate::integrations_tab::IntegrationsTab;
+use crate::profiles_section::ProfilesSection;
+
+/// Window action that shows the Mode tab and focuses the profile entry.
+pub const FOCUS_PROFILES_ACTION: &str = "win.focus-profiles";
 
 pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     let document = Document::load();
@@ -34,7 +38,12 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     root.append(&banner);
 
     // --- tabs ----------------------------------------------------------------
-    let general = Rc::new(GeneralTab::new(&document, loading.clone()));
+    let profiles = Rc::new(ProfilesSection::new(&document));
+    let general = Rc::new(GeneralTab::new(
+        &document,
+        loading.clone(),
+        profiles.widget(),
+    ));
     let integrations = IntegrationsTab::new(&document, loading.clone());
 
     let notebook = gtk::Notebook::builder().vexpand(true).build();
@@ -46,6 +55,18 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
         Some(&gtk::Label::new(Some("Integrations"))),
     );
     root.append(&notebook);
+
+    {
+        let action = gio::SimpleAction::new("focus-profiles", None);
+        let notebook = notebook.clone();
+        let profiles = profiles.clone();
+        action.connect_activate(move |_, _| {
+            // The Mode page, which carries the profile switcher.
+            notebook.set_current_page(Some(0));
+            profiles.focus();
+        });
+        window.add_action(&action);
+    }
 
     // --- footer --------------------------------------------------------------
     let daemon_status = gtk::Label::builder()
@@ -103,10 +124,17 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
         let document_for_reload = document.clone();
         let general = general.clone();
         let integrations = integrations.clone();
+        let profiles = profiles.clone();
         document.on_reload(move || {
             general.reload(&document_for_reload);
             integrations.reload(&document_for_reload);
+            profiles.reload();
         });
+    }
+
+    {
+        let profiles = profiles.clone();
+        document.on_edit(move || profiles.update_status());
     }
 
     {
@@ -126,6 +154,8 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     document.start_watching();
 
     connect_daemon(&window, &document, &dimming_switch, &daemon_status);
+
+    profiles.focus();
 
     window
 }

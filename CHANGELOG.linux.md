@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Profiles with a type-to-switch picker in the settings window**: Save the current mode, colours and opacities as a named profile and switch between profiles from the keyboard. Press the settings shortcut (Meta/Super+Alt+Shift+D), type a few letters of the name (matching is fuzzy, so `umb` finds **Umbra**) and press **Enter** to apply it, or **Ctrl+Enter** to apply it and close the window. The picker is the first section of the **Mode** tab and has the cursor whenever the window opens
+  - Up/Down move the highlight, Escape clears the filter, and clicking a row applies it too
+  - **Save as “name”** creates a profile from the current settings and **Update “name”** overwrites an existing one. **Delete** removes the highlighted profile after a confirmation. A `(modified)` hint shows when the settings have drifted from the applied profile
+  - Profiles use the same `Profiles` and `CurrentProfile` keys as the Windows app, so a shared `config.json` switches the same presets on both platforms. Existing Windows profiles (Light Mode, Dark Mode) show up immediately. Applying a profile never changes whether dimming is turned on
+
 ### Changed
 - **Simpler Integrations tab in the settings window**: The tab used to be a free-form list where you had to know a terminal's window class and pick a provider and tty source yourself. It now lists every integration SpotlightDimmer supports — **WezTerm** and **Ghostty** — each with an **Enabled** checkbox and its content offsets. Checking a box writes the correct `AppIntegrations` entry; unchecking removes it
   - The config file format is unchanged, so existing configs keep working with no migration
@@ -14,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shorter settings window**: The General tab stacked the dimming mode, both overlays and the preview in one tall page, so the window barely fit on smaller screens. It is now split into three tabs — **Mode**, **Inactive** and **Active** — each with the live preview under its controls, and the window sizes itself to the tallest tab instead of a fixed 680 px height
 
 ---
+
+### Adicionado
+- **Perfis com seletor por digitação na janela de configurações**: Salve o modo, as cores e as opacidades atuais como um perfil com nome e alterne entre perfis pelo teclado. Pressione o atalho das configurações (Meta/Super+Alt+Shift+D), digite algumas letras do nome (a busca é aproximada, então `umb` encontra **Umbra**) e pressione **Enter** para aplicá-lo, ou **Ctrl+Enter** para aplicá-lo e fechar a janela. O seletor é a primeira seção da aba **Mode** e recebe o cursor sempre que a janela abre
+  - As setas para cima e para baixo movem o destaque, Escape limpa o filtro e clicar em uma linha também aplica o perfil
+  - **Save as “nome”** cria um perfil a partir das configurações atuais e **Update “nome”** sobrescreve um existente. **Delete** remove o perfil destacado após uma confirmação. Um aviso `(modified)` aparece quando as configurações se afastam do perfil aplicado
+  - Os perfis usam as mesmas chaves `Profiles` e `CurrentProfile` do aplicativo do Windows, então um `config.json` compartilhado alterna os mesmos presets nas duas plataformas. Os perfis existentes do Windows (Light Mode, Dark Mode) aparecem imediatamente. Aplicar um perfil nunca altera se o escurecimento está ligado
 
 ### Alterado
 - **Aba Integrations mais simples na janela de configurações**: A aba era uma lista livre em que era preciso saber a classe de janela do terminal e escolher o provedor e a origem do tty por conta própria. Agora ela lista todas as integrações suportadas pelo SpotlightDimmer — **WezTerm** e **Ghostty** — cada uma com uma caixa de seleção **Enabled** e seus offsets de conteúdo. Marcar a caixa grava a entrada correta em `AppIntegrations`; desmarcar a remove

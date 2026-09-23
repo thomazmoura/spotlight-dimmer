@@ -22,20 +22,53 @@ opening a second one, so two copies can never fight over the same file.
 
 ## What it edits
 
-Only the two sections the Linux daemon consumes:
+The two sections the Linux daemon consumes, plus the saved profiles:
 
 | Tab | Section | Keys |
 |---|---|---|
+| Mode | `Profiles[]`, `CurrentProfile` | Profile switcher: apply, save, delete |
 | Mode | `Overlay` | `Mode` |
 | Inactive | `Overlay` | `InactiveColor`, `InactiveOpacity` |
 | Active | `Overlay` | `ActiveColor`, `ActiveOpacity` |
 | Integrations | `AppIntegrations[]` | Built-in WezTerm/Ghostty entries only (on/off, `ContentOffsetX`, `ContentOffsetY`) |
 
 **Every other key in the file is preserved byte-for-byte.** `System`,
-`Profiles`, `CurrentProfile`, `ConfigVersion`, `$schema` and
-`Overlay.ExcludeFromScreenCapture` are Windows-side settings that the Linux
-daemon ignores; the window does not show them, and saving never rewrites or
-drops them. Edit those by hand or from the Windows configuration app.
+`ConfigVersion`, `$schema` and `Overlay.ExcludeFromScreenCapture` are
+Windows-side settings that the Linux daemon ignores; the window does not show
+them, and saving never rewrites or drops them. Edit those by hand or from the
+Windows configuration app.
+
+### Profiles
+
+A profile is a named preset of the five overlay settings (mode, both colours,
+both opacities), stored in the same `Profiles` list the Windows app uses, so a
+config file shared between machines switches the same presets on both
+platforms. The switcher is the first section of the **Mode** tab, and the
+cursor starts in it every time the window opens:
+
+1. Press the settings shortcut (Meta/Super+Alt+Shift+D, or run
+   `spotlight-dimmer-config --toggle`).
+2. Type a few letters of the profile name. Matching is fuzzy and
+   case-insensitive — `umb` finds **Umbra**, `dm` finds **Dark Mode** — and
+   the best match is highlighted. Up/Down move the highlight.
+3. **Enter** applies the highlighted profile and keeps the window open;
+   **Ctrl+Enter** applies it and closes the window. Clicking a row applies it
+   too. Escape clears the filter.
+
+Applying a profile copies its values into `Overlay` and records its name in
+`CurrentProfile`; the daemon hot-reloads as usual. The dimming on/off state
+(`Overlay.Enabled`) is not part of a profile and is left alone. After a
+slider or colour is changed, the status line reads `Current: <name>
+(modified)` until the profile is saved again or another one is applied.
+
+- **Save as “name”** stores the current settings under the typed name, adding
+  a new profile.
+- **Update “name”** appears when the typed name is an existing profile, or
+  when nothing is typed and a profile is current: it overwrites that profile
+  with the current settings. Keys in the entry that this window does not know
+  about are kept.
+- **Delete** removes the highlighted profile after a confirmation. The
+  current dimming settings stay as they are.
 
 ### Mode, Inactive and Active
 

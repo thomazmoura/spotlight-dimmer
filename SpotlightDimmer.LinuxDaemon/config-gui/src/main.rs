@@ -6,9 +6,11 @@
 
 mod daemon_link;
 mod document;
+mod fuzzy;
 mod general_tab;
 mod integrations_tab;
 mod preview;
+mod profiles_section;
 mod widgets;
 mod window;
 
@@ -75,7 +77,13 @@ fn main() -> glib::ExitCode {
             };
             match app.active_window() {
                 Some(existing) if existing.is_active() => existing.close(),
-                Some(existing) => existing.present(),
+                Some(existing) => {
+                    existing.present();
+                    // The shortcut is for switching profiles: land in the
+                    // picker even when the window was left on another tab.
+                    WidgetExt::activate_action(&existing, window::FOCUS_PROFILES_ACTION, None)
+                        .ok();
+                }
                 None => window::build(&app).present(),
             }
         });

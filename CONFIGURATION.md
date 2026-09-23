@@ -24,9 +24,11 @@ immediately:
 - **Windows**: `SpotlightDimmer.Config` (the Config GUI).
 - **Linux**: `spotlight-dimmer-config` ("Spotlight Dimmer Settings"), a GTK4
   window covering the `Overlay` and `AppIntegrations` sections with a live
-  preview — see [docs/LINUX_CONFIG_GUI.md](docs/LINUX_CONFIG_GUI.md). It
-  preserves keys it does not show (`System`, `Profiles`, `CurrentProfile`),
-  which are consumed by the Windows client only.
+  preview, plus a fuzzy profile switcher over `Profiles` / `CurrentProfile`
+  — see [docs/LINUX_CONFIG_GUI.md](docs/LINUX_CONFIG_GUI.md). It preserves
+  keys it does not show (`System`), which are consumed by the Windows client
+  only. Profiles are shared: one `config.json` switches the same presets on
+  both platforms.
 
 ## Automatic Creation
 

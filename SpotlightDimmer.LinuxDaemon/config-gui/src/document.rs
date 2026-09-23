@@ -19,7 +19,7 @@ use std::time::Duration;
 use gio::prelude::*;
 use serde_json::{json, Map, Value};
 
-use spotlight_dimmer_core::config::{write_atomically, AppConfig};
+use spotlight_dimmer_core::config::{write_atomically, AppConfig, DimmingMode};
 
 const CONFIG_DIR: &str = "SpotlightDimmer";
 const CONFIG_FILE: &str = "config.json";
@@ -40,6 +40,53 @@ pub fn config_path() -> PathBuf {
 pub struct IntegrationView {
     pub content_offset_x: i32,
     pub content_offset_y: i32,
+}
+
+/// One `Profiles` entry: a named overlay preset shared with the Windows
+/// client. Missing fields take the C# `Profile` class defaults, so a profile
+/// written by either platform applies identically on both.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileView {
+    pub name: String,
+    pub mode: String,
+    pub inactive_color: String,
+    pub inactive_opacity: u8,
+    pub active_color: String,
+    pub active_opacity: u8,
+}
+
+impl ProfileView {
+    fn from_entry(entry: &Value) -> Option<ProfileView> {
+        let name = string_field(entry, "Name")?;
+        let opacity = |key, default| {
+            entry
+                .get(key)
+                .and_then(Value::as_f64)
+                .map(|v| v.round().clamp(0.0, 255.0) as u8)
+                .unwrap_or(default)
+        };
+        Some(ProfileView {
+            name,
+            mode: string_field(entry, "Mode").unwrap_or_else(|| "FullScreen".to_string()),
+            inactive_color: string_field(entry, "InactiveColor")
+                .unwrap_or_else(|| "#000000".to_string()),
+            inactive_opacity: opacity("InactiveOpacity", 153),
+            active_color: string_field(entry, "ActiveColor")
+                .unwrap_or_else(|| "#000000".to_string()),
+            active_opacity: opacity("ActiveOpacity", 102),
+        })
+    }
+
+    /// The five overlay leaves a profile carries, as JSON values.
+    fn fields(&self) -> [(&'static str, Value); 5] {
+        [
+            ("Mode", json!(self.mode)),
+            ("InactiveColor", json!(self.inactive_color)),
+            ("InactiveOpacity", json!(self.inactive_opacity)),
+            ("ActiveColor", json!(self.active_color)),
+            ("ActiveOpacity", json!(self.active_opacity)),
+        ]
+    }
 }
 
 /// Why the document refuses to be written.
@@ -63,6 +110,7 @@ struct Inner {
     watch_epoch: Cell<u64>,
     on_reload: RefCell<Vec<Box<dyn Fn()>>>,
     on_problem: RefCell<Vec<Box<dyn Fn()>>>,
+    on_edit: RefCell<Vec<Box<dyn Fn()>>>,
     monitor: RefCell<Option<gio::FileMonitor>>,
 }
 
@@ -109,6 +157,7 @@ impl Document {
             watch_epoch: Cell::new(0),
             on_reload: RefCell::new(Vec::new()),
             on_problem: RefCell::new(Vec::new()),
+            on_edit: RefCell::new(Vec::new()),
             monitor: RefCell::new(None),
         }))
     }
@@ -137,6 +186,13 @@ impl Document {
     /// Called after any widget-driven mutation.
     pub fn on_reload(&self, f: impl Fn() + 'static) {
         self.0.on_reload.borrow_mut().push(Box::new(f));
+    }
+
+    /// Called after every in-window mutation (each one schedules a save),
+    /// before the debounce. Keep handlers cheap: a slider drag fires this
+    /// per tick.
+    pub fn on_edit(&self, f: impl Fn() + 'static) {
+        self.0.on_edit.borrow_mut().push(Box::new(f));
     }
 
     /// Called when the write-blocked banner needs to appear or disappear.
@@ -230,6 +286,138 @@ impl Document {
         }
     }
 
+    // --------------------------------------------------------------- profiles
+    //
+    // Same `Profiles` / `CurrentProfile` shape as the Windows client, edited
+    // leaf by leaf so keys this window does not know about survive.
+
+    /// Every entry with a non-empty `Name`, in file order.
+    pub fn profiles(&self) -> Vec<ProfileView> {
+        let root = self.0.root.borrow();
+        root.get("Profiles")
+            .and_then(Value::as_array)
+            .map(|entries| entries.iter().filter_map(ProfileView::from_entry).collect())
+            .unwrap_or_default()
+    }
+
+    pub fn current_profile(&self) -> Option<String> {
+        self.0
+            .root
+            .borrow()
+            .get("CurrentProfile")
+            .and_then(Value::as_str)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+    }
+
+    /// Copy the named profile into `Overlay` and mark it current. Written
+    /// straight through rather than debounced: Ctrl+Enter closes the window
+    /// right after, and the app exits with its last window, taking any
+    /// pending timeout with it. `Overlay.Enabled` is deliberately untouched.
+    pub fn apply_profile(&self, name: &str) -> bool {
+        let Some(profile) = self.profiles().into_iter().find(|p| p.name == name) else {
+            return false;
+        };
+        for (key, value) in profile.fields() {
+            self.set_overlay(key, value);
+        }
+        self.set_root("CurrentProfile", json!(name));
+        // Supersede any debounced save still in flight; this write covers it.
+        self.0.save_epoch.set(self.0.save_epoch.get() + 1);
+        self.save_now();
+        true
+    }
+
+    /// Store the current overlay under `name`: an existing entry is updated
+    /// in place (its other keys kept), otherwise a new one is appended.
+    pub fn save_profile(&self, name: &str) {
+        let overlay = self.config().overlay;
+        let raw_mode = self.overlay_raw_string("Mode");
+        let profile = ProfileView {
+            name: name.to_string(),
+            // An unrecognised mode is stored verbatim rather than coerced.
+            mode: raw_mode.unwrap_or_else(|| mode_name(overlay.mode).to_string()),
+            inactive_color: crate::widgets::to_hex(overlay.inactive_color),
+            inactive_opacity: overlay.inactive_opacity,
+            active_color: crate::widgets::to_hex(overlay.active_color),
+            active_opacity: overlay.active_opacity,
+        };
+        {
+            let mut root = self.0.root.borrow_mut();
+            let entries = profiles_array(&mut root);
+            match entries
+                .iter_mut()
+                .find(|e| string_field(e, "Name").as_deref() == Some(name))
+            {
+                Some(entry) => {
+                    let object = entry.as_object_mut().expect("a named entry is an object");
+                    for (key, value) in profile.fields() {
+                        object.insert(key.to_string(), value);
+                    }
+                }
+                None => {
+                    let mut object = Map::new();
+                    object.insert("Name".to_string(), json!(name));
+                    for (key, value) in profile.fields() {
+                        object.insert(key.to_string(), value);
+                    }
+                    entries.push(Value::Object(object));
+                }
+            }
+        }
+        self.set_root("CurrentProfile", json!(name));
+        self.schedule_save();
+    }
+
+    /// Remove every entry named `name`; clears `CurrentProfile` if it
+    /// pointed there.
+    pub fn delete_profile(&self, name: &str) {
+        {
+            let mut root = self.0.root.borrow_mut();
+            profiles_array(&mut root).retain(|e| string_field(e, "Name").as_deref() != Some(name));
+        }
+        if self.current_profile().as_deref() == Some(name) {
+            self.set_root("CurrentProfile", Value::Null);
+        }
+        self.schedule_save();
+    }
+
+    /// Whether the overlay still equals the named profile (Windows
+    /// `DoesOverlayMatchProfile`), compared through the daemon's parser so
+    /// `#abcdef` and `ABCDEF` count as the same colour.
+    pub fn overlay_matches_profile(&self, name: &str) -> bool {
+        let Some(profile) = self.profiles().into_iter().find(|p| p.name == name) else {
+            return false;
+        };
+        let overlay: Map<String, Value> = profile
+            .fields()
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect();
+        let expected = AppConfig::from_value(&json!({ "Overlay": overlay })).overlay;
+        let actual = self.config().overlay;
+        expected.mode == actual.mode
+            && expected.inactive_color == actual.inactive_color
+            && expected.inactive_opacity == actual.inactive_opacity
+            && expected.active_color == actual.active_color
+            && expected.active_opacity == actual.active_opacity
+    }
+
+    /// Tell every view the document changed without coming from disk (a
+    /// profile applied from one section must refresh all the others).
+    pub fn notify_changed(&self) {
+        self.notify_reload();
+    }
+
+    fn set_root(&self, key: &str, value: Value) {
+        self.0
+            .root
+            .borrow_mut()
+            .as_object_mut()
+            .expect("root is an object")
+            .insert(key.to_string(), value);
+    }
+
     // ----------------------------------------------------------- integrations
     //
     // Entries are addressed by WM_CLASS, never by index: the editor only
@@ -310,6 +498,10 @@ impl Document {
     /// epoch-counter debounce as config_watch.rs (no source removal, so no
     /// race between a fired and a cancelled timeout).
     pub fn schedule_save(&self) {
+        for callback in self.0.on_edit.borrow().iter() {
+            callback();
+        }
+
         if self.0.write_blocked.get() {
             return;
         }
@@ -486,6 +678,25 @@ fn integrations_array(root: &mut Value) -> &mut Vec<Value> {
         *entry = Value::Array(Vec::new());
     }
     entry.as_array_mut().expect("AppIntegrations is an array")
+}
+
+fn profiles_array(root: &mut Value) -> &mut Vec<Value> {
+    let object = root.as_object_mut().expect("root is an object");
+    let entry = object
+        .entry("Profiles")
+        .or_insert_with(|| Value::Array(Vec::new()));
+    if !entry.is_array() {
+        *entry = Value::Array(Vec::new());
+    }
+    entry.as_array_mut().expect("Profiles is an array")
+}
+
+fn mode_name(mode: DimmingMode) -> &'static str {
+    match mode {
+        DimmingMode::Partial => "Partial",
+        DimmingMode::PartialWithActive => "PartialWithActive",
+        DimmingMode::FullScreen | DimmingMode::Unknown => "FullScreen",
+    }
 }
 
 /// The same test as `AppConfig::match_integration` with the "tmux" provider
@@ -703,6 +914,130 @@ mod tests {
         let entries = temp.read()["AppIntegrations"].as_array().unwrap().clone();
         assert_eq!(entries[0]["ContentOffsetX"], json!(1));
         assert_eq!(entries[1]["ContentOffsetX"], json!(4));
+    }
+
+    const PROFILES_CONFIG: &str = r##"{
+  "Overlay": { "Mode": "Partial", "InactiveOpacity": 10, "Enabled": false, "ExcludeFromScreenCapture": true },
+  "Profiles": [
+    { "Name": "Umbra", "Mode": "PartialWithActive", "InactiveColor": "#101010",
+      "InactiveOpacity": 230, "ActiveColor": "#202020", "ActiveOpacity": 90, "Hotkey": "F9" },
+    { "Name": "Sparse", "InactiveOpacity": 50 },
+    { "Mode": "Partial" }
+  ],
+  "CurrentProfile": null
+}"##;
+
+    #[test]
+    fn profiles_skip_nameless_entries_and_default_like_windows() {
+        let temp = TempConfig::new("profiles-read", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        let profiles = document.profiles();
+        assert_eq!(profiles.len(), 2);
+        assert_eq!(
+            profiles[1],
+            ProfileView {
+                name: "Sparse".to_string(),
+                mode: "FullScreen".to_string(),
+                inactive_color: "#000000".to_string(),
+                inactive_opacity: 50,
+                active_color: "#000000".to_string(),
+                active_opacity: 102,
+            }
+        );
+        assert_eq!(document.current_profile(), None);
+    }
+
+    #[test]
+    fn applying_a_profile_writes_its_overlay_and_keeps_everything_else() {
+        let temp = TempConfig::new("profiles-apply", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        assert!(document.apply_profile("Umbra"));
+        assert!(!document.apply_profile("Nope"));
+
+        // Written straight through, no flush needed.
+        let written = temp.read();
+        let overlay = &written["Overlay"];
+        assert_eq!(overlay["Mode"], json!("PartialWithActive"));
+        assert_eq!(overlay["InactiveColor"], json!("#101010"));
+        assert_eq!(overlay["InactiveOpacity"], json!(230));
+        assert_eq!(overlay["ActiveColor"], json!("#202020"));
+        assert_eq!(overlay["ActiveOpacity"], json!(90));
+        // The on/off state is not part of a profile.
+        assert_eq!(overlay["Enabled"], json!(false));
+        assert_eq!(overlay["ExcludeFromScreenCapture"], json!(true));
+        assert_eq!(written["CurrentProfile"], json!("Umbra"));
+        assert_eq!(written["Profiles"][0]["Hotkey"], json!("F9"));
+        assert_eq!(written["Profiles"].as_array().unwrap().len(), 3);
+
+        assert!(document.overlay_matches_profile("Umbra"));
+        document.set_active_opacity(91);
+        assert!(!document.overlay_matches_profile("Umbra"));
+    }
+
+    #[test]
+    fn matching_compares_through_the_parser() {
+        let contents = r##"{
+          "Overlay": { "Mode": "FullScreen", "InactiveColor": "abcdef" },
+          "Profiles": [ { "Name": "Lower", "InactiveColor": "#ABCDEF" } ]
+        }"##;
+        let temp = TempConfig::new("profiles-match", Some(contents));
+        let document = Document::load_from(temp.path());
+        assert!(document.overlay_matches_profile("Lower"));
+        assert!(!document.overlay_matches_profile("Missing"));
+    }
+
+    #[test]
+    fn saving_updates_in_place_or_appends() {
+        let temp = TempConfig::new("profiles-save", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        document.save_profile("Umbra");
+        document.save_profile("Fresh");
+        document.flush();
+
+        let written = temp.read();
+        let entries = written["Profiles"].as_array().unwrap();
+        assert_eq!(entries.len(), 4);
+        // Updated in place: position and unknown keys survive.
+        assert_eq!(entries[0]["Name"], json!("Umbra"));
+        assert_eq!(entries[0]["Mode"], json!("Partial"));
+        assert_eq!(entries[0]["InactiveOpacity"], json!(10));
+        assert_eq!(entries[0]["Hotkey"], json!("F9"));
+        assert_eq!(entries[3]["Name"], json!("Fresh"));
+        assert_eq!(entries[3]["InactiveColor"], json!("#000000"));
+        assert_eq!(written["CurrentProfile"], json!("Fresh"));
+
+        assert!(document.overlay_matches_profile("Fresh"));
+    }
+
+    #[test]
+    fn saving_keeps_an_unknown_mode_verbatim() {
+        let temp = TempConfig::new("profiles-unknown", Some(r#"{"Overlay": {"Mode": "Sideways"}}"#));
+        let document = Document::load_from(temp.path());
+        document.save_profile("Odd");
+        document.flush();
+        assert_eq!(temp.read()["Profiles"][0]["Mode"], json!("Sideways"));
+    }
+
+    #[test]
+    fn deleting_clears_the_current_profile_only_when_it_pointed_there() {
+        let temp = TempConfig::new("profiles-delete", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        document.apply_profile("Umbra");
+        document.delete_profile("Sparse");
+        assert_eq!(document.current_profile().as_deref(), Some("Umbra"));
+
+        document.delete_profile("Umbra");
+        document.flush();
+        let written = temp.read();
+        assert_eq!(written["CurrentProfile"], Value::Null);
+        // The nameless entry is not ours to remove.
+        assert_eq!(written["Profiles"].as_array().unwrap().len(), 1);
+        // The overlay keeps the deleted profile's values.
+        assert_eq!(written["Overlay"]["InactiveOpacity"], json!(230));
     }
 
     #[test]

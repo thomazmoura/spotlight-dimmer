@@ -43,7 +43,8 @@ revision = "1"
 depends = "$auto"
 extended-description = """\
 A GTK4 settings window for SpotlightDimmer on Linux: dimming mode, overlay \
-colours and opacity with a live preview, and the terminal pane spotlight \
+colours and opacity with a live preview, a fuzzy type-to-switch profile \
+picker, and the terminal pane spotlight \
 (tmux) integrations. It edits ~/.config/SpotlightDimmer/config.json, which \
 the daemon hot-reloads, so changes are visible on screen as they are made. \
 Install alongside spotlight-dimmer-gnome or spotlight-dimmer-kde."""

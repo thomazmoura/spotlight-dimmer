@@ -48,7 +48,13 @@ pub struct GeneralTab {
 }
 
 impl GeneralTab {
-    pub fn new(document: &Document, loading: Rc<Cell<bool>>) -> GeneralTab {
+    /// `mode_header` sits above the Mode page's own controls (the profile
+    /// switcher, so the window's first tab opens on it).
+    pub fn new(
+        document: &Document,
+        loading: Rc<Cell<bool>>,
+        mode_header: &impl IsA<gtk::Widget>,
+    ) -> GeneralTab {
         let previews = Rc::new(Previews(std::array::from_fn(|_| Preview::new())));
 
         // --- Mode -----------------------------------------------------------
@@ -90,7 +96,7 @@ impl GeneralTab {
              on the rest, and the focused window always keeps its spotlight. Ignore dims \
              them like any other window.",
         ));
-        let mode_page = page(&mode_frame, &previews.0[0]);
+        let mode_page = page(Some(mode_header.upcast_ref()), &mode_frame, &previews.0[0]);
 
         // --- Inactive overlay -----------------------------------------------
         let (inactive_color, inactive_opacity, inactive_value, inactive_frame) = overlay_section(
@@ -98,7 +104,7 @@ impl GeneralTab {
             "Applied to unfocused monitors, and to the area around the active window in \
              the Partial modes.",
         );
-        let inactive_page = page(&inactive_frame, &previews.0[1]);
+        let inactive_page = page(None, &inactive_frame, &previews.0[1]);
 
         // --- Active overlay -------------------------------------------------
         let (active_color, active_opacity, active_value, active_frame) = overlay_section(
@@ -106,7 +112,7 @@ impl GeneralTab {
             "Used only in PartialWithActive mode. The controls stay editable in the other \
              modes so the values can be set up before switching.",
         );
-        let active_page = page(&active_frame, &previews.0[2]);
+        let active_page = page(None, &active_frame, &previews.0[2]);
 
         let tab = GeneralTab {
             pages: [
@@ -267,8 +273,9 @@ impl Previews {
     }
 }
 
-/// A page's settings frame with the preview beneath it.
-fn page(settings: &gtk::Frame, preview: &Preview) -> gtk::Widget {
+/// A page's settings frame with the preview beneath it, optionally below a
+/// header widget.
+fn page(header: Option<&gtk::Widget>, settings: &gtk::Frame, preview: &Preview) -> gtk::Widget {
     let root = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)
         .spacing(12)
@@ -281,6 +288,9 @@ fn page(settings: &gtk::Frame, preview: &Preview) -> gtk::Widget {
     let (preview_frame, preview_box) = section("Preview");
     preview_box.append(preview.widget());
 
+    if let Some(header) = header {
+        root.append(header);
+    }
     root.append(settings);
     root.append(&preview_frame);
     root.upcast()
