@@ -26,7 +26,9 @@ Only the two sections the Linux daemon consumes:
 
 | Tab | Section | Keys |
 |---|---|---|
-| General | `Overlay` | `Mode`, `InactiveColor`, `InactiveOpacity`, `ActiveColor`, `ActiveOpacity` |
+| Mode | `Overlay` | `Mode` |
+| Inactive | `Overlay` | `InactiveColor`, `InactiveOpacity` |
+| Active | `Overlay` | `ActiveColor`, `ActiveOpacity` |
 | Integrations | `AppIntegrations[]` | Built-in WezTerm/Ghostty entries only (on/off, `ContentOffsetX`, `ContentOffsetY`) |
 
 **Every other key in the file is preserved byte-for-byte.** `System`,
@@ -35,22 +37,26 @@ Only the two sections the Linux daemon consumes:
 daemon ignores; the window does not show them, and saving never rewrites or
 drops them. Edit those by hand or from the Windows configuration app.
 
-### General
+### Mode, Inactive and Active
+
+The overlay settings are split across three short tabs so the window stays
+compact. Each tab shows the same live preview under its controls: a mock
+focused monitor beside a mock unfocused one, redrawn on every change.
 
 - **Mode** — `FullScreen`, `Partial` or `PartialWithActive`. If the file
   contains a mode string that is not one of the three, it is shown as a fourth
   `Unknown (…)` entry rather than being silently corrected: that is a real
   daemon behaviour (dim unfocused monitors, leave the focused one alone), and
   overwriting a value you typed on purpose would be worse than displaying it.
-- **Inactive overlay** — colour and opacity of the dimming applied to
-  unfocused monitors, and to the area around the active window in the two
-  Partial modes.
-- **Active overlay** — colour and opacity of the tint over the focused window.
-  Used only in `PartialWithActive`, but editable in every mode so the values
-  can be set up before switching.
-- **Preview** — a mock focused monitor beside a mock unfocused one, redrawn on
-  every change. Opacity is stored as `0-255`; the readout also shows the
-  percentage, which is what the numbers actually mean.
+- **Inactive** — colour and opacity of the dimming applied to unfocused
+  monitors, and to the area around the active window in the two Partial
+  modes.
+- **Active** — colour and opacity of the tint over the focused window. Used
+  only in `PartialWithActive`, but editable in every mode so the values can be
+  set up before switching.
+
+Opacity is stored as `0-255`; the readout also shows the percentage, which is
+what the numbers actually mean.
 
 ### Integrations
 

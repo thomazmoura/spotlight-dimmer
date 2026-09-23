@@ -14,7 +14,7 @@ use crate::integrations_tab::IntegrationsTab;
 
 pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     let document = Document::load();
-    // One flag shared by both tabs: programmatic widget updates must not be
+    // One flag shared by every tab: programmatic widget updates must not be
     // mistaken for user edits and written back (the Windows form's
     // `_isLoading`).
     let loading = Rc::new(Cell::new(false));
@@ -23,7 +23,6 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
         .application(app)
         .title("Spotlight Dimmer Settings")
         .default_width(560)
-        .default_height(680)
         .build();
 
     let root = gtk::Box::builder()
@@ -39,7 +38,9 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
     let integrations = IntegrationsTab::new(&document, loading.clone());
 
     let notebook = gtk::Notebook::builder().vexpand(true).build();
-    notebook.append_page(general.widget(), Some(&gtk::Label::new(Some("General"))));
+    for (label, page) in general.pages() {
+        notebook.append_page(page, Some(&gtk::Label::new(Some(label))));
+    }
     notebook.append_page(
         integrations.widget(),
         Some(&gtk::Label::new(Some("Integrations"))),

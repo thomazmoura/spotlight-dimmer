@@ -1,7 +1,10 @@
 //! Dimming mode, overlay colours and opacity, plus the live preview.
 //!
 //! Mirrors the Windows "General" tab minus its Renderer/Logging/Experimental
-//! groups, which the Rust daemon ignores entirely.
+//! groups, which the Rust daemon ignores entirely. Stacked in one page it made
+//! the window too tall, so it is split into Mode / Inactive / Active pages.
+//! Each page carries its own preview: the point of the preview is to watch it
+//! while dragging a slider, and a GTK widget can only have one parent.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -9,7 +12,7 @@ use std::rc::Rc;
 use gtk::prelude::*;
 use gtk4 as gtk;
 
-use spotlight_dimmer_core::config::{AlwaysOnTopHandling, ChromeHandling, DimmingMode};
+use spotlight_dimmer_core::config::{AlwaysOnTopHandling, ChromeHandling, DimmingMode, OverlayConfig};
 
 use crate::document::Document;
 use crate::preview::Preview;
@@ -29,7 +32,7 @@ fn always_on_top_index(handling: AlwaysOnTopHandling) -> u32 {
 }
 
 pub struct GeneralTab {
-    root: gtk::Widget,
+    pages: [(&'static str, gtk::Widget); 3],
     mode_model: gtk::StringList,
     mode: gtk::DropDown,
     chrome_dim: gtk::Switch,
@@ -40,24 +43,15 @@ pub struct GeneralTab {
     active_color: gtk::ColorDialogButton,
     active_opacity: gtk::Scale,
     active_value: gtk::Label,
-    preview: Rc<Preview>,
+    previews: Rc<Previews>,
     loading: Rc<Cell<bool>>,
 }
 
 impl GeneralTab {
     pub fn new(document: &Document, loading: Rc<Cell<bool>>) -> GeneralTab {
-        let preview = Rc::new(Preview::new());
+        let previews = Rc::new(Previews(std::array::from_fn(|_| Preview::new())));
 
-        let root = gtk::Box::builder()
-            .orientation(gtk::Orientation::Vertical)
-            .spacing(12)
-            .margin_top(12)
-            .margin_bottom(12)
-            .margin_start(12)
-            .margin_end(12)
-            .build();
-
-        // --- Dimming mode ---------------------------------------------------
+        // --- Mode -----------------------------------------------------------
         let mode_model = gtk::StringList::new(&MODES);
         let mode = gtk::DropDown::builder()
             .model(&mode_model)
@@ -96,7 +90,7 @@ impl GeneralTab {
              on the rest, and the focused window always keeps its spotlight. Ignore dims \
              them like any other window.",
         ));
-        root.append(&mode_frame);
+        let mode_page = page(&mode_frame, &previews.0[0]);
 
         // --- Inactive overlay -----------------------------------------------
         let (inactive_color, inactive_opacity, inactive_value, inactive_frame) = overlay_section(
@@ -104,7 +98,7 @@ impl GeneralTab {
             "Applied to unfocused monitors, and to the area around the active window in \
              the Partial modes.",
         );
-        root.append(&inactive_frame);
+        let inactive_page = page(&inactive_frame, &previews.0[1]);
 
         // --- Active overlay -------------------------------------------------
         let (active_color, active_opacity, active_value, active_frame) = overlay_section(
@@ -112,15 +106,14 @@ impl GeneralTab {
             "Used only in PartialWithActive mode. The controls stay editable in the other \
              modes so the values can be set up before switching.",
         );
-        root.append(&active_frame);
-
-        // --- Preview --------------------------------------------------------
-        let (preview_frame, preview_box) = section("Preview");
-        preview_box.append(preview.widget());
-        root.append(&preview_frame);
+        let active_page = page(&active_frame, &previews.0[2]);
 
         let tab = GeneralTab {
-            root: root.upcast(),
+            pages: [
+                ("Mode", mode_page),
+                ("Inactive", inactive_page),
+                ("Active", active_page),
+            ],
             mode_model,
             mode,
             chrome_dim,
@@ -131,7 +124,7 @@ impl GeneralTab {
             active_color,
             active_opacity,
             active_value,
-            preview,
+            previews,
             loading,
         };
 
@@ -139,8 +132,9 @@ impl GeneralTab {
         tab
     }
 
-    pub fn widget(&self) -> &gtk::Widget {
-        &self.root
+    /// Notebook pages as (tab label, content), in display order.
+    pub fn pages(&self) -> &[(&'static str, gtk::Widget)] {
+        &self.pages
     }
 
     fn connect(&self, document: &Document) {
@@ -150,13 +144,13 @@ impl GeneralTab {
         let bind_color = |button: &gtk::ColorDialogButton, set: fn(&Document, &str)| {
             let document = document.clone();
             let loading = self.loading.clone();
-            let preview = self.preview.clone();
+            let previews = self.previews.clone();
             button.connect_rgba_notify(move |button| {
                 if loading.get() {
                     return;
                 }
                 set(&document, &hex_from_rgba(button.rgba()));
-                preview.update(document.config().overlay);
+                previews.update(document.config().overlay);
             });
         };
 
@@ -164,7 +158,7 @@ impl GeneralTab {
             |scale: &gtk::Scale, value_label: &gtk::Label, set: fn(&Document, u8)| {
                 let document = document.clone();
                 let loading = self.loading.clone();
-                let preview = self.preview.clone();
+                let previews = self.previews.clone();
                 let value_label = value_label.clone();
                 scale.connect_value_changed(move |scale| {
                     let value = scale.value().round().clamp(0.0, 255.0) as u8;
@@ -173,7 +167,7 @@ impl GeneralTab {
                         return;
                     }
                     set(&document, value);
-                    preview.update(document.config().overlay);
+                    previews.update(document.config().overlay);
                 });
             };
 
@@ -213,7 +207,7 @@ impl GeneralTab {
 
         let document_for_mode = document.clone();
         let loading = self.loading.clone();
-        let preview = self.preview.clone();
+        let previews = self.previews.clone();
         let model = self.mode_model.clone();
         self.mode.connect_selected_notify(move |dropdown| {
             if loading.get() {
@@ -227,7 +221,7 @@ impl GeneralTab {
             };
             document_for_mode.set_mode(mode);
             drop_unknown_entry(&model, dropdown);
-            preview.update(document_for_mode.config().overlay);
+            previews.update(document_for_mode.config().overlay);
         });
     }
 
@@ -258,8 +252,38 @@ impl GeneralTab {
             .set_text(&opacity_label(overlay.active_opacity));
 
         self.loading.set(was_loading);
-        self.preview.update(overlay);
+        self.previews.update(overlay);
     }
+}
+
+/// One preview per page, kept in step.
+struct Previews([Preview; 3]);
+
+impl Previews {
+    fn update(&self, config: OverlayConfig) {
+        for preview in &self.0 {
+            preview.update(config.clone());
+        }
+    }
+}
+
+/// A page's settings frame with the preview beneath it.
+fn page(settings: &gtk::Frame, preview: &Preview) -> gtk::Widget {
+    let root = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(12)
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
+    let (preview_frame, preview_box) = section("Preview");
+    preview_box.append(preview.widget());
+
+    root.append(settings);
+    root.append(&preview_frame);
+    root.upcast()
 }
 
 /// Colour button + 0-255 opacity slider + value readout.
