@@ -27,7 +27,7 @@ Only the two sections the Linux daemon consumes:
 | Tab | Section | Keys |
 |---|---|---|
 | General | `Overlay` | `Mode`, `InactiveColor`, `InactiveOpacity`, `ActiveColor`, `ActiveOpacity` |
-| Integrations | `AppIntegrations[]` | `WmClass`, `Provider`, `TtySource`, `ContentOffsetX`, `ContentOffsetY` |
+| Integrations | `AppIntegrations[]` | Built-in WezTerm/Ghostty entries only (on/off, `ContentOffsetX`, `ContentOffsetY`) |
 
 **Every other key in the file is preserved byte-for-byte.** `System`,
 `Profiles`, `CurrentProfile`, `ConfigVersion`, `$schema` and
@@ -54,25 +54,33 @@ drops them. Edit those by hand or from the Windows configuration app.
 
 ### Integrations
 
-The terminal pane spotlight: match a terminal window by its `WM_CLASS` so the
-spotlight follows the focused tmux pane instead of the whole window. This
-needs the tmux hooks as well — see [TMUX_INTEGRATION.md](TMUX_INTEGRATION.md).
+The terminal pane spotlight: when a supported terminal is focused, the
+spotlight follows the focused tmux pane (and, inside it, the focused neovim
+split) instead of the whole window. This needs the tmux hooks as well — see
+[TMUX_INTEGRATION.md](TMUX_INTEGRATION.md).
 
-- **WM_CLASS** — matched case-sensitively. To find a window's:
-  - KDE: `qdbus6 org.kde.KWin /KWin org.kde.KWin.queryWindowInfo`, then click
-    the window.
-  - GNOME: Alt+F2, `lg`, Windows tab, read `wm_class`.
-  - Known-good values: `org.wezfurlong.wezterm`, `com.mitchellh.ghostty`.
-- **Provider** — `tmux` is the only provider the Linux daemon implements.
-- **Tty source** — how the focused pane's tty is discovered:
-  - *WezTerm CLI* (`wezterm`): asks `wezterm cli` which pane is focused.
-  - *Window title* (`title`): reads it from the window title, where tmux
-    publishes it via `set-titles-string`. Use this for terminals with no
-    pane-query CLI, such as Ghostty.
-- **Content offset X / Y** — pixels from the window's client area edge to the
-  terminal cell grid (padding for X, padding plus tab bar height for Y).
-  Window decorations are reported separately by the compositor adapter and
-  must not be folded in here.
+Integrations are code in the daemon, not plugins, so the tab lists every one
+it supports with an **Enabled** checkbox — nothing to type or look up:
+
+| Integration | Matches `WmClass` | Writes `TtySource` | Default offsets |
+|---|---|---|---|
+| WezTerm | `org.wezfurlong.wezterm` | `wezterm` (asks `wezterm cli`) | 0, 0 |
+| Ghostty | `com.mitchellh.ghostty` | `title` (reads the window title) | 2, 2 |
+
+Checking a box adds that terminal's `AppIntegrations` entry; unchecking
+removes it. Ghostty additionally needs the Ghostty block in
+`spotlight-dimmer.tmux.conf` uncommented, so tmux publishes the pane in the
+window title.
+
+- **Content offset X / Y** — editable while the integration is enabled:
+  pixels from the window's client area edge to the terminal cell grid (padding
+  for X, padding plus tab bar height for Y). Window decorations are reported
+  separately by the compositor adapter and must not be folded in here.
+
+Other `AppIntegrations` entries — a terminal configured by hand in JSON, or
+the Windows client's `ProcessName` entries — are not shown in the tab and are
+never modified or removed by it. Re-checking an integration whose entry
+already exists keeps that entry's offsets and extra keys as they are.
 
 ## Daemon controls
 

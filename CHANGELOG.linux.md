@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Simpler Integrations tab in the settings window**: The tab used to be a free-form list where you had to know a terminal's window class and pick a provider and tty source yourself. It now lists every integration SpotlightDimmer supports — **WezTerm** and **Ghostty** — each with an **Enabled** checkbox and its content offsets. Checking a box writes the correct `AppIntegrations` entry; unchecking removes it
+  - The config file format is unchanged, so existing configs keep working with no migration
+  - Entries for other terminals added by hand in `config.json`, and Windows `ProcessName` entries, are no longer shown in the tab but are kept untouched; edit them in JSON as before
+
+---
+
+### Alterado
+- **Aba Integrations mais simples na janela de configurações**: A aba era uma lista livre em que era preciso saber a classe de janela do terminal e escolher o provedor e a origem do tty por conta própria. Agora ela lista todas as integrações suportadas pelo SpotlightDimmer — **WezTerm** e **Ghostty** — cada uma com uma caixa de seleção **Enabled** e seus offsets de conteúdo. Marcar a caixa grava a entrada correta em `AppIntegrations`; desmarcar a remove
+  - O formato do arquivo de configuração não mudou, então as configurações existentes continuam funcionando sem nenhuma migração
+  - Entradas de outros terminais adicionadas manualmente no `config.json`, e as entradas `ProcessName` do Windows, não aparecem mais na aba, mas são preservadas intactas; edite-as no JSON como antes
+
 ## [0.6.1] - 2026-09-21
 
 ### Fixed

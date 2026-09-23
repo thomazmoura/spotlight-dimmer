@@ -398,8 +398,11 @@ The Linux daemon matches integrations by **window class**:
 
 `WmClass` and `TtySource` are Linux-only keys: the Windows client ignores
 them, and the Windows client's `ProcessName` is likewise ignored on Linux, so a
-single `config.json` can carry both platforms' entries. Entries can be managed
-from the **Integrations** tab of the `spotlight-dimmer-config` settings window.
+single `config.json` can carry both platforms' entries. The built-in WezTerm
+and Ghostty integrations can be switched on and off (and their offsets tuned)
+from the **Integrations** tab of the `spotlight-dimmer-config` settings window;
+entries for any other terminal are edited here in JSON and left untouched by
+the settings window.
 
 `ContentOffsetX/Y` are measured from the window's *content area* (client
 area, decorations excluded), not the decorated frame — title bars and borders

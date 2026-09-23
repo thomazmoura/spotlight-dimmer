@@ -19,7 +19,7 @@ use std::time::Duration;
 use gio::prelude::*;
 use serde_json::{json, Map, Value};
 
-use spotlight_dimmer_core::config::{write_atomically, AppConfig, TtySource};
+use spotlight_dimmer_core::config::{write_atomically, AppConfig};
 
 const CONFIG_DIR: &str = "SpotlightDimmer";
 const CONFIG_FILE: &str = "config.json";
@@ -34,17 +34,10 @@ pub fn config_path() -> PathBuf {
     glib::user_config_dir().join(CONFIG_DIR).join(CONFIG_FILE)
 }
 
-/// One `AppIntegrations` entry as the *editor* sees it.
-///
-/// Deliberately not `core`'s `AppIntegration`: the parser drops entries with
-/// an empty `WmClass`, so a freshly added row would vanish from the list the
-/// moment it was created. This view keeps every array element, applying the
-/// same per-field defaults the daemon applies.
+/// The editable fields of a built-in integration's `AppIntegrations` entry,
+/// read with the same per-field defaults the daemon applies.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IntegrationView {
-    pub wm_class: String,
-    pub provider: String,
-    pub tty_source: TtySource,
     pub content_offset_x: i32,
     pub content_offset_y: i32,
 }
@@ -238,77 +231,74 @@ impl Document {
     }
 
     // ----------------------------------------------------------- integrations
+    //
+    // Entries are addressed by WM_CLASS, never by index: the editor only
+    // shows the built-in integrations, so hand-written entries for other
+    // terminals (or Windows `ProcessName` entries) sit hidden between them
+    // and must survive every edit untouched.
 
-    /// Every element of the `AppIntegrations` array, including entries the
-    /// daemon would drop (empty `WmClass`), so the editor can show a row that
-    /// has not been filled in yet.
-    pub fn integrations(&self) -> Vec<IntegrationView> {
+    /// The first `tmux` entry for `wm_class`, as the daemon would match it.
+    pub fn find_integration(&self, wm_class: &str) -> Option<IntegrationView> {
         let root = self.0.root.borrow();
-        let Some(entries) = root.get("AppIntegrations").and_then(Value::as_array) else {
-            return Vec::new();
-        };
+        let entries = root.get("AppIntegrations").and_then(Value::as_array)?;
+        let entry = entries.iter().find(|e| is_tmux_entry_for(e, wm_class))?;
 
-        entries
-            .iter()
-            .map(|entry| IntegrationView {
-                wm_class: string_field(entry, "WmClass").unwrap_or_default(),
-                provider: string_field(entry, "Provider").unwrap_or_else(|| "tmux".to_string()),
-                tty_source: string_field(entry, "TtySource")
-                    .map(|s| TtySource::parse(&s))
-                    .unwrap_or_default(),
-                content_offset_x: offset_field(entry, "ContentOffsetX"),
-                content_offset_y: offset_field(entry, "ContentOffsetY"),
-            })
-            .collect()
+        Some(IntegrationView {
+            content_offset_x: offset_field(entry, "ContentOffsetX"),
+            content_offset_y: offset_field(entry, "ContentOffsetY"),
+        })
     }
 
-    /// Appends an entry and returns its index. Written with explicit
-    /// defaults so the resulting JSON is self-documenting rather than
-    /// relying on the parser's implicit fallbacks.
-    pub fn add_integration(&self) -> usize {
-        let index = {
-            let mut root = self.0.root.borrow_mut();
-            let entries = integrations_array(&mut root);
-            entries.push(json!({
-                "WmClass": "",
-                "Provider": "tmux",
-                "TtySource": "wezterm",
-                "ContentOffsetX": 0,
-                "ContentOffsetY": 0
-            }));
-            entries.len() - 1
-        };
-        self.schedule_save();
-        index
-    }
-
-    pub fn remove_integration(&self, index: usize) {
+    /// Adds the entry for a built-in integration. An entry that is already
+    /// there is kept as-is, so hand-tuned offsets and extra keys survive a
+    /// re-check. Written with explicit defaults so the resulting JSON is
+    /// self-documenting rather than relying on the parser's fallbacks.
+    pub fn enable_integration(&self, wm_class: &str, tty_source: &str, offset: (i32, i32)) {
         {
             let mut root = self.0.root.borrow_mut();
             let entries = integrations_array(&mut root);
-            if index >= entries.len() {
+            if entries.iter().any(|e| is_tmux_entry_for(e, wm_class)) {
                 return;
             }
-            entries.remove(index);
+            entries.push(json!({
+                "WmClass": wm_class,
+                "Provider": "tmux",
+                "TtySource": tty_source,
+                "ContentOffsetX": offset.0,
+                "ContentOffsetY": offset.1
+            }));
         }
         self.schedule_save();
     }
 
-    /// Mutates one field of one entry, leaving every other key of that entry
-    /// (including keys only the Windows client understands) untouched.
-    pub fn set_integration_field(&self, index: usize, key: &str, value: Value) {
+    /// Removes every entry for `wm_class` (duplicates included — the daemon
+    /// would otherwise keep matching the next one), leaving the rest alone.
+    pub fn disable_integration(&self, wm_class: &str) {
         {
             let mut root = self.0.root.borrow_mut();
             let entries = integrations_array(&mut root);
-            let Some(entry) = entries.get_mut(index) else {
+            let before = entries.len();
+            entries.retain(|e| !is_tmux_entry_for(e, wm_class));
+            if entries.len() == before {
+                return;
+            }
+        }
+        self.schedule_save();
+    }
+
+    /// Mutates one field of the entry for `wm_class`, leaving every other key
+    /// of that entry (including keys only the Windows client understands)
+    /// untouched.
+    pub fn set_integration_field(&self, wm_class: &str, key: &str, value: Value) {
+        {
+            let mut root = self.0.root.borrow_mut();
+            let entries = integrations_array(&mut root);
+            let Some(entry) = entries.iter_mut().find(|e| is_tmux_entry_for(e, wm_class)) else {
                 return;
             };
-            if !entry.is_object() {
-                *entry = Value::Object(Map::new());
-            }
             entry
                 .as_object_mut()
-                .expect("entry is an object")
+                .expect("a matched entry is an object")
                 .insert(key.to_string(), value);
         }
         self.schedule_save();
@@ -498,6 +488,14 @@ fn integrations_array(root: &mut Value) -> &mut Vec<Value> {
     entry.as_array_mut().expect("AppIntegrations is an array")
 }
 
+/// The same test as `AppConfig::match_integration` with the "tmux" provider
+/// (a missing or empty `Provider` defaults to it), so an entry the editor
+/// shows as enabled is exactly one the daemon acts on.
+fn is_tmux_entry_for(entry: &Value, wm_class: &str) -> bool {
+    string_field(entry, "WmClass").as_deref() == Some(wm_class)
+        && string_field(entry, "Provider").is_none_or(|p| p == "tmux")
+}
+
 fn string_field(entry: &Value, key: &str) -> Option<String> {
     entry
         .get(key)
@@ -517,6 +515,7 @@ fn offset_field(entry: &Value, key: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use spotlight_dimmer_core::config::TtySource;
 
     /// A config with every key the Linux daemon does not consume, which a
     /// round-trip through `AppConfig` would silently delete.
@@ -613,61 +612,97 @@ mod tests {
         assert_eq!(reloaded.overlay.active_opacity, 50);
     }
 
+    const GHOSTTY: &str = "com.mitchellh.ghostty";
+    const WEZTERM: &str = "org.wezfurlong.wezterm";
+
     #[test]
-    fn integrations_are_editable_and_keep_unknown_entry_keys() {
-        let temp = TempConfig::new("integrations", Some(FULL_CONFIG));
+    fn enabling_writes_an_entry_the_daemon_matches() {
+        let temp = TempConfig::new("enable", Some("{}"));
         let document = Document::load_from(temp.path());
 
-        // Existing entry: change one field, leave the rest alone.
-        document.set_integration_field(0, "TtySource", json!("title"));
-        // New entry, filled in the way the detail pane fills one.
-        let index = document.add_integration();
-        document.set_integration_field(index, "WmClass", json!("com.mitchellh.ghostty"));
-        document.set_integration_field(index, "ContentOffsetX", json!(2));
-        document.set_integration_field(index, "ContentOffsetY", json!(2));
+        assert!(document.find_integration(GHOSTTY).is_none());
+        document.enable_integration(GHOSTTY, "title", (2, 2));
         document.flush();
-
-        let written = temp.read();
-        let entries = written["AppIntegrations"].as_array().unwrap();
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0]["WmClass"], json!("org.wezfurlong.wezterm"));
-        assert_eq!(entries[0]["Provider"], json!("tmux"));
-        assert_eq!(entries[0]["TtySource"], json!("title"));
 
         let parsed = AppConfig::from_json(&std::fs::read_to_string(temp.path()).unwrap()).unwrap();
-        let ghostty = parsed.match_integration("com.mitchellh.ghostty", "tmux").unwrap();
-        assert_eq!(ghostty.tty_source, TtySource::WezTermCli);
-        assert_eq!(ghostty.content_offset_x, 2);
-        assert_eq!(ghostty.content_offset_y, 2);
+        let ghostty = parsed.match_integration(GHOSTTY, "tmux").unwrap();
+        assert_eq!(ghostty.tty_source, TtySource::WindowTitle);
+        assert_eq!((ghostty.content_offset_x, ghostty.content_offset_y), (2, 2));
+        assert_eq!(
+            document.find_integration(GHOSTTY),
+            Some(IntegrationView {
+                content_offset_x: 2,
+                content_offset_y: 2
+            })
+        );
     }
 
     #[test]
-    fn a_new_entry_stays_visible_before_its_wm_class_is_typed() {
-        let temp = TempConfig::new("newentry", Some("{}"));
+    fn enabling_an_existing_entry_keeps_it_untouched() {
+        let temp = TempConfig::new("reenable", Some(FULL_CONFIG));
         let document = Document::load_from(temp.path());
+        document.set_integration_field(WEZTERM, "ContentOffsetX", json!(8));
+        document.set_integration_field(WEZTERM, "ProcessName", json!("wezterm-gui.exe"));
 
-        document.add_integration();
-
-        // The parser drops it, but the editor must still show the row.
-        assert!(document.config().app_integrations.is_empty());
-        assert_eq!(document.integrations().len(), 1);
-        assert_eq!(document.integrations()[0].provider, "tmux");
-    }
-
-    #[test]
-    fn removing_an_entry_shifts_the_rest() {
-        let temp = TempConfig::new("remove", Some(FULL_CONFIG));
-        let document = Document::load_from(temp.path());
-
-        let index = document.add_integration();
-        document.set_integration_field(index, "WmClass", json!("kitty"));
-        document.remove_integration(0);
+        document.enable_integration(WEZTERM, "wezterm", (0, 0));
         document.flush();
 
-        let entries = document.integrations();
+        let entries = temp.read()["AppIntegrations"].as_array().unwrap().clone();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].wm_class, "kitty");
-        assert_eq!(temp.read()["AppIntegrations"].as_array().unwrap().len(), 1);
+        assert_eq!(entries[0]["ContentOffsetX"], json!(8));
+        assert_eq!(entries[0]["ProcessName"], json!("wezterm-gui.exe"));
+    }
+
+    #[test]
+    fn a_missing_provider_counts_as_tmux_like_the_daemon() {
+        let contents = r#"{"AppIntegrations": [
+            {"WmClass": "org.wezfurlong.wezterm", "ContentOffsetY": 5},
+            {"WmClass": "com.mitchellh.ghostty", "Provider": "other"}
+        ]}"#;
+        let temp = TempConfig::new("noprovider", Some(contents));
+        let document = Document::load_from(temp.path());
+
+        let wezterm = document.find_integration(WEZTERM).unwrap();
+        assert_eq!(wezterm.content_offset_y, 5);
+        assert!(document.find_integration(GHOSTTY).is_none());
+    }
+
+    #[test]
+    fn disabling_removes_duplicates_and_keeps_other_entries() {
+        let contents = r#"{"AppIntegrations": [
+            {"WmClass": "com.mitchellh.ghostty", "Provider": "tmux", "TtySource": "title"},
+            {"WmClass": "kitty", "Provider": "tmux", "TtySource": "title"},
+            {"ProcessName": "WindowsTerminal.exe", "Provider": "windows-terminal"},
+            {"WmClass": "com.mitchellh.ghostty"}
+        ]}"#;
+        let temp = TempConfig::new("disable", Some(contents));
+        let document = Document::load_from(temp.path());
+
+        document.disable_integration(GHOSTTY);
+        document.flush();
+
+        assert!(document.find_integration(GHOSTTY).is_none());
+        let entries = temp.read()["AppIntegrations"].as_array().unwrap().clone();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0]["WmClass"], json!("kitty"));
+        assert_eq!(entries[1]["ProcessName"], json!("WindowsTerminal.exe"));
+    }
+
+    #[test]
+    fn field_edits_reach_the_right_entry_past_hidden_ones() {
+        let contents = r#"{"AppIntegrations": [
+            {"WmClass": "kitty", "Provider": "tmux", "ContentOffsetX": 1},
+            {"WmClass": "org.wezfurlong.wezterm", "Provider": "tmux", "ContentOffsetX": 0}
+        ]}"#;
+        let temp = TempConfig::new("offset", Some(contents));
+        let document = Document::load_from(temp.path());
+
+        document.set_integration_field(WEZTERM, "ContentOffsetX", json!(4));
+        document.flush();
+
+        let entries = temp.read()["AppIntegrations"].as_array().unwrap().clone();
+        assert_eq!(entries[0]["ContentOffsetX"], json!(1));
+        assert_eq!(entries[1]["ContentOffsetX"], json!(4));
     }
 
     #[test]
