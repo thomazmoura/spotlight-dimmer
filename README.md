@@ -48,7 +48,7 @@ The Linux version consists of a shared daemon (`spotlight-dimmer-daemon`) plus a
 curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash
 ```
 
-The script checks whether you're on Ubuntu (GNOME) or Kubuntu (KDE Plasma 6) and on amd64 or arm64. It downloads that desktop's package and the settings window from the latest `-linux` release, then installs them with apt. Run it again later to update: packages that are already current are skipped. It also seeds `config.json` when there is none, restarts the daemon and reloads the KWin script. On KDE it binds the default shortcuts if they're unset. On GNOME it enables the extension (log out and back in afterwards). Options: `--gnome`/`--kde` to skip detection, `--version X.Y.Z`, `--no-config-gui`, `--force`, `-y`. Run it with `--help` for the full list.
+The script checks whether you're on Ubuntu (GNOME) or Kubuntu (KDE Plasma 6) and on amd64 or arm64. It downloads that desktop's package and the settings window from the latest `-linux` release, then installs them with apt. Run it again later to update: packages that are already current are skipped. It also seeds `config.json` when there is none, restarts the daemon and reloads the KWin script. On KDE it binds the default shortcuts if they're unset. On GNOME it enables the extension (log out and back in afterwards). Options: `--gnome`/`--kde` to skip detection, `--version X.Y.Z`, `--no-config-gui`, `--force`, `--clean-source-install` (see below), `-y`. Run it with `--help` for the full list.
 
 #### .deb packages (manual)
 
@@ -91,7 +91,7 @@ cp /usr/share/doc/spotlight-dimmer-gnome/examples/config.example.json ~/.config/
 
 To uninstall: `sudo apt remove spotlight-dimmer-gnome` (or `spotlight-dimmer-kde`, plus `spotlight-dimmer-config` if installed).
 
-> **Upgrading from a source install?** Remove the per-user daemon first (see [Uninstalling](#uninstalling-linux-source-installs)) — a leftover unit in `~/.config/systemd/user/` shadows the packaged one in `/usr/lib/systemd/user/`.
+> **Upgrading from a source install?** The per-user files from `make install-linux-*` shadow the packaged ones — a leftover unit in `~/.config/systemd/user/` wins over `/usr/lib/systemd/user/`, and the extension or KWin script in `~/.local/share` wins over the one in `/usr/share` — so the old build keeps running. Run the one-line installer with `--clean-source-install` to remove them after the packages are installed, or remove them by hand (see [Uninstalling](#uninstalling-linux-source-installs)). The tmux tools in `~/.config/SpotlightDimmer/tools/` are left in place.
 
 #### Installing from source
 

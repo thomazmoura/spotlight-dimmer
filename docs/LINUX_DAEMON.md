@@ -85,7 +85,9 @@ Post-install steps the packages cannot do for you:
 > (`~/.config/systemd/user/spotlight-dimmer-daemon.service`, plus
 > `~/.local/share/dbus-1/services/org.spotlightdimmer.Daemon.service` and
 > `~/.local/bin/spotlight-dimmer-daemon`) shadows the packaged files — remove
-> them before switching to the .deb (see the README's uninstall section).
+> them before switching to the .deb (see the README's uninstall section), or
+> run `install-release.sh --clean-source-install`, which also removes the
+> user-local extension, KWin script and settings window.
 > Likewise, tmux hook installs that reference
 > `~/.config/SpotlightDimmer/tools/` should be updated to
 > `/usr/share/spotlight-dimmer/tools/` when moving to the packages.

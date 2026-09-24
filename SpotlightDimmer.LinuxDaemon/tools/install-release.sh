@@ -4,7 +4,7 @@
 #
 # Usage:
 #   install-release.sh [--gnome|--kde] [--version X.Y.Z] [--no-config-gui]
-#                      [--prerelease] [--force] [--yes]
+#                      [--prerelease] [--force] [--clean-source-install] [--yes]
 #
 # Or straight from GitHub:
 #   curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash
@@ -22,6 +22,7 @@ version=""
 with_config=1
 allow_prerelease=0
 force=0
+clean_source=0
 assume_yes=0
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -38,6 +39,11 @@ Usage: install-release.sh [options]
   --no-config-gui    Do not install the spotlight-dimmer-config settings window
   --prerelease       Allow the latest release to be a pre-release
   --force            Reinstall even when the installed version matches
+  --clean-source-install
+                     Remove the per-user files of a `make install-linux-*`
+                     source install (~/.local, ~/.config/systemd/user), which
+                     otherwise shadow the packaged daemon, extension, KWin
+                     script and settings window
   -y, --yes          Do not ask apt for confirmation
 EOF
     exit "${1:-0}"
@@ -51,6 +57,7 @@ while [[ $# -gt 0 ]]; do
         --no-config-gui) with_config=0 ;;
         --prerelease) allow_prerelease=1 ;;
         --force) force=1 ;;
+        --clean-source-install) clean_source=1 ;;
         -y|--yes) assume_yes=1 ;;
         -h|--help) usage 0 ;;
         *) warn "unknown option: $1"; usage 1 ;;
@@ -154,38 +161,99 @@ for pkg in "${packages[@]}"; do
     to_install+=("$deb"$'\t'"$url")
 done
 
-if [[ ${#to_install[@]} -eq 0 ]]; then
+# --- Source install leftovers ------------------------------------------------
+# `make install-linux-*` installs per-user copies (see the README's uninstall
+# section). Each one takes precedence over its packaged counterpart in /usr,
+# so an old build keeps running however current the packages are: the user
+# unit shadows /usr/lib/systemd/user, ~/.local/bin comes first in PATH, and
+# GNOME Shell and KWin prefer a user-local extension or script with the same
+# id. The tmux tools in ~/.config/SpotlightDimmer/tools are left alone, as
+# ~/.tmux.conf may still source them.
+source_leftovers() {
+    local paths=(
+        "$HOME/.local/bin/spotlight-dimmer-daemon"
+        "$HOME/.config/systemd/user/spotlight-dimmer-daemon.service"
+        "$HOME/.local/share/dbus-1/services/org.spotlightdimmer.Daemon.service"
+        "$HOME/.local/share/applications/org.spotlightdimmer.toggle.desktop"
+        "$HOME/.local/share/gnome-shell/extensions/$EXT_UUID"
+        "$HOME/.local/share/kwin/scripts/spotlightdimmer"
+    )
+    # Without the packaged settings window the source-built one is the only
+    # copy, so keep it.
+    (( with_config )) && paths+=(
+        "$HOME/.local/bin/spotlight-dimmer-config"
+        "$HOME/.local/share/applications/org.spotlightdimmer.Config.desktop"
+        "$HOME/.local/share/applications/org.spotlightdimmer.ConfigToggle.desktop"
+        "$HOME/.local/share/icons/hicolor/scalable/apps/org.spotlightdimmer.Config.svg"
+    )
+    local p
+    for p in "${paths[@]}"; do
+        [[ -e "$p" ]] && printf '%s\n' "$p"
+    done
+    return 0
+}
+
+mapfile -t leftovers < <(source_leftovers)
+if [[ ${#leftovers[@]} -gt 0 && $clean_source -eq 0 ]]; then
+    warn "a source install's per-user files shadow the packaged ones, so the old build keeps running:"
+    printf '   %s\n' "${leftovers[@]}" >&2
+    warn "rerun with --clean-source-install to remove them"
+fi
+(( clean_source )) || leftovers=()
+
+if [[ ${#to_install[@]} -eq 0 && ${#leftovers[@]} -eq 0 ]]; then
     log "Everything is up to date (use --force to reinstall)"
     exit 0
 fi
 
 other="spotlight-dimmer-$([[ $variant == kde ]] && echo gnome || echo kde)"
-if [[ -n "$(installed_version "$other")" ]]; then
+if [[ ${#to_install[@]} -gt 0 && -n "$(installed_version "$other")" ]]; then
     warn "$other is installed and will be replaced by spotlight-dimmer-$variant (they conflict)"
 fi
 
-# A source install's per-user unit shadows the packaged one in /usr/lib.
-if [[ -e "$HOME/.config/systemd/user/spotlight-dimmer-daemon.service" ]]; then
-    warn "a source install's ~/.config/systemd/user/spotlight-dimmer-daemon.service shadows the packaged daemon;"
-    warn "remove it (see the README's uninstall section) or the old binary keeps running"
+# --- Download and install ----------------------------------------------------
+if [[ ${#to_install[@]} -gt 0 ]]; then
+    debs=()
+    for entry in "${to_install[@]}"; do
+        deb="${entry%%$'\t'*}"; url="${entry#*$'\t'}"
+        log "Downloading $deb"
+        curl -fL --progress-bar -o "$workdir/$deb" "$url"
+        debs+=("$workdir/$deb")
+    done
+
+    # apt (not dpkg -i) resolves the runtime dependencies. The _apt sandbox user
+    # must be able to read the files, which mktemp's 0700 directory prevents.
+    chmod 755 "$workdir"; chmod 644 "${debs[@]}"
+    apt_flags=()
+    (( assume_yes )) && apt_flags+=(-y)
+    log "Installing with apt (sudo)"
+    sudo apt install "${apt_flags[@]}" "${debs[@]}"
 fi
 
-# --- Download and install ----------------------------------------------------
-debs=()
-for entry in "${to_install[@]}"; do
-    deb="${entry%%$'\t'*}"; url="${entry#*$'\t'}"
-    log "Downloading $deb"
-    curl -fL --progress-bar -o "$workdir/$deb" "$url"
-    debs+=("$workdir/$deb")
-done
+# Sampled before the cleanup below, which swaps the unit under a running daemon.
+daemon_active=0
+systemctl --user is-active --quiet spotlight-dimmer-daemon.service 2>/dev/null && daemon_active=1
 
-# apt (not dpkg -i) resolves the runtime dependencies. The _apt sandbox user
-# must be able to read the files, which mktemp's 0700 directory prevents.
-chmod 755 "$workdir"; chmod 644 "${debs[@]}"
-apt_flags=()
-(( assume_yes )) && apt_flags+=(-y)
-log "Installing with apt (sudo)"
-sudo apt install "${apt_flags[@]}" "${debs[@]}"
+# --- Remove the source install -----------------------------------------------
+# Runs after apt so the packaged copies are already in place when the
+# user-local ones disappear.
+if [[ ${#leftovers[@]} -gt 0 ]]; then
+    log "Removing the source install's per-user files"
+    for path in "${leftovers[@]}"; do
+        if [[ "$path" == */kwin/scripts/* ]] && command -v kpackagetool6 >/dev/null; then
+            kpackagetool6 --type KWin/Script --remove spotlightdimmer >/dev/null 2>&1 || true
+        fi
+        rm -rf "$path"
+        echo "   removed $path"
+    done
+    # Pick up the packaged unit and D-Bus activation file in place of the
+    # removed ones; the daemon restart below then runs the packaged binary.
+    systemctl --user daemon-reload 2>/dev/null || true
+    dbus-send --session --type=method_call --dest=org.freedesktop.DBus \
+        /org/freedesktop/DBus org.freedesktop.DBus.ReloadConfig >/dev/null 2>&1 || true
+    command -v update-desktop-database >/dev/null \
+        && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+fi
 
 # --- Per-user setup ----------------------------------------------------------
 config_dir="$HOME/.config/SpotlightDimmer"
@@ -200,7 +268,7 @@ fi
 
 # The daemon is D-Bus activated; restart a running one so it uses the new
 # binary. If it is not running, the adapter starts it on demand.
-if systemctl --user is-active --quiet spotlight-dimmer-daemon.service 2>/dev/null; then
+if (( daemon_active )); then
     log "Restarting the daemon"
     systemctl --user restart spotlight-dimmer-daemon.service || warn "daemon restart failed"
 fi
