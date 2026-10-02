@@ -148,7 +148,7 @@ export default class SpotlightDimmerExtension extends Extension {
      *
      * The call moved in GNOME 47: `Meta.{disable,enable}_unredirect_for_display()`
      * became `global.compositor.{disable,enable}_unredirect()`. metadata.json
-     * declares support for 45 through 48, so both have to work. This
+     * declares support for 45 through 50, so both have to work. This
      * feature-detects rather than parsing a shell version, which keeps
      * working if the API moves again.
      *

@@ -2,7 +2,7 @@
 
 **Project:** SpotlightDimmer
 **Created:** 2025-12-09
-**Target:** GNOME Shell 45, 46, 47, 48+
+**Target:** GNOME Shell 45, 46, 47, 48, 49, 50
 **Language:** JavaScript (GJS)
 
 > **Architecture update (2026-07):** the extension is now a *thin adapter* for
@@ -60,7 +60,7 @@ spotlight-dimmer-gnome/
   "name": "SpotlightDimmer",
   "description": "Dims inactive displays and regions around the focused window",
   "uuid": "spotlightdimmer@example.com",
-  "shell-version": ["45", "46", "47", "48"],
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
   "version": 1,
   "url": "https://github.com/your-repo/spotlight-dimmer-gnome",
   "settings-schema": "org.gnome.shell.extensions.spotlightdimmer"
