@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-02
+
 ### Added
 - **`install-release.sh --clean-source-install` removes a leftover source install**: If you once ran `make install-linux-gnome` or `make install-linux-kde`, its per-user copies in `~/.local` and `~/.config/systemd/user` take precedence over the packages in `/usr`, so the old build kept running however current the packages were. One visible symptom: Super+Alt+Shift+D did nothing, because a settings window older than 0.5.0 has no toggle launcher. With the new option, the installer removes those files after installing the packages and then restarts the daemon, so the packaged daemon, extension, KWin script and settings window are the ones that run. Your `config.json` and the tmux tools in `~/.config/SpotlightDimmer/tools/` are left alone. Without the option, the installer now lists any leftovers it finds and suggests the flag, even when the packages are already up to date
 
