@@ -85,12 +85,12 @@ Post-install steps the packages cannot do for you:
 > (`~/.config/systemd/user/spotlight-dimmer-daemon.service`, plus
 > `~/.local/share/dbus-1/services/org.spotlightdimmer.Daemon.service` and
 > `~/.local/bin/spotlight-dimmer-daemon`) shadows the packaged files — remove
-> them before switching to the .deb (see the README's uninstall section), or
-> run `install-release.sh --clean-source-install`, which also removes the
-> user-local extension, KWin script and settings window.
-> Likewise, tmux hook installs that reference
-> `~/.config/SpotlightDimmer/tools/` should be updated to
-> `/usr/share/spotlight-dimmer/tools/` when moving to the packages.
+> them before switching to the .deb by hand (see the README's uninstall
+> section). `install-release.sh` does this for you: it also removes the
+> user-local extension, KWin script and settings window, and replaces the tmux
+> tools in `~/.config/SpotlightDimmer/tools/` with symlinks to
+> `/usr/share/spotlight-dimmer/`, so tmux hooks that reference the old path
+> keep working.
 
 The packaging metadata lives in `SpotlightDimmer.LinuxDaemon/daemon/Cargo.toml`
 (`[package.metadata.deb]`, built with `cargo deb --variant gnome|kde`) and in
@@ -107,7 +107,13 @@ renderer and the settings window:
 sudo apt install libgtk-4-dev libgtk4-layer-shell-dev   # Ubuntu/Debian
 ```
 
-Then from `SpotlightDimmer.LinuxDaemon/`:
+The quickest path is `tools/install-local.sh` (from `SpotlightDimmer.LinuxDaemon/`).
+It builds the checkout, purges the release packages, deletes every per-user
+file of a previous source install and installs fresh copies. Only
+`~/.config/SpotlightDimmer/config.json`, the GNOME enabled-extensions list and
+KDE shortcut bindings carry over.
+
+Or run the individual targets from `SpotlightDimmer.LinuxDaemon/`:
 
 ```bash
 make install-linux-gnome   # GNOME: daemon + extension + tmux tools

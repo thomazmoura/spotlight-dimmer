@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`install-local.sh` installs from a repository checkout without leftovers**: Run `SpotlightDimmer.LinuxDaemon/tools/install-local.sh` from a clone to install exactly the code in that checkout. It detects GNOME or KDE and builds everything first, so a failed build leaves your current install alone. Then it purges the release packages, deletes every file of a previous source install and installs fresh copies, so files from an older version no longer linger. It shows which checkout, version and commit it is installing (and whether there are uncommitted changes). Only your settings carry over: `~/.config/SpotlightDimmer/config.json`, the GNOME enabled-extensions list and your KDE shortcuts
+
+### Changed
+- **`install-release.sh` always removes a previous source install**: Per-user files from `make install-linux-*` or `install-local.sh` shadow the packaged ones, so the old build kept running. The release installer now removes them by default instead of only with `--clean-source-install`. The option is still accepted but no longer needed. The tmux tools in `~/.config/SpotlightDimmer/tools/` become links to the packaged copies in `/usr/share/spotlight-dimmer/`, so a `~/.tmux.conf` or neovim setup that uses that path keeps working with the packaged version
+
+### Fixed
+- **GNOME extension failed to enable on GNOME 50 (Ubuntu 26.04)**: After 0.7.1, GNOME 50 accepted the extension as compatible, but turning it on failed with `Error: Unrecognized parameter "affectsInputRegion"`, so no dimming happened. Contrary to the 0.7.1 note, the extension's code did not yet work on GNOME 50, which removed an option the overlays relied on. The extension now enables on GNOME 50, and clicks still pass through the dimmed areas to the windows, top bar and dock below. GNOME 45–49 behave as before. After updating, log out and back in so GNOME Shell loads the new extension
+
+---
+
+### Adicionado
+- **`install-local.sh` instala a partir de uma cópia do repositório sem deixar sobras**: Rode `SpotlightDimmer.LinuxDaemon/tools/install-local.sh` a partir de um clone para instalar exatamente o código daquela cópia. Ele detecta GNOME ou KDE e compila tudo primeiro, então uma compilação com falha não mexe na instalação atual. Depois remove (purge) os pacotes de release, apaga todos os arquivos de uma instalação anterior a partir do código-fonte e instala cópias novas, então arquivos de uma versão antiga não ficam mais para trás. Ele mostra qual cópia, versão e commit está instalando (e se há alterações não commitadas). Só as suas configurações são mantidas: `~/.config/SpotlightDimmer/config.json`, a lista de extensões ativadas do GNOME e seus atalhos do KDE
+
+### Alterado
+- **`install-release.sh` sempre remove uma instalação anterior a partir do código-fonte**: Os arquivos por usuário de `make install-linux-*` ou `install-local.sh` têm prioridade sobre os dos pacotes, então a versão antiga continuava rodando. O instalador de release agora os remove por padrão, e não só com `--clean-source-install`. A opção continua aceita, mas não é mais necessária. As ferramentas do tmux em `~/.config/SpotlightDimmer/tools/` viram links para as cópias dos pacotes em `/usr/share/spotlight-dimmer/`, então um `~/.tmux.conf` ou configuração do neovim que use esse caminho continua funcionando com a versão dos pacotes
+
+### Corrigido
+- **Extensão do GNOME não ativava no GNOME 50 (Ubuntu 26.04)**: Depois da 0.7.1, o GNOME 50 aceitava a extensão como compatível, mas ativá-la falhava com `Error: Unrecognized parameter "affectsInputRegion"`, então nada era escurecido. Ao contrário do que dizia a nota da 0.7.1, o código da extensão ainda não funcionava no GNOME 50, que removeu uma opção da qual as sobreposições dependiam. A extensão agora ativa no GNOME 50, e os cliques continuam atravessando as áreas escurecidas até as janelas, a barra superior e a dock embaixo. O GNOME 45–49 se comporta como antes. Depois de atualizar, saia da sessão e entre de novo para o GNOME Shell carregar a nova extensão
+
 ## [0.7.1] - 2026-10-02
 
 ### Added

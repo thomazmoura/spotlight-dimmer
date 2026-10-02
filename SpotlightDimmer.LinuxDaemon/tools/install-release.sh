@@ -4,7 +4,7 @@
 #
 # Usage:
 #   install-release.sh [--gnome|--kde] [--version X.Y.Z] [--no-config-gui]
-#                      [--prerelease] [--force] [--clean-source-install] [--yes]
+#                      [--prerelease] [--force] [--yes]
 #
 # Or straight from GitHub:
 #   curl -fsSL https://raw.githubusercontent.com/thomazmoura/spotlight-dimmer/main/SpotlightDimmer.LinuxDaemon/tools/install-release.sh | bash
@@ -12,6 +12,11 @@
 # Run it as your normal user: apt runs through sudo, while the per-user steps
 # (config seeding, extension enabling, KDE shortcuts, daemon restart) need
 # your session.
+#
+# A previous source install (`make install-linux-*` or install-local.sh) is
+# removed after the packages go in: its per-user copies would otherwise
+# shadow the packaged ones. Your settings in ~/.config/SpotlightDimmer are kept.
+# To install from a repository checkout instead, use install-local.sh.
 set -euo pipefail
 
 REPO="thomazmoura/spotlight-dimmer"
@@ -22,7 +27,6 @@ version=""
 with_config=1
 allow_prerelease=0
 force=0
-clean_source=0
 assume_yes=0
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -34,16 +38,14 @@ usage() {
     cat <<'EOF'
 Usage: install-release.sh [options]
 
+Installs the release packages with apt and removes any source install
+(`make install-linux-*` or install-local.sh), keeping your settings.
+
   --gnome / --kde    Skip desktop detection and install this variant
   --version X.Y.Z    Install a specific Linux release instead of the latest
   --no-config-gui    Do not install the spotlight-dimmer-config settings window
   --prerelease       Allow the latest release to be a pre-release
   --force            Reinstall even when the installed version matches
-  --clean-source-install
-                     Remove the per-user files of a `make install-linux-*`
-                     source install (~/.local, ~/.config/systemd/user), which
-                     otherwise shadow the packaged daemon, extension, KWin
-                     script and settings window
   -y, --yes          Do not ask apt for confirmation
 EOF
     exit "${1:-0}"
@@ -57,7 +59,9 @@ while [[ $# -gt 0 ]]; do
         --no-config-gui) with_config=0 ;;
         --prerelease) allow_prerelease=1 ;;
         --force) force=1 ;;
-        --clean-source-install) clean_source=1 ;;
+        # Cleaning up a source install is now the default; kept so older
+        # instructions that pass it still work.
+        --clean-source-install) ;;
         -y|--yes) assume_yes=1 ;;
         -h|--help) usage 0 ;;
         *) warn "unknown option: $1"; usage 1 ;;
@@ -162,13 +166,13 @@ for pkg in "${packages[@]}"; do
 done
 
 # --- Source install leftovers ------------------------------------------------
-# `make install-linux-*` installs per-user copies (see the README's uninstall
-# section). Each one takes precedence over its packaged counterpart in /usr,
-# so an old build keeps running however current the packages are: the user
-# unit shadows /usr/lib/systemd/user, ~/.local/bin comes first in PATH, and
-# GNOME Shell and KWin prefer a user-local extension or script with the same
-# id. The tmux tools in ~/.config/SpotlightDimmer/tools are left alone, as
-# ~/.tmux.conf may still source them.
+# `make install-linux-*` and install-local.sh install per-user copies (see the
+# README's uninstall section). Each one takes precedence over its packaged
+# counterpart in /usr, so an old build keeps running however current the
+# packages are: the user unit shadows /usr/lib/systemd/user, ~/.local/bin
+# comes first in PATH, and GNOME Shell and KWin prefer a user-local extension
+# or script with the same id. The tmux tools in ~/.config/SpotlightDimmer/tools
+# are handled separately below, as ~/.tmux.conf may still source them.
 source_leftovers() {
     local paths=(
         "$HOME/.local/bin/spotlight-dimmer-daemon"
@@ -193,15 +197,30 @@ source_leftovers() {
     return 0
 }
 
-mapfile -t leftovers < <(source_leftovers)
-if [[ ${#leftovers[@]} -gt 0 && $clean_source -eq 0 ]]; then
-    warn "a source install's per-user files shadow the packaged ones, so the old build keeps running:"
-    printf '   %s\n' "${leftovers[@]}" >&2
-    warn "rerun with --clean-source-install to remove them"
-fi
-(( clean_source )) || leftovers=()
+# The source install's tmux tools are real files; the packaged ones live in
+# /usr/share/spotlight-dimmer. Each copy is swapped for a symlink to its
+# packaged counterpart, so the path ~/.tmux.conf and the neovim plugin use
+# keeps working but runs the packaged code. Prints "<link>\t<target>" for each
+# entry that is not already that symlink.
+tools_dir="$HOME/.config/SpotlightDimmer/tools"
+tools_leftovers() {
+    [[ -d "$tools_dir" ]] || return 0
+    local entry target
+    for entry in "$tools_dir"/*; do
+        [[ -e "$entry" || -L "$entry" ]] || continue
+        case "${entry##*/}" in
+            nvim) target=/usr/share/spotlight-dimmer/nvim ;;
+            *) target="/usr/share/spotlight-dimmer/tools/${entry##*/}" ;;
+        esac
+        [[ "$(readlink "$entry")" == "$target" ]] && continue
+        printf '%s\t%s\n' "$entry" "$target"
+    done
+}
 
-if [[ ${#to_install[@]} -eq 0 && ${#leftovers[@]} -eq 0 ]]; then
+mapfile -t leftovers < <(source_leftovers)
+mapfile -t tool_links < <(tools_leftovers)
+
+if [[ ${#to_install[@]} -eq 0 && ${#leftovers[@]} -eq 0 && ${#tool_links[@]} -eq 0 ]]; then
     log "Everything is up to date (use --force to reinstall)"
     exit 0
 fi
@@ -253,6 +272,21 @@ if [[ ${#leftovers[@]} -gt 0 ]]; then
         /org/freedesktop/DBus org.freedesktop.DBus.ReloadConfig >/dev/null 2>&1 || true
     command -v update-desktop-database >/dev/null \
         && update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+fi
+
+if [[ ${#tool_links[@]} -gt 0 ]]; then
+    log "Pointing the tmux tools in $tools_dir at the packaged copies"
+    for entry in "${tool_links[@]}"; do
+        link="${entry%%$'\t'*}"; target="${entry#*$'\t'}"
+        rm -rf "$link"
+        # A file the packages do not ship (an old tool) is just removed.
+        if [[ -e "$target" ]]; then
+            ln -s "$target" "$link"
+            echo "   $link -> $target"
+        else
+            echo "   removed $link"
+        fi
+    done
 fi
 
 # --- Per-user setup ----------------------------------------------------------

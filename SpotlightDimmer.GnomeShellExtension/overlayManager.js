@@ -8,6 +8,7 @@
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {PACKAGE_VERSION} from 'resource:///org/gnome/shell/misc/config.js';
 
 // Overlays pre-allocated per monitor. Six covers every region the legacy
 // calculator emits (FullScreen, Top, Bottom, Left, Right, Center), which is
@@ -20,6 +21,17 @@ const OVERLAYS_PER_MONITOR = 6;
 const CHROME_HIGHLIGHT = 'Highlight';
 // Overlays stack at the top of uiGroup, dimming chrome along with windows.
 const CHROME_DIM = 'Dim';
+
+// Chrome tracking params for the overlays. trackFullscreen: false keeps
+// overlays visible on OTHER monitors when ONE monitor has a fullscreen
+// window, so multi-monitor dimming still works. GNOME 50 dropped the stage
+// input region and with it the affectsInputRegion param (Params.parse now
+// rejects it); there reactive: false alone keeps overlays click-through.
+// Before 50 it defaults to true, so it must still be turned off explicitly.
+const SHELL_MAJOR = parseInt(PACKAGE_VERSION.split('.')[0], 10);
+const CHROME_PARAMS = SHELL_MAJOR >= 50
+    ? {trackFullscreen: false}
+    : {trackFullscreen: false, affectsInputRegion: false};
 
 /**
  * OverlayManager creates and manages St.Widget overlays for dimming.
@@ -195,13 +207,7 @@ export class OverlayManager {
                 height: 0,
             });
 
-            // Add to top chrome with fullscreen tracking disabled
-            // This ensures overlays remain visible on OTHER monitors when a fullscreen
-            // window is present on ONE monitor, enabling proper multi-monitor dimming
-            Main.layoutManager.addTopChrome(overlay, {
-                trackFullscreen: false,
-                affectsInputRegion: false,  // Allow click-through for dock/panel interactions
-            });
+            Main.layoutManager.addTopChrome(overlay, {...CHROME_PARAMS});
             this._applyStacking(overlay);
             entry.overlays.push(overlay);
         }
