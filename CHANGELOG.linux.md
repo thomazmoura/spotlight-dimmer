@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-02
+
 ### Added
 - **`install-local.sh` installs from a repository checkout without leftovers**: Run `SpotlightDimmer.LinuxDaemon/tools/install-local.sh` from a clone to install exactly the code in that checkout. It detects GNOME or KDE and builds everything first, so a failed build leaves your current install alone. Then it purges the release packages, deletes every file of a previous source install and installs fresh copies, so files from an older version no longer linger. It shows which checkout, version and commit it is installing (and whether there are uncommitted changes). Only your settings carry over: `~/.config/SpotlightDimmer/config.json`, the GNOME enabled-extensions list and your KDE shortcuts
 
