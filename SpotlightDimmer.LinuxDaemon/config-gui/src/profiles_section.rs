@@ -182,8 +182,9 @@ impl State {
         self.entry.text().trim().to_string()
     }
 
-    /// Re-filter the list against the entry text; the best match is
-    /// selected so Enter always has a target.
+    /// Re-filter the list against the entry text. With no filter the current
+    /// profile is selected; while typing, the best match is, so Enter always
+    /// has a target.
     fn refresh(&self) {
         let profiles = self.document.profiles();
         let names: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
@@ -209,8 +210,17 @@ impl State {
                 .set_placeholder(Some(&placeholder("No profile matches.")));
         }
 
-        if let Some(first) = self.list.row_at_index(0) {
-            self.list.select_row(Some(&first));
+        let target = if self.typed().is_empty() {
+            current
+                .as_deref()
+                .and_then(|c| order.iter().position(|&i| profiles[i].name == c))
+                .unwrap_or(0)
+        } else {
+            0
+        };
+        if let Some(row) = self.list.row_at_index(target as i32) {
+            self.list.select_row(Some(&row));
+            self.scroll_to(&row);
         }
         self.update_status();
         self.update_buttons();

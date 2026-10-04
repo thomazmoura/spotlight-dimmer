@@ -119,6 +119,20 @@ local function in_cmdline()
   return vim.api.nvim_get_mode().mode:sub(1, 1) == "c"
 end
 
+--- `rect` kept inside the grid: a float may hang over an edge.
+local function clamp(rect)
+  if not rect then
+    return nil
+  end
+  local right = math.min(rect.col + rect.width, vim.o.columns)
+  local bottom = math.min(rect.row + rect.height, vim.o.lines)
+  rect.col = math.max(rect.col, 0)
+  rect.row = math.max(rect.row, 0)
+  rect.width = right - rect.col
+  rect.height = bottom - rect.row
+  return rect
+end
+
 --- Cell rect of a floating window, border included.
 local function float_rect(win)
   -- nui (noice) draws a padded border in a window of its own, and positions
@@ -174,14 +188,7 @@ function M.cmdline_rect()
     rect = { col = 0, row = vim.o.lines - height, width = vim.o.columns, height = height }
   end
 
-  -- Keep it inside the grid; a float may hang over an edge
-  local right = math.min(rect.col + rect.width, vim.o.columns)
-  local bottom = math.min(rect.row + rect.height, vim.o.lines)
-  rect.col = math.max(rect.col, 0)
-  rect.row = math.max(rect.row, 0)
-  rect.width = right - rect.col
-  rect.height = bottom - rect.row
-  return rect
+  return clamp(rect)
 end
 
 --- Smallest rect holding all of `rects`.
@@ -235,14 +242,18 @@ end
 --- Typing a command, a search or a prompt narrows the pane down to the
 --- command line instead, whatever the split count: the focused window does
 --- not change, but what is being typed is on the bottom rows, or in noice's
---- floating popup over any of the splits. A focused Telescope prompt narrows
---- it down to the picker; other floats light the whole pane.
+--- floating popup over any of the splits. A floating command-line window
+--- narrows it down to itself, a focused Telescope prompt to the picker;
+--- other floats light the whole pane.
 function M.payload()
   local rect
   if in_cmdline() then
     rect = M.cmdline_rect()
   elseif is_floating(vim.api.nvim_get_current_win()) then
-    rect = telescope_rect()
+    -- The command-line window made a float (over noice's popup, say) is
+    -- still the command line, in normal mode
+    rect = vim.fn.getcmdwintype() ~= "" and clamp(float_rect(vim.api.nvim_get_current_win()))
+      or telescope_rect()
   elseif count_splits() <= 1 then
     return ""
   else

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Settings window highlighted the first profile instead of the active one**: When the settings window opened, the profile list always highlighted the first profile, even when another one was in use. Pressing Enter then switched to that first profile, and Delete targeted it. The active profile is now highlighted when the window opens, after you clear the filter with Escape, and after you apply, save or delete a profile, so Enter and Delete act on it. While you type a filter, the best match is still highlighted
+
+---
+
+### Corrigido
+- **A janela de configurações destacava o primeiro perfil em vez do ativo**: Ao abrir a janela de configurações, a lista de perfis sempre destacava o primeiro perfil, mesmo quando outro estava em uso. Pressionar Enter então trocava para esse primeiro perfil, e o botão Excluir agia sobre ele. Agora o perfil ativo fica destacado ao abrir a janela, depois de limpar o filtro com Esc e depois de aplicar, salvar ou excluir um perfil, então Enter e Excluir agem sobre ele. Enquanto você digita um filtro, a melhor correspondência continua destacada
+
 ## [0.8.0] - 2026-10-02
 
 ### Added

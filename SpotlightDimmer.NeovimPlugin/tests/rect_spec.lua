@@ -191,6 +191,22 @@ vim.api.nvim_win_close(noice_win, true)
 package.loaded["noice.config"] = nil
 package.loaded["noice.ui.cmdline"] = nil
 
+-- The command-line window made a float takes the spotlight, border included
+reset(2)
+vim.cmd("vsplit")
+local cmdwin_payload
+vim.api.nvim_create_autocmd("CmdwinEnter", {
+  once = true,
+  callback = function()
+    vim.api.nvim_win_set_config(0, {
+      relative = "editor", row = 8, col = 10, width = 58, height = 1, border = "rounded",
+    })
+    cmdwin_payload = sd.payload()
+  end,
+})
+vim.api.nvim_feedkeys(vim.keycode("q:<Cmd>quit<CR>"), "x", false)
+check("floating command-line window", cmdwin_payload, "80,24,10,8,60,3")
+
 -- Telescope: the box around its windows ----------------------------------
 -- A picker is up to six floats (prompt, results, preview, and a border
 -- window around each), registered in telescope.state by the prompt buffer.
