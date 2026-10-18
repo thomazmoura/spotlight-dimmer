@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-18
+
 ### Added
 - **Ctrl+L jumps to the profile picker**: Pressing Ctrl+L anywhere in the settings window switches to the Mode tab and puts the cursor in the profile filter box, so you can type a profile name straight away without reaching for the mouse
 - **Ctrl+Tab switches tabs in the settings window**: Ctrl+Tab moves to the next tab and Ctrl+Shift+Tab to the previous one, wrapping around at either end. It works wherever the focus is, including the profile filter box, so you no longer need the mouse or Ctrl+PageDown/PageUp to change tabs
