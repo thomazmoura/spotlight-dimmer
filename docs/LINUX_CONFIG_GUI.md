@@ -51,9 +51,15 @@ cursor starts in it every time the window opens:
 2. Type a few letters of the profile name. Matching is fuzzy and
    case-insensitive — `umb` finds **Umbra**, `dm` finds **Dark Mode** — and
    the best match is highlighted. Up/Down move the highlight.
-3. **Enter** applies the highlighted profile and keeps the window open;
+3. Whatever is highlighted is **previewed**: the screen switches to that
+   profile straight away, so you can compare profiles before choosing one.
+   The status line reads `Previewing: <name>`.
+4. **Enter** applies the highlighted profile and keeps the window open;
    **Ctrl+Enter** applies it and closes the window. Clicking a row applies it
-   too. Escape clears the filter.
+   too. **Escape** clears the filter and restores the previous settings, as
+   does emptying the filter, moving focus out of the Profile section or
+   closing the window. Switching to another app keeps the preview, so you can
+   look at the result.
 
 Applying a profile copies its values into `Overlay` and records its name in
 `CurrentProfile`; the daemon hot-reloads as usual. The dimming on/off state
@@ -61,8 +67,12 @@ Applying a profile copies its values into `Overlay` and records its name in
 slider or colour is changed, the status line reads `Current: <name>
 (modified)` until the profile is saved again or another one is applied.
 
+A preview writes the profile's values to `Overlay` (so the daemon shows them)
+but leaves `CurrentProfile` alone. Cancelling restores the file exactly.
+
 - **Save as “name”** stores the current settings under the typed name, adding
-  a new profile.
+  a new profile. If the typed name previews another profile, the preview is
+  cancelled first, so it is your actual settings that are saved.
 - **Update “name”** appears when the typed name is an existing profile, or
   when nothing is typed and a profile is current: it overwrites that profile
   with the current settings. Keys in the entry that this window does not know

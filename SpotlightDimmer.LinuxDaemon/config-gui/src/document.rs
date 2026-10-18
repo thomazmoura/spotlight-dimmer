@@ -89,6 +89,14 @@ impl ProfileView {
     }
 }
 
+/// The overlay a profile preview replaced, captured on the first preview so
+/// cancelling restores the file exactly (`None`: the key was absent).
+struct PreviewSnapshot {
+    /// The profile currently shown.
+    name: String,
+    overlay: Vec<(&'static str, Option<Value>)>,
+}
+
 /// Why the document refuses to be written.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadProblem {
@@ -112,6 +120,7 @@ struct Inner {
     on_problem: RefCell<Vec<Box<dyn Fn()>>>,
     on_edit: RefCell<Vec<Box<dyn Fn()>>>,
     monitor: RefCell<Option<gio::FileMonitor>>,
+    preview: RefCell<Option<PreviewSnapshot>>,
 }
 
 /// Shared handle to the config document. Cheap to clone into signal handlers.
@@ -159,6 +168,7 @@ impl Document {
             on_problem: RefCell::new(Vec::new()),
             on_edit: RefCell::new(Vec::new()),
             monitor: RefCell::new(None),
+            preview: RefCell::new(None),
         }))
     }
 
@@ -318,6 +328,8 @@ impl Document {
         let Some(profile) = self.profiles().into_iter().find(|p| p.name == name) else {
             return false;
         };
+        // Applying is what commits a preview: drop the snapshot, keep the values.
+        self.0.preview.borrow_mut().take();
         for (key, value) in profile.fields() {
             self.set_overlay(key, value);
         }
@@ -328,9 +340,72 @@ impl Document {
         true
     }
 
+    /// Show the named profile on screen without committing it: its values go
+    /// into `Overlay` (debounced, so holding Up/Down does not outrun the
+    /// daemon's read debounce) but `CurrentProfile` is left alone. The first
+    /// preview remembers the overlay it replaced for `cancel_preview`.
+    /// Returns false when nothing changed (unknown name, or already shown).
+    pub fn preview_profile(&self, name: &str) -> bool {
+        let Some(profile) = self.profiles().into_iter().find(|p| p.name == name) else {
+            return false;
+        };
+        {
+            let mut preview = self.0.preview.borrow_mut();
+            match preview.as_mut() {
+                Some(snapshot) if snapshot.name == name => return false,
+                Some(snapshot) => snapshot.name = name.to_string(),
+                None => {
+                    let root = self.0.root.borrow();
+                    let overlay = profile
+                        .fields()
+                        .map(|(key, _)| {
+                            (key, root.get("Overlay").and_then(|o| o.get(key)).cloned())
+                        })
+                        .to_vec();
+                    *preview = Some(PreviewSnapshot {
+                        name: name.to_string(),
+                        overlay,
+                    });
+                }
+            }
+        }
+        for (key, value) in profile.fields() {
+            self.set_overlay(key, value);
+        }
+        self.schedule_save();
+        true
+    }
+
+    /// The profile being previewed, if any.
+    pub fn previewing(&self) -> Option<String> {
+        self.0.preview.borrow().as_ref().map(|s| s.name.clone())
+    }
+
+    /// Put back the overlay a preview replaced. Written straight through, like
+    /// `apply_profile`, because closing the window cancels too. Returns false
+    /// when no preview was active.
+    pub fn cancel_preview(&self) -> bool {
+        let Some(snapshot) = self.0.preview.borrow_mut().take() else {
+            return false;
+        };
+        for (key, value) in snapshot.overlay {
+            match value {
+                Some(value) => self.set_overlay(key, value),
+                None => self.remove_overlay(key),
+            }
+        }
+        // Drop the preview write still waiting in the debounce.
+        self.0.save_epoch.set(self.0.save_epoch.get() + 1);
+        self.save_now();
+        true
+    }
+
     /// Store the current overlay under `name`: an existing entry is updated
-    /// in place (its other keys kept), otherwise a new one is appended.
+    /// in place (its other keys kept), otherwise a new one is appended. A
+    /// preview is cancelled first: "the current settings" are the committed
+    /// ones, not whichever profile the typed name happens to fuzzy-match.
     pub fn save_profile(&self, name: &str) {
+        self.cancel_preview();
         let overlay = self.config().overlay;
         let raw_mode = self.overlay_raw_string("Mode");
         let profile = ProfileView {
@@ -372,6 +447,8 @@ impl Document {
     /// Remove every entry named `name`; clears `CurrentProfile` if it
     /// pointed there.
     pub fn delete_profile(&self, name: &str) {
+        // The previewed profile may be the one going away.
+        self.cancel_preview();
         {
             let mut root = self.0.root.borrow_mut();
             profiles_array(&mut root).retain(|e| string_field(e, "Name").as_deref() != Some(name));
@@ -407,6 +484,18 @@ impl Document {
     /// profile applied from one section must refresh all the others).
     pub fn notify_changed(&self) {
         self.notify_reload();
+    }
+
+    fn remove_overlay(&self, key: &str) {
+        if let Some(overlay) = self
+            .0
+            .root
+            .borrow_mut()
+            .get_mut("Overlay")
+            .and_then(Value::as_object_mut)
+        {
+            overlay.remove(key);
+        }
     }
 
     fn set_root(&self, key: &str, value: Value) {
@@ -633,6 +722,9 @@ impl Document {
         // Adopt what is on disk and drop any write still pending, so an
         // external edit is never clobbered by an in-flight debounce.
         self.0.save_epoch.set(self.0.save_epoch.get() + 1);
+        // The disk wins over a preview too: restoring the snapshot later
+        // would overwrite the external edit.
+        self.0.preview.borrow_mut().take();
         *self.0.root.borrow_mut() = root;
         self.0.write_blocked.set(problem.is_some());
         *self.0.problem.borrow_mut() = problem;
@@ -1038,6 +1130,60 @@ mod tests {
         assert_eq!(written["Profiles"].as_array().unwrap().len(), 1);
         // The overlay keeps the deleted profile's values.
         assert_eq!(written["Overlay"]["InactiveOpacity"], json!(230));
+    }
+
+    #[test]
+    fn cancelling_a_preview_restores_the_file_exactly() {
+        let temp = TempConfig::new("preview-cancel", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+        let before = temp.read();
+
+        assert!(document.preview_profile("Umbra"));
+        assert!(!document.preview_profile("Umbra"), "re-previewing is a no-op");
+        assert!(document.preview_profile("Sparse"));
+        assert_eq!(document.previewing().as_deref(), Some("Sparse"));
+
+        // Shown on screen, but not made current.
+        let previewed = temp.read();
+        assert_eq!(previewed["Overlay"]["InactiveOpacity"], json!(50));
+        assert_eq!(previewed["CurrentProfile"], Value::Null);
+
+        assert!(document.cancel_preview());
+        assert!(!document.cancel_preview());
+        assert_eq!(document.previewing(), None);
+        // Keys the file never had (ActiveOpacity...) are removed again, not
+        // written out as the profile's or the parser's defaults.
+        assert_eq!(temp.read(), before);
+    }
+
+    #[test]
+    fn applying_commits_a_preview() {
+        let temp = TempConfig::new("preview-apply", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        document.preview_profile("Umbra");
+        assert!(document.apply_profile("Umbra"));
+        assert_eq!(document.previewing(), None);
+        assert!(!document.cancel_preview());
+        assert_eq!(temp.read()["CurrentProfile"], json!("Umbra"));
+        assert_eq!(temp.read()["Overlay"]["InactiveOpacity"], json!(230));
+    }
+
+    #[test]
+    fn saving_during_a_preview_stores_the_committed_settings() {
+        let temp = TempConfig::new("preview-save", Some(PROFILES_CONFIG));
+        let document = Document::load_from(temp.path());
+
+        // Typing "Umbra 2" fuzzy-matches (and so previews) Umbra.
+        document.preview_profile("Umbra");
+        document.save_profile("Umbra 2");
+        document.flush();
+
+        let written = temp.read();
+        assert_eq!(written["Profiles"][3]["Name"], json!("Umbra 2"));
+        assert_eq!(written["Profiles"][3]["InactiveOpacity"], json!(10));
+        assert_eq!(written["Overlay"]["InactiveOpacity"], json!(10));
+        assert_eq!(document.previewing(), None);
     }
 
     #[test]

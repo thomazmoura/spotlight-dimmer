@@ -151,6 +151,16 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
         banner_button.connect_clicked(move |_| document.confirm_overwrite());
     }
 
+    {
+        // Closing mid-preview must not leave the previewed profile in place.
+        // The restore is written straight through, before the app exits.
+        let profiles = profiles.clone();
+        window.connect_close_request(move |_| {
+            profiles.cancel_preview();
+            glib::Propagation::Proceed
+        });
+    }
+
     document.start_watching();
 
     connect_daemon(&window, &document, &dimming_switch, &daemon_status);

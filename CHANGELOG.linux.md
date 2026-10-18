@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Live profile preview in the settings window**: While you move through the profile list with Up/Down or type to filter it, the screen switches to each highlighted profile straight away, so you can compare profiles before choosing one. A profile is only kept when you press Enter (or Ctrl+Enter) or click it. Escape, clearing the filter, moving focus out of the Profile section or closing the window restores your previous settings. Switching to another app keeps the preview so you can look at the result. **Save** still stores your actual settings, even when the name you typed matches and previews another profile
+
 ### Fixed
 - **Settings window highlighted the first profile instead of the active one**: When the settings window opened, the profile list always highlighted the first profile, even when another one was in use. Pressing Enter then switched to that first profile, and Delete targeted it. The active profile is now highlighted when the window opens, after you clear the filter with Escape, and after you apply, save or delete a profile, so Enter and Delete act on it. While you type a filter, the best match is still highlighted
 
 ---
+
+### Adicionado
+- **Pré-visualização de perfis em tempo real na janela de configurações**: Enquanto você percorre a lista de perfis com as setas para cima/baixo ou digita para filtrá-la, a tela passa a mostrar cada perfil destacado na hora, então dá para comparar os perfis antes de escolher um. O perfil só é mantido quando você pressiona Enter (ou Ctrl+Enter) ou clica nele. Esc, limpar o filtro, tirar o foco da seção Perfil ou fechar a janela restaura as configurações anteriores. Alternar para outro aplicativo mantém a pré-visualização, para você ver o resultado. O **Salvar** continua guardando as suas configurações reais, mesmo quando o nome digitado corresponde a outro perfil e o pré-visualiza
 
 ### Corrigido
 - **A janela de configurações destacava o primeiro perfil em vez do ativo**: Ao abrir a janela de configurações, a lista de perfis sempre destacava o primeiro perfil, mesmo quando outro estava em uso. Pressionar Enter então trocava para esse primeiro perfil, e o botão Excluir agia sobre ele. Agora o perfil ativo fica destacado ao abrir a janela, depois de limpar o filtro com Esc e depois de aplicar, salvar ou excluir um perfil, então Enter e Excluir agem sobre ele. Enquanto você digita um filtro, a melhor correspondência continua destacada

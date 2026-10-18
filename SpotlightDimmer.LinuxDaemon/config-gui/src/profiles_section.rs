@@ -6,6 +6,11 @@
 //! profile and Ctrl+Enter applies it and closes the window. The list is
 //! inline rather than a popover so typing never fights a Wayland popup grab.
 //!
+//! Moving the highlight (typing or Up/Down) previews that profile on screen
+//! straight away. Only Enter or a click commits it; Escape, clearing the
+//! filter, focus leaving this section or closing the window puts the
+//! previous settings back.
+//!
 //! Profiles use the Windows client's `Profiles` / `CurrentProfile` keys, so
 //! one config.json switches the same presets on both platforms.
 
@@ -28,6 +33,7 @@ pub struct ProfilesSection {
 /// below own those handlers, so a strong reference would be a cycle.
 struct State {
     document: Document,
+    frame: gtk::Frame,
     entry: gtk::SearchEntry,
     list: gtk::ListBox,
     scroller: gtk::ScrolledWindow,
@@ -75,12 +81,14 @@ impl ProfilesSection {
         content.append(&scroller);
         content.append(&buttons);
         content.append(&hint(
-            "Enter applies the highlighted profile, Ctrl+Enter applies it and closes the \
-             window. Save stores the current settings under the typed name.",
+            "The highlighted profile is previewed on screen. Enter applies it, Ctrl+Enter \
+             applies it and closes the window, Escape restores the previous settings. Save \
+             stores the current settings under the typed name.",
         ));
 
         let state = Rc::new(State {
             document: document.clone(),
+            frame: frame.clone(),
             entry,
             list,
             scroller,
@@ -105,8 +113,19 @@ impl ProfilesSection {
     }
 
     /// Rebuild from the document (external edit, or a profile applied).
+    /// Skipped while previewing: the preview's own change notification would
+    /// otherwise re-rank the list and yank the highlight back to the top.
     pub fn reload(&self) {
-        self.state.refresh();
+        if self.state.document.previewing().is_some() {
+            self.state.update_status();
+        } else {
+            self.state.refresh();
+        }
+    }
+
+    /// Restore the settings a preview replaced, if one is showing.
+    pub fn cancel_preview(&self) {
+        self.state.cancel_preview();
     }
 
     /// Refresh only the "(modified)" status; cheap enough for every edit.
@@ -118,14 +137,27 @@ impl ProfilesSection {
 fn connect(state: &Rc<State>) {
     let weak = Rc::downgrade(state);
     state.entry.connect_changed(move |_| {
-        with(&weak, |s| s.refresh());
+        with(&weak, |s| {
+            s.refresh();
+            // An emptied filter is not choosing anything; a typed one has
+            // just highlighted its best match.
+            if s.typed().is_empty() {
+                s.cancel_preview();
+            } else {
+                s.preview_selected();
+            }
+        });
     });
 
     let weak = Rc::downgrade(state);
     state.entry.connect_stop_search(move |entry| {
-        // Escape: clear the filter; a second Escape has nothing to clear.
+        // Escape: clear the filter and drop the preview; a second Escape has
+        // nothing to clear.
         entry.set_text("");
-        with(&weak, |s| s.refresh());
+        with(&weak, |s| {
+            s.cancel_preview();
+            s.refresh();
+        });
     });
 
     // Capture phase so these keys are handled before the entry's own
@@ -158,6 +190,36 @@ fn connect(state: &Rc<State>) {
     let weak = Rc::downgrade(state);
     state.list.connect_selected_rows_changed(move |_| {
         with(&weak, |s| s.update_buttons());
+    });
+
+    // Focus leaving the section (to another tab's control, say) ends the
+    // preview. Deferred so the new focus widget is known, and ignored while
+    // the window is inactive: switching to another app to look at the result
+    // is exactly what a preview is for.
+    let focus = gtk::EventControllerFocus::new();
+    let weak = Rc::downgrade(state);
+    focus.connect_leave(move |_| {
+        let weak = weak.clone();
+        glib::idle_add_local_once(move || {
+            with(&weak, |s| {
+                let Some(window) = s.window() else {
+                    return;
+                };
+                let inside = gtk::prelude::GtkWindowExt::focus(&window)
+                    .is_some_and(|w| w.is_ancestor(&s.frame) || w == s.frame);
+                if window.is_active() && !inside {
+                    s.cancel_preview();
+                }
+            });
+        });
+    });
+    state.frame.add_controller(focus);
+
+    // Switching notebook pages hides the section without moving focus out
+    // of it in every case.
+    let weak = Rc::downgrade(state);
+    state.frame.connect_unmap(move |_| {
+        with(&weak, |s| s.cancel_preview());
     });
 
     let weak = Rc::downgrade(state);
@@ -227,6 +289,11 @@ impl State {
     }
 
     fn update_status(&self) {
+        if let Some(name) = self.document.previewing() {
+            self.status
+                .set_text(&format!("Previewing: {name} · Enter applies, Escape restores"));
+            return;
+        }
         let text = match self.document.current_profile() {
             Some(name) if self.document.overlay_matches_profile(&name) => {
                 format!("Current: {name}")
@@ -277,6 +344,27 @@ impl State {
         if let Some(row) = self.list.row_at_index(next) {
             self.list.select_row(Some(&row));
             self.scroll_to(&row);
+        }
+        self.preview_selected();
+    }
+
+    /// Show the highlighted profile on screen without committing it; with
+    /// nothing highlighted (no match) the previous settings come back.
+    fn preview_selected(&self) {
+        let changed = match self.selected_name() {
+            Some(name) => self.document.preview_profile(&name),
+            None => self.document.cancel_preview(),
+        };
+        if changed {
+            // Refreshes the other controls and the mock preview; this
+            // section's own reload is held off while previewing.
+            self.document.notify_changed();
+        }
+    }
+
+    fn cancel_preview(&self) {
+        if self.document.cancel_preview() {
+            self.document.notify_changed();
         }
     }
 
