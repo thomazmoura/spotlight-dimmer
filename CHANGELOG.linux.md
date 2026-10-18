@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Ctrl+L jumps to the profile picker**: Pressing Ctrl+L anywhere in the settings window switches to the Mode tab and puts the cursor in the profile filter box, so you can type a profile name straight away without reaching for the mouse
+- **Ctrl+Tab switches tabs in the settings window**: Ctrl+Tab moves to the next tab and Ctrl+Shift+Tab to the previous one, wrapping around at either end. It works wherever the focus is, including the profile filter box, so you no longer need the mouse or Ctrl+PageDown/PageUp to change tabs
 - **Live profile preview in the settings window**: While you move through the profile list with Up/Down or type to filter it, the screen switches to each highlighted profile straight away, so you can compare profiles before choosing one. A profile is only kept when you press Enter (or Ctrl+Enter) or click it. Escape, clearing the filter, moving focus out of the Profile section or closing the window restores your previous settings. Switching to another app keeps the preview so you can look at the result. **Save** still stores your actual settings, even when the name you typed matches and previews another profile
 
 ### Fixed
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ### Adicionado
+- **Ctrl+L leva ao seletor de perfis**: Pressionar Ctrl+L em qualquer lugar da janela de configurações abre a aba Modo e coloca o cursor na caixa de filtro de perfis, para você digitar o nome de um perfil na hora, sem precisar do mouse
+- **Ctrl+Tab troca de aba na janela de configurações**: Ctrl+Tab vai para a próxima aba e Ctrl+Shift+Tab para a anterior, voltando ao início ao passar da última. Funciona onde quer que esteja o foco, inclusive na caixa de filtro de perfis, então não é mais preciso usar o mouse ou Ctrl+PageDown/PageUp para trocar de aba
 - **Pré-visualização de perfis em tempo real na janela de configurações**: Enquanto você percorre a lista de perfis com as setas para cima/baixo ou digita para filtrá-la, a tela passa a mostrar cada perfil destacado na hora, então dá para comparar os perfis antes de escolher um. O perfil só é mantido quando você pressiona Enter (ou Ctrl+Enter) ou clica nele. Esc, limpar o filtro, tirar o foco da seção Perfil ou fechar a janela restaura as configurações anteriores. Alternar para outro aplicativo mantém a pré-visualização, para você ver o resultado. O **Salvar** continua guardando as suas configurações reais, mesmo quando o nome digitado corresponde a outro perfil e o pré-visualiza
 
 ### Corrigido

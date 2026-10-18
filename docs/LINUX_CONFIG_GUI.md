@@ -32,6 +32,10 @@ The two sections the Linux daemon consumes, plus the saved profiles:
 | Active | `Overlay` | `ActiveColor`, `ActiveOpacity` |
 | Integrations | `AppIntegrations[]` | Built-in WezTerm/Ghostty entries only (on/off, `ContentOffsetX`, `ContentOffsetY`) |
 
+**Ctrl+Tab** moves to the next tab and **Ctrl+Shift+Tab** to the previous one,
+wrapping around at either end, wherever the keyboard focus is. **Ctrl+L**
+jumps to the Mode tab and puts the cursor in the profile filter box.
+
 **Every other key in the file is preserved byte-for-byte.** `System`,
 `ConfigVersion`, `$schema` and `Overlay.ExcludeFromScreenCapture` are
 Windows-side settings that the Linux daemon ignores; the window does not show

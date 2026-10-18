@@ -68,6 +68,42 @@ pub fn build(app: &gtk::Application) -> gtk::ApplicationWindow {
         window.add_action(&action);
     }
 
+    {
+        // GtkNotebook only binds Ctrl+Tab while its own tab strip has focus,
+        // and focused entries claim it otherwise, so cycle tabs from the
+        // window in the capture phase. Wraps around like a browser.
+        // Ctrl+L jumps to the profile entry from anywhere, like a browser's
+        // address bar.
+        let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let notebook = notebook.clone();
+        let weak_window = window.downgrade();
+        keys.connect_key_pressed(move |_, key, _, modifiers| {
+            use gtk::gdk::{Key, ModifierType};
+            if !modifiers.contains(ModifierType::CONTROL_MASK) {
+                return glib::Propagation::Proceed;
+            }
+            if matches!(key, Key::l | Key::L) {
+                if let Some(window) = weak_window.upgrade() {
+                    WidgetExt::activate_action(&window, FOCUS_PROFILES_ACTION, None).ok();
+                }
+                return glib::Propagation::Stop;
+            }
+            // Shift+Tab arrives as ISO_Left_Tab on most keymaps.
+            let step = match key {
+                Key::ISO_Left_Tab => -1,
+                Key::Tab | Key::KP_Tab if modifiers.contains(ModifierType::SHIFT_MASK) => -1,
+                Key::Tab | Key::KP_Tab => 1,
+                _ => return glib::Propagation::Proceed,
+            };
+            let pages = notebook.n_pages() as i32;
+            let current = notebook.current_page().map_or(0, |p| p as i32);
+            notebook.set_current_page(Some((current + step).rem_euclid(pages) as u32));
+            glib::Propagation::Stop
+        });
+        window.add_controller(keys);
+    }
+
     // --- footer --------------------------------------------------------------
     let daemon_status = gtk::Label::builder()
         .label("checking for the daemon…")
